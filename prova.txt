@@ -1,1 +1,176 @@
-xs
+FOTOS PROPIAS DE BIDVERSE
+
+Guarda aquí las imágenes con el nombre EXACTO del personaje (jpg, png o webp), por ejemplo:
+  Goku.jpg   Majin Buu.png   Sung Jin-Woo.webp
+Si existe el archivo, el juego lo usa antes que cualquier otra foto. Recarga la página para verlas.
+
+Nombres esperados (127):
+
+[Black Clover]
+  Asta
+  Lucius
+  Noelle
+  Yami
+  Yuno
+
+[Bleach]
+  Aizen
+  Byakuya
+  Ichigo
+  Kenpachi
+  Renji
+  Rukia
+
+[Chainsaw Man]
+  Aki
+  Denji
+  Makima
+  Power
+
+[Cowboy Bebop]
+  Spike
+
+[Dragon Ball]
+  Beerus
+  Broly
+  Cell
+  Champa
+  Freezer
+  Goku
+  Gran Sacerdote
+  Krillin
+  Majin Buu
+  Piccolo
+  Vados
+  Vegeta
+  Whis
+  Yamcha
+  Zeno
+
+[Evangelion]
+  Shinji
+
+[Fairy Tail]
+  Erza
+  Gildarts
+  Gray
+  Lucy
+  Natsu
+
+[Fullmetal Alchemist]
+  Alphonse
+  Edward Elric
+  Roy Mustang
+
+[Gintama]
+  Gintoki
+
+[Hunter x Hunter]
+  Gon
+  Hisoka
+  Killua
+  Kurapika
+  Leorio
+  Meruem
+  Netero
+
+[Jujutsu Kaisen]
+  Choso
+  Geto
+  Gojo
+  Jogo
+  Mahito
+  Mahoraga
+  Maki
+  Megumi
+  Nanami
+  Nobara
+  Sukuna
+  Todo
+  Toji
+  Yuji
+  Yuta
+
+[Kimetsu no Yaiba]
+  Akaza
+  Giyu
+  Inosuke
+  Muzan
+  Nezuko
+  Rengoku
+  Tanjiro
+  Zenitsu
+
+[Mob Psycho 100]
+  Mob
+  Reigen
+
+[My Hero Academia]
+  All Might
+  Bakugo
+  Deku
+  Shigaraki
+  Todoroki
+  Uraraka
+
+[Naruto]
+  Gaara
+  Hashirama
+  Itachi
+  Jiraiya
+  Kaguya
+  Kakashi
+  Kisame
+  Madara
+  Might Guy
+  Minato
+  Naruto
+  Neji
+  Obito
+  Orochimaru
+  Pain
+  Rock Lee
+  Sakura
+  Sasuke
+  Tsunade
+
+[One Piece]
+  Ace
+  Barbablanca
+  Kaido
+  Law
+  Luffy
+  Mihawk
+  Nami
+  Sanji
+  Shanks
+  Usopp
+  Zoro
+
+[One Punch Man]
+  Boros
+  Garou
+  Genos
+  Mumen Rider
+  Saitama
+  Tatsumaki
+
+[Shingeki no Kyojin]
+  Armin
+  Eren
+  Levi
+  Mikasa
+  Reiner
+
+[Solo Leveling]
+  Sung Jin-Woo
+
+[Spy x Family]
+  Anya
+  Loid
+  Yor
+
+[Yu Yu Hakusho]
+  Hiei
+  Kurama
+  Yusuke
