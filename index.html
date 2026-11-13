@@ -2,23 +2,25 @@
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>BidVerse</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,900;1,9..144,500;1,9..144,900&family=Bungee&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Big+Shoulders+Display:wght@800;900&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head><body>
+<div id="gbg" class="fx" aria-hidden="true"></div>
 <div class="tick"><div id="mq"></div></div>
 <div class="wrap">
 <div class="lang"><button data-l="es" onclick="setLang('es')">ES</button><button data-l="en" onclick="setLang('en')">EN</button></div>
 <div class="brand">
-<svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect class="lg-bg" x="2" y="2" width="60" height="60" rx="14"/><g transform="rotate(-35 32 30)"><rect class="lg-h" x="12" y="12" width="36" height="17" rx="5"/><rect class="lg-s" x="27" y="27" width="6" height="26" rx="3"/></g><rect class="lg-b" x="14" y="52" width="36" height="6" rx="3"/><path class="lg-star" d="M50 8l2.2 5.8L58 16l-5.8 2.2L50 24l-2.2-5.8L42 16l5.8-2.2z"/></svg>
+<svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect class="lg-bg" x="2" y="2" width="60" height="60" rx="6"/><g transform="rotate(-35 32 30)"><rect class="lg-s" x="29" y="27" width="6" height="25" rx="2"/><rect class="lg-h" x="12" y="10" width="36" height="18" rx="2"/><rect class="lg-bd" x="12" y="10" width="7" height="18"/><rect class="lg-bd" x="41" y="10" width="7" height="18"/></g><rect class="lg-blk" x="12" y="52" width="40" height="7" rx="2"/></svg>
 <h1><span class="b1">Bid</span><span class="b2">Verse</span></h1>
 </div>
 <p class="sub"><span data-i="sub1">Cada jugador tiene 20$</span><span data-i="sub2">3 personajes por jugador</span><button class="scale-btn" onclick="openScale()" data-i="scaleBtn">Consultar escala de poder</button></p>
 
 <div id="menu"><ul class="cats">
-<li><button class="cat" onclick="start('anime')"><span class="no">01</span><span class="tt" data-i="cat1">Anime</span><span class="ds" data-i="cat1d">Goku, Naruto, Luffy…</span><span class="ar">→</span></button></li>
-<li><button class="cat" disabled><span class="no">02</span><span class="tt">UFC</span><span class="ds" data-i="soon">Próximamente</span><span class="ar">·</span></button></li>
-<li><button class="cat" disabled><span class="no">03</span><span class="tt" data-i="football">Fútbol</span><span class="ds" data-i="soon">Próximamente</span><span class="ar">·</span></button></li>
+<li><button class="cat k-a" onclick="start('anime')"><div class="fx fx-anime"><i></i><b></b></div><div class="peek"><small data-i="peekLbl">Próximo lote</small><div class="pc" id="pc-anime"></div></div><span class="tt" data-i="cat1">anime</span><span class="ds" data-i="cat1d"></span><span class="chip" id="ch-anime"></span></button></li>
+<li><button class="cat k-u" onclick="start('ufc')"><div class="fx fx-ufc"><i></i><b></b></div><div class="peek"><small data-i="peekLbl">Próximo lote</small><div class="pc" id="pc-ufc"></div></div><span class="tt" data-i="cat2">ufc</span><span class="ds" data-i="cat2d"></span><span class="chip" id="ch-ufc"></span></button></li>
+<li><button class="cat k-s" disabled><div class="fx fx-foot"><i></i><b></b></div><div class="peek"><small data-i="soon">Próximamente</small></div><span class="tt" data-i="cat3">Fútbol</span><span class="ds" data-i="soon">Próximamente</span></button></li>
 </ul></div>
+
 
 <div class="game" id="game">
 <button class="back" onclick="toMenu()" data-i="back">← Menú</button>
@@ -39,7 +41,12 @@
 <div class="end" id="end"></div>
 </div>
 </div>
-<div class="modal" id="scale" onclick="if(event.target===this)closeScale()"><div class="mbox"><div class="mh"><h3 data-i="scaleTitle">Escala de poder</h3><button onclick="closeScale()">✕</button></div><p class="mnote" data-i="scaleNote">Escala de 0 a 1000 basada en lo que cada personaje demuestra en el canon (manga/anime), no en opiniones de fans: sobre todo su capacidad de destrucción, ajustada por velocidad, resistencia, habilidades y técnica. Cada 250 puntos equivalen a 10 veces más poder. Las fotos se descargan de MyAnimeList la primera vez (pueden tardar unos minutos).</p><div id="scl"></div></div></div>
+<div class="modal" id="scale" onclick="if(event.target===this)closeScale()"><div class="mbox"><div class="mh"><h3 data-i="scaleTitle">Escala de poder</h3><button onclick="closeScale()">✕</button></div><div class="tabs"><button data-k="anime" data-i="tabAnime" onclick="scaleTab('anime')">Anime</button><button data-k="ufc" data-i="tabUfc" onclick="scaleTab('ufc')">UFC</button></div><p class="mnote" id="scn">Escala de 0 a 1000 basada en lo que cada personaje demuestra en el canon (manga/anime), no en opiniones de fans: sobre todo su capacidad de destrucción, ajustada por velocidad, resistencia, habilidades y técnica. Cada 250 puntos equivalen a 10 veces más poder. Las fotos se descargan de MyAnimeList la primera vez (pueden tardar unos minutos).</p><div id="scl"></div></div></div>
 <div class="wipe" id="wipe"><span data-i="fightWipe">¡Combate!</span></div>
+<script src="data-anime.js"></script>
+<script src="data-ufc.js"></script>
+<script src="lang/en.js"></script>
+<script src="lang/es.js"></script>
+<script>if(!window.LANGS||!LANGS.en)document.body.innerHTML='<p style="padding:24px;font:16px sans-serif">Faltan lang/en.js y lang/es.js: ponlos en una carpeta llamada <b>lang</b> junto a index.html.</p>'</script>
 <script src="game.js"></script>
 </body></html>

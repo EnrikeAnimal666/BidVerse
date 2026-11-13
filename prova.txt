@@ -1,10 +1,10 @@
 FOTOS PROPIAS DE BIDVERSE
 
-Guarda aquí las imágenes con el nombre EXACTO del personaje (jpg, png o webp), por ejemplo:
+Guarda aquí las imágenes en una carpeta llamada pics/ con el nombre EXACTO del personaje (jpg, png o webp), por ejemplo:
   Goku.jpg   Majin Buu.png   Sung Jin-Woo.webp
-Si existe el archivo, el juego lo usa antes que cualquier otra foto. Recarga la página para verlas.
+Si existe el archivo, el juego lo usa antes que cualquier otra foto (se cargan todas al abrir la página). Recarga la página para verlas.
 
-Nombres esperados (127):
+Nombres esperados (120):
 
 [Black Clover]
   Asta
@@ -19,16 +19,9 @@ Nombres esperados (127):
   Ichigo
   Kenpachi
   Renji
-  Rukia
 
 [Chainsaw Man]
-  Aki
   Denji
-  Makima
-  Power
-
-[Cowboy Bebop]
-  Spike
 
 [Dragon Ball]
   Beerus
@@ -38,41 +31,49 @@ Nombres esperados (127):
   Freezer
   Goku
   Gran Sacerdote
-  Krillin
   Majin Buu
   Piccolo
   Vados
   Vegeta
   Whis
-  Yamcha
   Zeno
 
-[Evangelion]
-  Shinji
-
-[Fairy Tail]
-  Erza
-  Gildarts
-  Gray
-  Lucy
-  Natsu
-
 [Fullmetal Alchemist]
-  Alphonse
-  Edward Elric
+  King Bradley
+  La Verdad
+  Padre
+  Pride
   Roy Mustang
+  Van Hohenheim
 
 [Gintama]
   Gintoki
 
 [Hunter x Hunter]
+  Chrollo Lucilfer
+  Feitan
+  Don Freecss
+  Ging Freecss
   Gon
   Hisoka
   Killua
   Kurapika
-  Leorio
   Meruem
   Netero
+  Phinks
+  Uvogin
+
+[JoJo's Bizarre Adventure]
+  Diavolo
+  Dio Brando
+  Enrico Pucci
+  Giorno Giovanna
+  Jolyne Cujoh
+  Joseph Joestar
+  Josuke Higashikata
+  Jotaro Kujo
+  Kars
+  Yoshikage Kira
 
 [Jujutsu Kaisen]
   Choso
@@ -84,7 +85,6 @@ Nombres esperados (127):
   Maki
   Megumi
   Nanami
-  Nobara
   Sukuna
   Todo
   Toji
@@ -105,14 +105,6 @@ Nombres esperados (127):
   Mob
   Reigen
 
-[My Hero Academia]
-  All Might
-  Bakugo
-  Deku
-  Shigaraki
-  Todoroki
-  Uraraka
-
 [Naruto]
   Gaara
   Hashirama
@@ -122,15 +114,11 @@ Nombres esperados (127):
   Kakashi
   Kisame
   Madara
-  Might Guy
   Minato
   Naruto
-  Neji
   Obito
   Orochimaru
   Pain
-  Rock Lee
-  Sakura
   Sasuke
   Tsunade
 
@@ -144,7 +132,6 @@ Nombres esperados (127):
   Nami
   Sanji
   Shanks
-  Usopp
   Zoro
 
 [One Punch Man]
