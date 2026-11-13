@@ -1,0 +1,48 @@
+// BidVerse · UFC roster. Rating 0-1000 = peak level within the weight class (titles, defenses, quality of opposition,
+// finishing ability), NOT hype. Cross-era on purpose: legends and current fighters share the same scale.
+// Style: S striker · G grappler · W wrestler · B all-rounder.  Row: [name, flag, class, rating, style, nickname]
+// Photos come from Wikipedia automatically; or put fotos/<name>.jpg next to index.html.
+const UFC_DIVS=[{k:"FLW",lb:125},{k:"BW",lb:135},{k:"FW",lb:145},{k:"LW",lb:155},{k:"WW",lb:170},{k:"MW",lb:185},{k:"LHW",lb:205},{k:"HW",lb:265}];
+const UF=[
+["Demetrious Johnson","🇺🇸","FLW",930,"B","Mighty Mouse"],["Henry Cejudo","🇺🇸","FLW",880,"W","Triple C"],["Alexandre Pantoja","🇧🇷","FLW",870,"G","The Cannibal"],
+["Brandon Moreno","🇲🇽","FLW",850,"B","The Assassin Baby"],["Deiveson Figueiredo","🇧🇷","FLW",840,"G","Deus da Guerra"],["Joseph Benavidez","🇺🇸","FLW",810,"B","Joe Jitsu"],
+["Joshua Van","🇲🇲","FLW",800,"S","The Fearless"],["Brandon Royval","🇺🇸","FLW",780,"G","Raw Dawg"],["Amir Albazi","🇮🇶","FLW",760,"B","The Prince"],
+["Muhammad Mokaev","🇬🇧","FLW",750,"W","The Punisher"],["Manel Kape","🇦🇴","FLW",740,"S","Starboy"],["Askar Askarov","🇷🇺","FLW",740,"W",""],
+["Kai Kara-France","🇳🇿","FLW",730,"S","Don't Blink"],["Jussier Formiga","🇧🇷","FLW",700,"G",""],
+["Merab Dvalishvili","🇬🇪","BW",890,"W","The Machine"],["Dominick Cruz","🇺🇸","BW",870,"B","The Dominator"],["Aljamain Sterling","🇺🇸","BW",850,"G","Funk Master"],
+["Petr Yan","🇷🇺","BW",850,"S","No Mercy"],["Sean O'Malley","🇺🇸","BW",850,"S","Suga"],["Umar Nurmagomedov","🇷🇺","BW",840,"G",""],
+["T.J. Dillashaw","🇺🇸","BW",840,"B","Killashaw"],["Cory Sandhagen","🇺🇸","BW",820,"S","The Sandman"],["Urijah Faber","🇺🇸","BW",790,"G","The California Kid"],
+["Cody Garbrandt","🇺🇸","BW",790,"S","No Love"],["Renan Barão","🇧🇷","BW",790,"B",""],["Marlon Vera","🇪🇨","BW",770,"S","Chito"],
+["Rob Font","🇺🇸","BW",750,"S",""],["Song Yadong","🇨🇳","BW",740,"S","The Kung Fu Monkey"],
+["José Aldo","🇧🇷","FW",900,"S","Scarface"],["Alexander Volkanovski","🇦🇺","FW",900,"B","The Great"],["Max Holloway","🇺🇸","FW",890,"S","Blessed"],
+["Frankie Edgar","🇺🇸","FW",830,"W","The Answer"],["Brian Ortega","🇺🇸","FW",810,"G","T-City"],["Chan Sung Jung","🇰🇷","FW",800,"B","The Korean Zombie"],
+["Movsar Evloev","🇷🇺","FW",800,"W",""],["Yair Rodríguez","🇲🇽","FW",790,"S","El Pantera"],["Chad Mendes","🇺🇸","FW",780,"W","Money"],
+["Diego Lopes","🇧🇷","FW",780,"B",""],["Arnold Allen","🇬🇧","FW",770,"B","Almighty"],["Josh Emmett","🇺🇸","FW",760,"S","The Ruthless"],
+["Khabib Nurmagomedov","🇷🇺","LW",950,"G","The Eagle"],["Ilia Topuria","🇪🇸","LW",920,"S","El Matador"],["Charles Oliveira","🇧🇷","LW",880,"G","do Bronx"],
+["Dustin Poirier","🇺🇸","LW",860,"S","The Diamond"],["Justin Gaethje","🇺🇸","LW",860,"S","The Highlight"],["Arman Tsarukyan","🇦🇲","LW",850,"W","Ahalkalakets"],
+["Conor McGregor","🇮🇪","LW",840,"S","The Notorious"],["B.J. Penn","🇺🇸","LW",830,"G","The Prodigy"],["Tony Ferguson","🇺🇸","LW",820,"G","El Cucuy"],
+["Benson Henderson","🇺🇸","LW",800,"B","Smooth"],["Rafael dos Anjos","🇧🇷","LW",800,"B","RDA"],["Nate Diaz","🇺🇸","LW",790,"G",""],
+["Eddie Alvarez","🇺🇸","LW",780,"B","The Underground King"],["Michael Chandler","🇺🇸","LW",770,"W","Iron"],["Paddy Pimblett","🇬🇧","LW",760,"G","The Baddy"],
+["Georges St-Pierre","🇨🇦","WW",950,"W","Rush"],["Islam Makhachev","🇷🇺","WW",930,"G",""],["Kamaru Usman","🇳🇬","WW",900,"W","The Nigerian Nightmare"],
+["Shavkat Rakhmonov","🇰🇿","WW",880,"G","Nomad"],["Leon Edwards","🇬🇧","WW",860,"B","Rocky"],["Matt Hughes","🇺🇸","WW",850,"W","Hacksaw"],
+["Tyron Woodley","🇺🇸","WW",840,"W","The Chosen One"],["Belal Muhammad","🇺🇸","WW",830,"W","Remember the Name"],["Jack Della Maddalena","🇦🇺","WW",830,"S","JDM"],
+["Colby Covington","🇺🇸","WW",820,"W","Chaos"],["Robbie Lawler","🇺🇸","WW",820,"S","Ruthless"],["Jorge Masvidal","🇺🇸","WW",800,"S","Gamebred"],
+["Nick Diaz","🇺🇸","WW",780,"G",""],["Royce Gracie","🇧🇷","WW",780,"G",""],["Ian Garry","🇮🇪","WW",780,"S","The Future"],["Stephen Thompson","🇺🇸","WW",770,"S","Wonderboy"],
+["Anderson Silva","🇧🇷","MW",930,"S","The Spider"],["Khamzat Chimaev","🇦🇪","MW",890,"G","Borz"],["Israel Adesanya","🇳🇿","MW",880,"S","The Last Stylebender"],
+["Dricus du Plessis","🇿🇦","MW",850,"B","Stillknocks"],["Robert Whittaker","🇦🇺","MW",840,"B","The Reaper"],["Chris Weidman","🇺🇸","MW",830,"W","All-American"],
+["Sean Strickland","🇺🇸","MW",820,"S","Tarzan"],["Luke Rockhold","🇺🇸","MW",810,"G",""],["Yoel Romero","🇨🇺","MW",810,"W","Soldier of God"],
+["Vitor Belfort","🇧🇷","MW",800,"S","The Phenom"],["Paulo Costa","🇧🇷","MW",790,"S","The Eraser"],["Jared Cannonier","🇺🇸","MW",780,"S","The Killa Gorilla"],
+["Michael Bisping","🇬🇧","MW",770,"S","The Count"],["Marvin Vettori","🇮🇹","MW",750,"W","The Italian Dream"],
+["Jon Jones","🇺🇸","LHW",960,"W","Bones"],["Alex Pereira","🇧🇷","LHW",890,"S","Poatan"],["Daniel Cormier","🇺🇸","LHW",880,"W","DC"],
+["Chuck Liddell","🇺🇸","LHW",860,"S","The Iceman"],["Jiří Procházka","🇨🇿","LHW",850,"S","BJP"],["Magomed Ankalaev","🇷🇺","LHW",850,"B",""],
+["Lyoto Machida","🇧🇷","LHW",830,"S","The Dragon"],["Alexander Gustafsson","🇸🇪","LHW",830,"S","The Mauler"],["Carlos Ulberg","🇳🇿","LHW",830,"S",""],
+["Jan Błachowicz","🇵🇱","LHW",820,"B","Polish Power"],["Glover Teixeira","🇧🇷","LHW",820,"G","Trator"],["Tito Ortiz","🇺🇸","LHW",810,"W","The Huntington Beach Bad Boy"],
+["Rampage Jackson","🇺🇸","LHW",810,"S","Rampage"],["Rashad Evans","🇺🇸","LHW",790,"W","Suga"],["Jamahal Hill","🇺🇸","LHW",790,"S","Sweet Dreams"],
+["Dominick Reyes","🇺🇸","LHW",780,"S","The Devastator"],["Ken Shamrock","🇺🇸","LHW",760,"G","The World's Most Dangerous Man"],
+["Cain Velasquez","🇺🇸","HW",900,"W",""],["Stipe Miocic","🇺🇸","HW",890,"B",""],["Francis Ngannou","🇨🇲","HW",890,"S","The Predator"],
+["Tom Aspinall","🇬🇧","HW",880,"B",""],["Randy Couture","🇺🇸","HW",850,"W","The Natural"],["Brock Lesnar","🇺🇸","HW",850,"W","The Beast Incarnate"],
+["Junior dos Santos","🇧🇷","HW",840,"S","Cigano"],["Fabrício Werdum","🇧🇷","HW",830,"G","Vai Cavalo"],["Ciryl Gane","🇫🇷","HW",830,"S","Bon Gamin"],
+["Alistair Overeem","🇳🇱","HW",800,"S","The Demolition Man"],["Derrick Lewis","🇺🇸","HW",790,"S","The Black Beast"],["Curtis Blaydes","🇺🇸","HW",790,"W","Razor"],
+["Mirko Cro Cop","🇭🇷","HW",790,"S",""],["Mark Hunt","🇳🇿","HW",770,"S","The Super Samoan"],["Shane Carwin","🇺🇸","HW",760,"W",""]
+];
+const UFC=UF.map(([n,e,cls,pw,sty,nick])=>({n,e,cls,pw,sty,nick:nick||"",a:"UFC",f:"",q:n,img:"",kind:"ufc",h:[190,160,130,50,25,350,290,260][UFC_DIVS.findIndex(d=>d.k===cls)]}));
