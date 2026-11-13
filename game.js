@@ -405,7 +405,7 @@ let IMGC={};try{IMGC=JSON.parse(localStorage.getItem('bvimg')||'{}')}catch(e){}
 let imgQ=[],imgBusy=false;
 const jk=q=>`https://api.jikan.moe/v4/characters?q=${encodeURIComponent(q)}&order_by=favorites&sort=desc&limit=1`;
 // Prioridad 1: fotos propias en la carpeta fotos/ (nombre del personaje + .jpg/.png/.webp)
-async function localImg(c){for(const x of['jpg','png','webp']){const u='fotos/'+encodeURIComponent(c.n)+'.'+x;if(await new Promise(ok=>{const im=new Image();im.onload=()=>ok(1);im.onerror=()=>ok(0);im.src=u}))return u}}
+async function localImg(c){for(const x of['jpg','png','webp']){const u='pics/'+encodeURIComponent(c.n)+'.'+x;if(await new Promise(ok=>{const im=new Image();im.onload=()=>ok(1);im.onerror=()=>ok(0);im.src=u}))return u}}
 async function findImg(c){
   for(const q of c.q.split('|')){
     let r=await fetch(jk(q));
