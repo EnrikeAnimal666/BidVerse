@@ -56,7 +56,7 @@ function start(c){
   $('menu').style.display='none';$('game').style.display='block';$('end').style.display='none';
   next();
 }
-function toMenu(){$('gbg').style.display='none';bt++;clearInterval(tick);$('wipe').className='wipe';$('game').style.display='none';$('menu').style.display='block'}
+function toMenu(){$('gbg').style.display='none';document.body.classList.remove('night');bt++;clearInterval(tick);$('wipe').className='wipe';$('game').style.display='none';$('menu').style.display='block'}
 // anime: hasta 3 personajes · UFC: un peleador por categoría (dv = categoría en subasta)
 const can=p=>cat==='ufc'?!P[p].c.some(c=>c.cls===dv):P[p].c.length<MAXC;
 const divEnd=()=>{let n=idx;while(n<deck.length&&deck[n].cls===dv)n++;return n};
@@ -191,10 +191,13 @@ async function run(tk){
     const rem=Math.max(.04,(Math.max(ea,eb)-Math.min(ea,eb))/S(W));
     const w0=W.f,l0=L.f;
     await say(`<b>${dn(A)}</b> ${t('vs')} <b>${dn(B)}</b>`,1600);
-    for(let k=1;k<=3;k++){
-      fx(lp,'atk');await z(250);fx(wp,'hit');setHp(wp,w0-(w0-rem)*k/3);await z(800);
-      fx(wp,'atk');await z(250);fx(lp,'hit');setHp(lp,l0*(1-k/3));await z(800);
+    // golpes necesarios según la diferencia: x8 o más de poder = de un golpe; x2.5 = 2; igualados = 3 o 4
+    const ratio=Math.max(ea,eb)/Math.min(ea,eb),n=ratio>=8?1:ratio>=2.5?2:ratio>=1.3?3:4,dt=n>2?700:800;
+    for(let k=1;k<=n;k++){
+      if(k<n){fx(lp,'atk');await z(250);fx(wp,'hit');setHp(wp,w0-(w0-rem)*k/(n-1));await z(dt)}
+      fx(wp,'atk');await z(250);fx(lp,'hit');setHp(lp,l0*(1-k/n));await z(dt);
     }
+    setHp(wp,rem);
     W.f=rem;L.f=0;L.dead=true;
     await say(t('down',dn(L)),1100);
     fx(lp,'fnt');await z(900);$('bs'+lp).innerHTML='';$('hb'+lp).classList.remove('show');balls(lp);
@@ -218,8 +221,8 @@ const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),pick=a=>a[rnd(0,a.length-1)
 const POOLF={S:['koPunch','koPunch','koKick','koKnee','tkoStrikes'],G:['subRNC','subArm','subTri','subGuil','subKimura'],W:['tkoGnp','tkoGnp','tkoStrikes','subRNC','subArm'],B:['koPunch','koKick','tkoGnp','subRNC','subGuil','subArm','tkoStrikes']};
 const FINP={S:.62,G:.58,W:.45,B:.55}; // probabilidad de finalizar según el estilo del ganador
 function decide(A,B){ // A = Jugador 1, B = Jugador 2. P(gana A) = 1/(1+10^((rB-rA)/250))
-  const pA=1/(1+Math.pow(10,(B.pw-A.pw)/250)),aw=Math.random()<pA,W=aw?A:B,L=aw?B:A;
-  if(Math.random()<FINP[W.sty]){const rd=rnd(1,3);return{aw,W,L,fin:1,rd,key:pick(POOLF[W.sty]),time:rnd(0,4)+':'+pad2(rnd(0,59))}}
+  const pA=1/(1+Math.pow(10,(B.pw-A.pw)/250)),aw=Math.random()<pA,W=aw?A:B,L=aw?B:A,gap=Math.abs(A.pw-B.pw),fav=W.pw>L.pw;
+  if(Math.random()<Math.min(.97,FINP[W.sty]+(fav?gap/250:0))){const big=fav&&gap>=110,rd=big?1:rnd(1,3);return{aw,W,L,fin:1,big,rd,key:pick(POOLF[W.sty]),time:big?'0:'+pad2(rnd(5,59)):rnd(0,4)+':'+pad2(rnd(0,59))}}
   const sp=Math.random()<.12+.3*(1-Math.abs(2*pA-1));
   return{aw,W,L,fin:0,rd:3,key:sp?'decS':'decU',sc:sp?pick(['29-28, 28-29, 29-28','29-28, 29-28, 28-29']):pick(['30-27, 30-27, 30-27','30-27, 29-28, 30-27','29-28, 29-28, 29-28','30-27, 30-27, 29-28'])};
 }
@@ -241,12 +244,12 @@ async function night(tk){
     $('fst').innerHTML=`<div class="fbt">${u('fnBout',k+1,bs.length)} · ${u('div_'+A.cls)}</div><div class="fvs">${card(A,0)}<span class="vs">${u('vs')}</span>${card(B,1)}</div>`;
     await say(u('fnIntro',`<b>${dn(A)}</b>`,`<b>${dn(B)}</b>`),k?750:1100);
     await say(u('fnBell'),450);
-    const lt=o.fin?0:.25+Math.random()*.2,wt=o.fin?.45+Math.random()*.4:.55+Math.random()*.3,H=o.rd*3;let e=0;
+    const lt=o.fin?0:.25+Math.random()*.2,wt=o.fin?.45+Math.random()*.4:.55+Math.random()*.3,per=o.big?1:3,H=o.rd*per;let e=0;
     for(let r=1;r<=o.rd;r++){
       await say(u('fnRound',r,o.fin&&r===o.rd?o.time:'5:00'),300);
-      for(let j=0;j<3;j++){e++;
+      for(let j=0;j<per;j++){e++;
         hx(wp,'atk');await z(120);hx(lp,'hit');hp(lp,1-(1-lt)*e/H);
-        if(j===1){await z(140);hx(lp,'atk');await z(120);hx(wp,'hit');hp(wp,1-(1-wt)*e/H)}
+        if(per>1&&j===1){await z(140);hx(lp,'atk');await z(120);hx(wp,'hit');hp(wp,1-(1-wt)*e/H)}
         await z(200);}
     }
     hp(wp,wt);
@@ -354,6 +357,6 @@ function initFx(el){
 }
 function gameBg(c){
   const g=$('gbg'),k=c==='ufc'?'ufc':'anime';
-  g.className='fx fx-'+k;g.dataset.fx='';g.innerHTML='<i></i><b></b>';initFx(g);g.style.display='block';paintBg(g,k);
+  document.body.classList.toggle('night',k==='anime');g.className='fx fx-'+k;g.dataset.fx='';g.innerHTML='<i></i><b></b>';initFx(g);g.style.display='block';paintBg(g,k);
 }
 document.querySelectorAll('.fx-anime,.fx-ufc,.fx-foot').forEach(e=>{initFx(e);paintBg(e,e.classList.contains('fx-anime')?'anime':e.classList.contains('fx-ufc')?'ufc':'futbol')});

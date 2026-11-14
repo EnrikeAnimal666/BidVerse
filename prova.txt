@@ -4,11 +4,11 @@ Guarda aquí las imágenes en una carpeta llamada pics/ con el nombre EXACTO del
   Goku.jpg   Majin Buu.png   Sung Jin-Woo.webp
 Si existe el archivo, el juego lo usa antes que cualquier otra foto (se cargan todas al abrir la página). Recarga la página para verlas.
 
-Nombres esperados (120):
+Nombres esperados (116):
 
 [Black Clover]
   Asta
-  Lucius
+  Julius
   Noelle
   Yami
   Yuno
@@ -138,7 +138,6 @@ Nombres esperados (120):
   Boros
   Garou
   Genos
-  Mumen Rider
   Saitama
   Tatsumaki
 
@@ -151,11 +150,6 @@ Nombres esperados (120):
 
 [Solo Leveling]
   Sung Jin-Woo
-
-[Spy x Family]
-  Anya
-  Loid
-  Yor
 
 [Yu Yu Hakusho]
   Hiei

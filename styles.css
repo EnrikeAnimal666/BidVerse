@@ -347,3 +347,20 @@ h1 .b2{text-shadow:.05em .05em 0 var(--p2)}
 .fx-foot .bm{background:linear-gradient(180deg,rgba(255,250,200,.55),transparent 80%)}
 @keyframes swing{from{transform:rotate(-24deg)}to{transform:rotate(24deg)}}
 @media(prefers-reduced-motion:reduce){.fx s{animation:none!important}}
+
+/* ---------- pancarta de anime: atardecer, líneas de acción y torii (sin círculos) ---------- */
+.fx-anime{background:linear-gradient(180deg,#120d26 0%,#4a1b4d 52%,#ff7a59 100%)}
+.fx-anime::before{content:"";position:absolute;inset:-70%;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.14) 0 1.1deg,transparent 1.1deg 6.5deg);-webkit-mask:radial-gradient(circle,transparent 6%,#000 38%,transparent 72%);mask:radial-gradient(circle,transparent 6%,#000 38%,transparent 72%);animation:burst 60s linear infinite}
+@keyframes burst{to{transform:rotate(360deg)}}
+.fx-anime i{width:150px;height:120px;right:6%;bottom:0;border-radius:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 80'%3E%3Cpath fill='%230a0614' d='M0 13Q5 3 15 5H85Q95 3 100 13H0zM10 16H90V23H10zM22 23H30V80H22zM70 23H78V80H70zM42 23H47V37H42zM53 23H58V37H53z'/%3E%3C/svg%3E") center bottom/contain no-repeat;animation:none}
+.fx-anime b{display:none}
+.fx-anime::after{background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.5))}
+.fx-anime .pt{background:#ffd9e6}
+
+/* ---------- anime: tema nocturno en partida + foto de fondo encajada ---------- */
+body.night{--bg:#0f0f0d;--card:#181815;--ink:#efe9da;--mut:#968f7d;--p1:#efe9da;--on1:#0f0f0d;--p2:#ffd23f;--on2:#0f0f0d;--acc:#3ed3b5;--onacc:#0f0f0d}
+body.night #gbg{opacity:.62}
+body.night #gbg::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,transparent 35%,rgba(5,3,8,.65))}
+.fx.custom .media{object-position:50% 40%}
+.cat .fx-anime.custom .media{object-position:70% 35%}
+.cat .fx.custom::after{background:linear-gradient(180deg,rgba(0,0,0,.15) 30%,rgba(0,0,0,.78))}

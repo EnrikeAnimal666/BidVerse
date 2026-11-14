@@ -4,7 +4,7 @@
 // Photos come from Wikipedia automatically; or put fotos/<name>.jpg next to index.html.
 const UFC_DIVS=[{k:"FLW",lb:125},{k:"BW",lb:135},{k:"FW",lb:145},{k:"LW",lb:155},{k:"WW",lb:170},{k:"MW",lb:185},{k:"LHW",lb:205},{k:"HW",lb:265}];
 const UF=[
-["Demetrious Johnson","🇺🇸","FLW",930,"B","Mighty Mouse"],["Henry Cejudo","🇺🇸","FLW",880,"W","Triple C"],["Alexandre Pantoja","🇧🇷","FLW",870,"G","The Cannibal"],
+["Demetrious Johnson","🇺🇸","FLW",970,"B","Mighty Mouse"],["Henry Cejudo","🇺🇸","FLW",880,"W","Triple C"],["Alexandre Pantoja","🇧🇷","FLW",870,"G","The Cannibal"],
 ["Brandon Moreno","🇲🇽","FLW",850,"B","The Assassin Baby"],["Deiveson Figueiredo","🇧🇷","FLW",840,"G","Deus da Guerra"],["Joseph Benavidez","🇺🇸","FLW",810,"B","Joe Jitsu"],
 ["Joshua Van","🇲🇲","FLW",800,"S","The Fearless"],["Brandon Royval","🇺🇸","FLW",780,"G","Raw Dawg"],["Amir Albazi","🇮🇶","FLW",760,"B","The Prince"],
 ["Muhammad Mokaev","🇬🇧","FLW",750,"W","The Punisher"],["Manel Kape","🇦🇴","FLW",740,"S","Starboy"],["Askar Askarov","🇷🇺","FLW",740,"W",""],
@@ -18,9 +18,9 @@ const UF=[
 ["Frankie Edgar","🇺🇸","FW",830,"W","The Answer"],["Brian Ortega","🇺🇸","FW",810,"G","T-City"],["Chan Sung Jung","🇰🇷","FW",800,"B","The Korean Zombie"],
 ["Movsar Evloev","🇷🇺","FW",800,"W",""],["Yair Rodríguez","🇲🇽","FW",790,"S","El Pantera"],["Chad Mendes","🇺🇸","FW",780,"W","Money"],
 ["Diego Lopes","🇧🇷","FW",780,"B",""],["Arnold Allen","🇬🇧","FW",770,"B","Almighty"],["Josh Emmett","🇺🇸","FW",760,"S","The Ruthless"],
-["Khabib Nurmagomedov","🇷🇺","LW",950,"G","The Eagle"],["Ilia Topuria","🇪🇸","LW",920,"S","El Matador"],["Charles Oliveira","🇧🇷","LW",880,"G","do Bronx"],
+["Khabib Nurmagomedov","🇷🇺","LW",950,"G","The Eagle"],["Ilia Topuria","🇪🇸","LW",970,"S","El Matador"],["Charles Oliveira","🇧🇷","LW",840,"G","do Bronx"],
 ["Dustin Poirier","🇺🇸","LW",860,"S","The Diamond"],["Justin Gaethje","🇺🇸","LW",860,"S","The Highlight"],["Arman Tsarukyan","🇦🇲","LW",850,"W","Ahalkalakets"],
-["Conor McGregor","🇮🇪","LW",840,"S","The Notorious"],["B.J. Penn","🇺🇸","LW",830,"G","The Prodigy"],["Tony Ferguson","🇺🇸","LW",820,"G","El Cucuy"],
+["Conor McGregor","🇮🇪","LW",900,"S","The Notorious"],["B.J. Penn","🇺🇸","LW",830,"G","The Prodigy"],["Tony Ferguson","🇺🇸","LW",820,"G","El Cucuy"],
 ["Benson Henderson","🇺🇸","LW",800,"B","Smooth"],["Rafael dos Anjos","🇧🇷","LW",800,"B","RDA"],["Nate Diaz","🇺🇸","LW",790,"G",""],
 ["Eddie Alvarez","🇺🇸","LW",780,"B","The Underground King"],["Michael Chandler","🇺🇸","LW",770,"W","Iron"],["Paddy Pimblett","🇬🇧","LW",760,"G","The Baddy"],
 ["Georges St-Pierre","🇨🇦","WW",950,"W","Rush"],["Islam Makhachev","🇷🇺","WW",930,"G",""],["Kamaru Usman","🇳🇬","WW",900,"W","The Nigerian Nightmare"],
@@ -33,7 +33,7 @@ const UF=[
 ["Sean Strickland","🇺🇸","MW",820,"S","Tarzan"],["Luke Rockhold","🇺🇸","MW",810,"G",""],["Yoel Romero","🇨🇺","MW",810,"W","Soldier of God"],
 ["Vitor Belfort","🇧🇷","MW",800,"S","The Phenom"],["Paulo Costa","🇧🇷","MW",790,"S","The Eraser"],["Jared Cannonier","🇺🇸","MW",780,"S","The Killa Gorilla"],
 ["Michael Bisping","🇬🇧","MW",770,"S","The Count"],["Marvin Vettori","🇮🇹","MW",750,"W","The Italian Dream"],
-["Jon Jones","🇺🇸","LHW",960,"W","Bones"],["Alex Pereira","🇧🇷","LHW",890,"S","Poatan"],["Daniel Cormier","🇺🇸","LHW",880,"W","DC"],
+["Jon Jones","🇺🇸","LHW",980,"W","Bones"],["Alex Pereira","🇧🇷","LHW",890,"S","Poatan"],["Daniel Cormier","🇺🇸","LHW",880,"W","DC"],
 ["Chuck Liddell","🇺🇸","LHW",860,"S","The Iceman"],["Jiří Procházka","🇨🇿","LHW",850,"S","BJP"],["Magomed Ankalaev","🇷🇺","LHW",850,"B",""],
 ["Lyoto Machida","🇧🇷","LHW",830,"S","The Dragon"],["Alexander Gustafsson","🇸🇪","LHW",830,"S","The Mauler"],["Carlos Ulberg","🇳🇿","LHW",830,"S",""],
 ["Jan Błachowicz","🇵🇱","LHW",820,"B","Polish Power"],["Glover Teixeira","🇧🇷","LHW",820,"G","Trator"],["Tito Ortiz","🇺🇸","LHW",810,"W","The Huntington Beach Bad Boy"],
