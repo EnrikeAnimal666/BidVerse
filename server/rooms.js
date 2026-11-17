@@ -8,7 +8,7 @@ const BE = require('../engine.js');
 const CODE_ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';           // sin 0/O/1/I/L para no confundir
 const NAME_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._-]{1,15}$/u;          // 2-16 caracteres; nada de < > & " ' que pueda romper el HTML
 const CODE_RE = /^[A-Z2-9]{5}$/;
-const CATS = ['anime', 'ufc'];
+const CATS = ['anime', 'ufc', 'futbol'];
 
 const cleanName = s => {
   if (typeof s !== 'string' || s.length > 64) return null;
@@ -32,7 +32,7 @@ class Room {
   info() { return { t: 'room', code: this.code, cat: this.cat, names: this.names(), phase: this.phase, connected: this.players.map(s => !!(s && s.conn)) }; }
 
   startGame() {
-    this.g = BE.create({ cat: this.cat, pool: this.hub.pools[this.cat], divs: this.hub.divs, rng: this.hub.rng });
+    this.g = BE.create({ cat: this.cat, pool: this.hub.pools[this.cat], divs: this.cat === 'futbol' ? (this.hub.futDivs || BE.FUT_DIVS) : this.hub.divs, rng: this.hub.rng });
     Object.assign(this, { phase: 'auction', time: 0, sched: null, ticking: false, pausedMs: 0, wantAgain: [false, false], fight: null });
     [0, 1].forEach(i => this.send(i, { t: 'start', cat: this.cat, names: this.names(), you: i }));
     this.apply(BE.next(this.g), null);
@@ -49,7 +49,7 @@ class Room {
     else if (ev.length) this.all({ t: 'state', s: snap(g), ev });
     if (g.phase === 'fight' && this.phase === 'auction') { // subasta terminada: se resuelve el combate entero en el servidor
       this.phase = 'fight'; this.sched = null; this.ticking = false;
-      this.fight = g.cat === 'ufc' ? { t: 'fight', kind: 'ufc', script: BE.resolveUfc(g) } : { t: 'fight', kind: 'anime', script: BE.resolveAnime(g) };
+      this.fight = Object.assign({ t: 'fight' }, BE.resolve(g)); // { kind: 'anime' | 'ufc' | 'futbol', script }
       this.all(this.fight);
     }
   }
@@ -113,8 +113,8 @@ class Room {
 }
 
 class Hub {
-  constructor({ pools, divs, rng, speed = 1, maxRooms = 300, abandonMs = 90000 }) {
-    Object.assign(this, { pools, divs, rng, speed, maxRooms, abandonMs, rooms: new Map(), sessions: new Map(), real: 0, sweep: 0 });
+  constructor({ pools, divs, futDivs, rng, speed = 1, maxRooms = 300, abandonMs = 90000 }) {
+    Object.assign(this, { pools, divs, futDivs, rng, speed, maxRooms, abandonMs, rooms: new Map(), sessions: new Map(), real: 0, sweep: 0 });
   }
   newCode() {
     for (let k = 0; k < 50; k++) {

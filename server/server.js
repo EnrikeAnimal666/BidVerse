@@ -9,14 +9,14 @@ const ws = require('./ws.js'), { Hub } = require('./rooms.js');
 const ROOT = path.resolve(__dirname, '..');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.mp4': 'video/mp4', '.webm': 'video/webm', '.ico': 'image/x-icon' };
 // Solo se sirve esto: nada de server/, tests/, .git, node_modules…
-const FILES = new Set(['index.html', 'styles.css', 'game.js', 'engine.js', 'online.js', 'data-anime.js', 'data-ufc.js']);
+const FILES = new Set(['index.html', 'styles.css', 'game.js', 'engine.js', 'online.js', 'data-anime.js', 'data-ufc.js', 'data-futbol.js']);
 const DIRS = new Set(['lang', 'pics', 'bg']);
 
 function loadPools() { // los datos son scripts de navegador: se evalúan aquí para tener los mismos personajes que el cliente
   const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/^const /gm, 'var ');
   const out = {};
-  new Function('out', read('data-anime.js') + read('data-ufc.js') + ';out.anime=POOLS.anime;out.ufc=UFC;out.divs=UFC_DIVS')(out);
-  return { pools: { anime: out.anime, ufc: out.ufc }, divs: out.divs };
+  new Function('out', read('data-anime.js') + read('data-ufc.js') + read('data-futbol.js') + ';out.anime=POOLS.anime;out.ufc=UFC;out.divs=UFC_DIVS;out.futbol=FUT;out.futDivs=FUT_DIVS')(out);
+  return { pools: { anime: out.anime, ufc: out.ufc, futbol: out.futbol }, divs: out.divs, futDivs: out.futDivs };
 }
 
 function staticHandler(req, res) {
@@ -37,9 +37,9 @@ function staticHandler(req, res) {
 }
 
 function create({ port = 3000, host = '127.0.0.1', speed = 1, maxPerIp = 12, allowedOrigins = [], trustProxy = false, maxRooms = 300 } = {}) {
-  const { pools, divs } = loadPools();
+  const { pools, divs, futDivs } = loadPools();
   const rng = () => crypto.randomInt(0x100000000) / 0x100000000;
-  const hub = new Hub({ pools, divs, rng, speed, maxRooms });
+  const hub = new Hub({ pools, divs, futDivs, rng, speed, maxRooms });
   const server = http.createServer(staticHandler);
   server.requestTimeout = 15000; server.headersTimeout = 10000; server.maxHeadersCount = 40;
   const perIp = new Map();
