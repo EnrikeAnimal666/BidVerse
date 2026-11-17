@@ -1,0 +1,12 @@
+{
+  "name": "bidverse",
+  "version": "0.2.0",
+  "private": true,
+  "description": "BidVerse: juego de pujas de personajes (anime y UFC), local y online 1v1",
+  "scripts": {
+    "start": "node server/server.js",
+    "lan": "node server/server.js --lan",
+    "test": "node tests/engine.test.js && node tests/client.smoke.js && node tests/server.test.js && node tests/online.smoke.js"
+  },
+  "engines": { "node": ">=18" }
+}

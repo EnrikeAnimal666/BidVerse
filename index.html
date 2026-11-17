@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>BidVerse</title>
+<meta name="color-scheme" content="dark">
+<title translate="no">BidVerse</title>
+<link rel="icon" type="image/png" href="pics/logo-icon.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Big+Shoulders+Display:wght@800;900&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head><body>
@@ -10,20 +12,24 @@
 <div class="wrap">
 <div class="lang"><button data-l="es" onclick="setLang('es')">ES</button><button data-l="en" onclick="setLang('en')">EN</button></div>
 <div class="brand">
-<svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect class="lg-bg" x="2" y="2" width="60" height="60" rx="6"/><g transform="rotate(-35 32 30)"><rect class="lg-s" x="29" y="27" width="6" height="25" rx="2"/><rect class="lg-h" x="12" y="10" width="36" height="18" rx="2"/><rect class="lg-bd" x="12" y="10" width="7" height="18"/><rect class="lg-bd" x="41" y="10" width="7" height="18"/></g><rect class="lg-blk" x="12" y="52" width="40" height="7" rx="2"/></svg>
-<h1><span class="b1">Bid</span><span class="b2">Verse</span></h1>
+<div class="bl"><h1 class="brandimg notranslate" translate="no"><img class="logoimg" alt="BidVerse" translate="no"></h1></div>
+<div class="hub">
+<p class="acct" id="acct"></p>
+<button class="cta p" id="hLogin" onclick="loginBtn()"></button>
+<button class="cta s" onclick="openScale()" data-i="scaleBtn">Consultar escala de poder</button>
 </div>
-<p class="sub"><span data-i="sub1">Cada jugador tiene 20$</span><span data-i="sub2">3 personajes por jugador</span><button class="scale-btn" onclick="openScale()" data-i="scaleBtn">Consultar escala de poder</button></p>
+</div>
 
-<div id="menu"><ul class="cats">
-<li><button class="cat k-a" onclick="start('anime')"><div class="fx fx-anime"><i></i><b></b></div><div class="peek"><small data-i="peekLbl">Próximo lote</small><div class="pc" id="pc-anime"></div></div><span class="tt" data-i="cat1">anime</span><span class="ds" data-i="cat1d"></span><span class="chip" id="ch-anime"></span></button></li>
-<li><button class="cat k-u" onclick="start('ufc')"><div class="fx fx-ufc"><i></i><b></b></div><div class="peek"><small data-i="peekLbl">Próximo lote</small><div class="pc" id="pc-ufc"></div></div><span class="tt" data-i="cat2">ufc</span><span class="ds" data-i="cat2d"></span><span class="chip" id="ch-ufc"></span></button></li>
-<li><button class="cat k-s" disabled><div class="fx fx-foot"><i></i><b></b></div><div class="peek"><small data-i="soon">Próximamente</small></div><span class="tt" data-i="cat3">Fútbol</span><span class="ds" data-i="soon">Próximamente</span></button></li>
-</ul></div>
-
+<div id="menu"><ul class="modes">
+<li><button class="mode m-anime" onclick="mkRoom('anime')"><div class="fx fx-anime"><i></i><b></b></div><span class="tt" data-i="cat1">anime</span><span class="ds" data-i="cat1d"></span><span class="ft"><em class="cn" id="ch-anime"></em><strong data-m="create"></strong></span></button></li>
+<li><button class="mode m-ufc" onclick="mkRoom('ufc')"><div class="fx fx-ufc"><i></i><b></b></div><span class="tt" data-i="cat2">ufc</span><span class="ds" data-i="cat2d"></span><span class="ft"><em class="cn" id="ch-ufc"></em><strong data-m="create"></strong></span></button></li>
+<li><button class="mode m-foot" onclick="mkRoom('futbol')"><div class="fx fx-foot"><i></i><b></b></div><span class="tt" data-i="cat3">Fútbol</span><span class="ds" data-i="cat3d"></span><span class="ft"><em class="cn" id="ch-foot"></em><strong data-m="create"></strong></span></button></li>
+</ul>
+<div class="joinbar"><span data-m="have"></span><input id="hCode" maxlength="5" autocapitalize="characters" spellcheck="false" data-mph="codePh"><button class="cta" id="hJoin" data-m="join"></button></div>
+</div>
 
 <div class="game" id="game">
-<button class="back" onclick="toMenu()" data-i="back">← Menú</button>
+<div class="gbar"><button class="back" onclick="toMenu()" data-i="back">← Menú</button><button class="back snd" id="snd" onclick="toggleSnd()" aria-label="Sonido">🔊</button></div>
 <div class="board">
 <div id="P1"></div>
 <div class="mid">
@@ -41,12 +47,28 @@
 <div class="end" id="end"></div>
 </div>
 </div>
-<div class="modal" id="scale" onclick="if(event.target===this)closeScale()"><div class="mbox"><div class="mh"><h3 data-i="scaleTitle">Escala de poder</h3><button onclick="closeScale()">✕</button></div><div class="tabs"><button data-k="anime" data-i="tabAnime" onclick="scaleTab('anime')">Anime</button><button data-k="ufc" data-i="tabUfc" onclick="scaleTab('ufc')">UFC</button></div><p class="mnote" id="scn">Escala de 0 a 1000 basada en lo que cada personaje demuestra en el canon (manga/anime), no en opiniones de fans: sobre todo su capacidad de destrucción, ajustada por velocidad, resistencia, habilidades y técnica. Cada 250 puntos equivalen a 10 veces más poder. Las fotos se descargan de MyAnimeList la primera vez (pueden tardar unos minutos).</p><div id="scl"></div></div></div>
+<div class="modal" id="scale" onclick="if(event.target===this)closeScale()"><div class="mbox"><div class="mh"><h3 data-i="scaleTitle">Escala de poder</h3><button onclick="closeScale()">✕</button></div><div class="tabs"><button data-k="anime" data-i="tabAnime" onclick="scaleTab('anime')">Anime</button><button data-k="ufc" data-i="tabUfc" onclick="scaleTab('ufc')">UFC</button><button data-k="futbol" data-i="tabFut" onclick="scaleTab('futbol')">Fútbol</button></div><p class="mnote" id="scn">Escala de 0 a 1000 basada en lo que cada personaje demuestra en el canon (manga/anime), no en opiniones de fans: sobre todo su capacidad de destrucción, ajustada por velocidad, resistencia, habilidades y técnica. Cada 250 puntos equivalen a 10 veces más poder. Las fotos se descargan de MyAnimeList la primera vez (pueden tardar unos minutos).</p><div id="scl"></div></div></div>
+<div class="modal" id="online" onclick="if(event.target===this)closeOnline()"><div class="mbox ol"><div class="mh"><h3 data-i="olTitle">Partida online</h3><button onclick="closeOnline()">✕</button></div>
+<div id="olForm"><label class="olf"><span data-i="olName">Tu nombre</span><input id="olName" maxlength="16" autocomplete="nickname" data-ph="olNamePh"></label>
+<div class="olrow"><button class="go" onclick="olCreate('anime')" data-i="olCreateAnime">Crear sala · Anime</button><button class="go" onclick="olCreate('ufc')" data-i="olCreateUfc">Crear sala · UFC</button><button class="go" onclick="olCreate('futbol')" data-i="olCreateFutbol">Crear sala · Fútbol</button></div>
+<p class="olor" data-i="olOr">o entra en la sala de un amigo</p>
+<div class="olrow"><input id="olCode" maxlength="5" autocapitalize="characters" spellcheck="false" data-ph="olCodePh" onkeydown="if(event.key==='Enter')olJoin()"><button class="go" onclick="olJoin()" data-i="olJoin">Entrar</button></div></div>
+<div id="olWait" style="display:none"><p data-i="olWaitText">Pasa este código…</p><div class="olcode" id="olCodeBig"></div><div class="olrow"><button class="go" onclick="olCopy()" data-i="olCopy">Copiar enlace</button><button class="skip" onclick="olCancel()" data-i="olCancel">Cancelar</button></div><p class="olok" id="olCopyOk"></p></div>
+<div id="olConn" style="display:none"><p data-m="connecting"></p><div class="olrow"><button class="skip" onclick="olCancel()" data-i="olCancel">Cancelar</button></div></div>
+<p class="olerr" id="olErr"></p></div></div>
+<div class="modal" id="login" onclick="if(event.target===this)closeLogin()"><div class="mbox ol"><div class="mh"><h3 data-m="loginTitle"></h3><button onclick="closeLogin()">✕</button></div>
+<label class="olf"><span data-m="user"></span><input id="lgName" maxlength="16" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></label>
+<div class="olrow"><button class="go" onclick="doLogin()" data-m="loginBtn"></button></div></div></div>
+<div id="netbar"></div>
 <div class="wipe" id="wipe"><span data-i="fightWipe">¡Combate!</span></div>
 <script src="data-anime.js"></script>
 <script src="data-ufc.js"></script>
+<script src="data-futbol.js"></script>
 <script src="lang/en.js"></script>
 <script src="lang/es.js"></script>
+<script src="lang/online.js"></script>
 <script>if(!window.LANGS||!LANGS.en)document.body.innerHTML='<p style="padding:24px;font:16px sans-serif">Faltan lang/en.js y lang/es.js: ponlos en una carpeta llamada <b>lang</b> junto a index.html.</p>'</script>
+<script src="engine.js"></script>
 <script src="game.js"></script>
+<script src="online.js"></script>
 </body></html>

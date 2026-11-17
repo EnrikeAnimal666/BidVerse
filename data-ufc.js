@@ -1,7 +1,7 @@
 // BidVerse · UFC roster. Rating 0-1000 = peak level within the weight class (titles, defenses, quality of opposition,
 // finishing ability), NOT hype. Cross-era on purpose: legends and current fighters share the same scale.
 // Style: S striker · G grappler · W wrestler · B all-rounder.  Row: [name, flag, class, rating, style, nickname]
-// Photos come from Wikipedia automatically; or put fotos/<name>.jpg next to index.html.
+// Photos come from Wikipedia automatically (local photos in pics/ are only used for anime).
 const UFC_DIVS=[{k:"FLW",lb:125},{k:"BW",lb:135},{k:"FW",lb:145},{k:"LW",lb:155},{k:"WW",lb:170},{k:"MW",lb:185},{k:"LHW",lb:205},{k:"HW",lb:265}];
 const UF=[
 ["Demetrious Johnson","🇺🇸","FLW",970,"B","Mighty Mouse"],["Henry Cejudo","🇺🇸","FLW",880,"W","Triple C"],["Alexandre Pantoja","🇧🇷","FLW",870,"G","The Cannibal"],
