@@ -11,7 +11,7 @@ function client(port){
   const doc={getElementById:id=>els[id]||(els[id]=mkEl(id)),body:mkEl('body'),documentElement:mkEl('html'),hidden:false,
     querySelector:()=>mkEl('q'),querySelectorAll:sel=>/\.fc/.test(sel)?[mkEl('fa'),mkEl('fb')]:[],createElement:()=>mkEl('c'),addEventListener(){}};
   const L={ui:new Proxy({},{get:(t,k)=>k in t?t[k]:String(k)}),names:{},animes:{},feats:{}};
-  const sb={document:doc,navigator:{language:'es'},LANGS:{en:L,es:{...L,ui:new Proxy({},{get:(t,k)=>k in t?t[k]:String(k)})}},console,scrollTo(){},alert:m=>alerts.push(m),prompt(){},
+  const sb={document:doc,navigator:{language:'es'},LANGS:{en:L,es:{...L,ui:new Proxy({},{get:(t,k)=>k in t?t[k]:String(k)})}},console,scrollTo(){},alert:m=>alerts.push(m),prompt(){},history:{state:null,pushState(){},replaceState(){}},
     localStorage:{getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=String(v)}},
     setTimeout:(f,ms)=>setTimeout(f,Math.max(0,Math.ceil((ms||0)/scale))),setInterval:(f,ms)=>setInterval(f,Math.max(5,Math.ceil(ms/scale))),clearInterval,clearTimeout,
     Image:class{set src(v){setTimeout(()=>this.onerror&&this.onerror(),0)}},fetch:()=>Promise.reject(new Error('sin red')),WebSocket,
@@ -23,7 +23,9 @@ function client(port){
   return{J,el,alerts,store};
 }
 const until=async(f,ms=20000,msg='condición')=>{const t0=Date.now();while(Date.now()-t0<ms){if(f())return;await sleep(10)}throw new Error('timeout: '+msg)};
-const done=c=>/class="res"/.test(String(c.el('end').innerHTML));
+const done=c=>/class="res[ "]/.test(String(c.el('end').innerHTML));
+// anime: en la pantalla de orden cada cliente pulsa "Listo" con su orden (si no, el servidor usa el de compra al acabar el tiempo)
+const ready=c=>{if(c.J('!!LU&&!LU.ready[net.me]'))c.J("LU.el.onclick({target:{closest:()=>({disabled:false,dataset:{go:String(net.me)}})}})")};
 
 (async()=>{
   const S=await create({port:0,speed:40});S.hub.abandonMs=1e9;
@@ -51,6 +53,7 @@ const done=c=>/class="res"/.test(String(c.el('end').innerHTML));
             c.J(`place(${1-me})`);c.J(`skip(${1-me})`); // intentar manejar al rival NO debe hacer nada
             if(!checkedCtl){checkedCtl=true;assert.strictEqual(c.el('g'+(1-me)).disabled,true,'controles del rival desactivados')}
           }
+          ready(c);
         }
         if(!cut&&A.J('G&&G.P[0].c.length+G.P[1].c.length')>=2){ // corta la conexión de Ana a mitad de partida
           cut=true;for(const s of S.hub.sessions.values())if(s.name==='Ana')s.conn.terminate();
@@ -65,7 +68,7 @@ const done=c=>/class="res"/.test(String(c.el('end').innerHTML));
       A.J('again()');B.J('again()');
       await until(()=>!done(A)&&!done(B),5000,'revancha empieza');
       const t1=Date.now();while(!(done(A)&&done(B))){if(Date.now()-t1>60000)throw new Error('la revancha no termina');
-        for(const [c,me] of [[A,0],[B,1]])if(c.J('G.phase')==='bidding'){if(Math.random()<.5){c.el('i'+me).value=String(1+Math.floor(Math.random()*8));c.J(`place(${me})`)}else c.J(`skip(${me})`)}
+        for(const [c,me] of [[A,0],[B,1]]){ready(c);if(c.J('G.phase')==='bidding'){if(Math.random()<.5){c.el('i'+me).value=String(1+Math.floor(Math.random()*8));c.J(`place(${me})`)}else c.J(`skip(${me})`)}}
         await sleep(15)}
       // salir de la sala
       A.J('toMenu()');await until(()=>B.J('net')&&String(B.el('netbar').textContent)!==''||true,1000);await sleep(100);

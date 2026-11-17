@@ -5,7 +5,7 @@ let lastBid=0,G,net=null,cur,bid,leader,left,tick=0,P,skips,locked,cat,passed,fr
 const $=id=>document.getElementById(id),pad2=n=>String(n).padStart(2,'0');
 const byN=new Map([...POOLS.anime,...UFC,...FUTP].map(c=>[c.n,c])),imgOf=n=>(byN.get(n)||{}).img;
 /* ---------- IDIOMAS: u() = plantilla {0},{1}… de lang/xx.js · X = mensajes compuestos · t() = ambos ---------- */
-let lang=(()=>{try{const s=localStorage.getItem('bvlang');if(s&&LANGS[s])return s}catch(e){}return /^es/i.test(navigator.language||'')?'es':'en'})();
+let lang='en'; // idioma oficial: inglés. El traductor del navegador se encarga del resto (no hay botón de idioma).
 const EXT={ // textos que no están en lang/*.js (fútbol); FUTX solo se usa durante una partida de fútbol (dinero en millones)
  es:{cat3:'Fútbol',cat3d:'Ficha un once de leyendas y cracks actuales. 4-3-3 y 100 millones para gastar.',nPlayers:'{0} futbolistas',tabFut:'Fútbol',olCreateFutbol:'Crear sala · Fútbol',
   div_GK:'Porteros',div_DEF:'Defensas',div_MID:'Centrocampistas',div_FWD:'Delanteros',legend:'Leyenda',
@@ -32,7 +32,7 @@ passGift:()=>lang==='es'?'Saltar · se lo queda el rival gratis':'Skip · your r
 stampRand:(p,nm,broke)=>`<small>${u(broke?'noMoney':'nobodyBids')}</small><strong>${u('player',p)}</strong><u>${u('takes','<b>'+nm+'</b>')}</u><em>${lang==='es'?'Al azar':'Random'}</em>`,
 randInfo:(p,nm,broke)=>lang==='es'?`${broke?'Nadie tiene dinero':'Nadie ha pujado'} por ${nm}: se lo lleva ${u('player',p)} al azar. La subasta sigue.`:`${broke?'Nobody has money':'Nobody bid'} for ${nm}: ${u('player',p)} gets it at random. The auction goes on.`};
 const t=(k,...a)=>X[k]?X[k](...a):u(k,...a);
-const dn=c=>LANGS[lang].names?.[c.n]||c.n,an=a=>LANGS[lang].animes?.[a]||a,fe=c=>LANGS[lang].feats?.[c.n]||c.f;
+const dn=c=>LANGS[lang].names?.[c.n]||c.n,dnh=c=>`<span translate="no">${dn(c)}</span>`,an=a=>LANGS[lang].animes?.[a]||a,fe=c=>LANGS[lang].feats?.[c.n]||c.f;
 /* ---------- SONIDO (generado con el navegador, sin archivos) ---------- */
 const SND=(()=>{
   let ctx=null,on=true;try{on=localStorage.getItem('bvsnd')!=='0'}catch(e){}
@@ -60,6 +60,8 @@ const SND=(()=>{
       case 'boom':sweep(160,40,.45,'square',.09);tone(55,0,.5,'sawtooth',.06);break;
       case 'awake':[392,523,659,784,1047].forEach((f,i)=>tone(f,i*.07,.25,'square',.04));break;
       case 'ko':sweep(440,60,.7,'sawtooth',.07);break
+      case 'time':sweep(1400,90,1,'sine',.07);tone(60,0,1,'sawtooth',.04);break
+      case 'domain':[130,98,73].forEach((f,i)=>tone(f,i*.12,.7,'sawtooth',.045));sweep(300,1200,.8,'triangle',.03);break
       case 'whistle':[0,.12,.24].forEach(t=>{tone(2900,t,.09,'square',.03);tone(3100,t+.045,.06,'square',.025)});tone(2950,.36,.45,'square',.03);break // fútbol
       case 'kick':tone(95,0,.06,'square',.06);break
       case 'save':tone(120,0,.09,'square',.07);tone(70,.02,.12,'sawtooth',.05);break
@@ -76,8 +78,8 @@ function popBid(e,prev){ // efecto visual de la última puja: número que salta,
   if(pr&&d>0){const f=document.createElement('span');f.className='fl';f.textContent='+'+money(d);pr.appendChild(f);setTimeout(()=>f.remove(),950)}
 }
 function lotText(){$('fr').textContent=cur.kind==='ufc'||cur.kind==='futbol'?u('div_'+cur.cls):an(cur.a);
-  if(cur.kind==='futbol'){$('nm').innerHTML=dn(cur)+`<small>${cur.e} ${roleT(cur.role)} · ${cur.club}${cur.leg?` ${cur.yr} · <em class="lg">${u('legend')}</em>`:''}</small>`;return}
-  $('nm').innerHTML=dn(cur)+(cur.kind==='ufc'?`<small>${cur.e} ${cur.nick?'“'+cur.nick+'” · ':''}${u('sty_'+cur.sty)}</small>`:'')}
+  if(cur.kind==='futbol'){$('nm').innerHTML=dnh(cur)+`<small>${cur.e} ${roleT(cur.role)} · ${cur.club}${cur.leg?` ${cur.yr} · <em class="lg">${u('legend')}</em>`:''}</small>`;return}
+  $('nm').innerHTML=dnh(cur)+(cur.kind==='anime'&&cur.tr?`<small class="trl">✦ <b>${trT(cur.tr,0)}</b> · ${trT(cur.tr,1)}</small>`:'')+(cur.kind==='ufc'?`<small>${cur.e} ${cur.nick?'“'+cur.nick+'” · ':''}${u('sty_'+cur.sty)}</small>`:'')}
 function menuInfo(){if($('ch-foot'))$('ch-foot').textContent=u('nPlayers',FUTP.length)+' · 4-3-3';$('ch-anime').textContent=u('nChars',POOLS.anime.length);$('ch-ufc').textContent=u('nFighters',UFC.length)+' · '+u('nDivs',UFC_DIVS.length)}
 function applyLang(){
   document.documentElement.lang=lang;
@@ -101,7 +103,7 @@ function panel(p){const n=p+1;return `<section class="side" style="--c:var(--p${
 <button class="skip" id="k${p}" onclick="skip(${p})"><span class="sl" id="kl${p}">${t('skipLbl')}</span><span class="pips" id="kp${p}"></span></button>
 <div class="msg" id="e${p}"></div></section>`}
 function start(c){
-  gameBg(c);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
+  closeLineup();gameBg(c);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
   $('end').className='end';$('end').innerHTML='';
   net=null;cat=c;$('game').classList.toggle('ufc',c==='ufc');$('game').classList.toggle('fut',c==='futbol');
   G=BidEngine.create({cat:c,pool:POOLS[c],divs:c==='futbol'?FDIVS:UFC_DIVS});mirror();wantImg(G.deck);
@@ -111,7 +113,7 @@ function start(c){
 }
 /* ---------- ONLINE: el servidor manda; aquí solo se prepara la pantalla y se pinta lo que llega ---------- */
 function startOnline(cat_,names,me,send){
-  gameBg(cat_);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
+  closeLineup();gameBg(cat_);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
   $('end').className='end';$('end').innerHTML='';$('end').style.display='none';
   cat=cat_;net={names,me,send};$('game').classList.toggle('ufc',cat==='ufc');$('game').classList.toggle('fut',cat==='futbol');
   G={cat,P:[{m:0,c:[]},{m:0,c:[]}],dv:'',phase:'idle',cur:null,bid:0,leader:-1,left:SECS,free:-1,passed:[false,false],skips:[2,2],locked:true};mirror();
@@ -128,8 +130,8 @@ function netState(s,ev){if(unk([s.cur,...s.P.flatMap(p=>p.c.map(c=>c.n))]))retur
   mirror();
   for(const e of ev)onEv(e);
 }
-function netFight(f){const ns=[];JSON.stringify(f.script,(k,v)=>{if((k==='n'||k==='a'||k==='b')&&typeof v==='string')ns.push(v);return v});if(unk(ns))return;const tk=++bt;(f.kind==='ufc'?night:f.kind==='futbol'?match:run)(tk,f.script).catch(er=>{if(er!==0)throw er})}
-function toMenu(){if(net){net.send({t:'leave'});net=null;if(window.olReset)olReset()}$('gbg').style.display='none';document.body.classList.remove('night','ingame');bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';$('game').style.display='none';$('menu').style.display='block'}
+function netFight(f){closeLineup();const ns=[];JSON.stringify(f.script,(k,v)=>{if((k==='n'||k==='a'||k==='b')&&typeof v==='string')ns.push(v);return v});if(unk(ns))return;const tk=++bt;(f.kind==='ufc'?night:f.kind==='futbol'?match:run)(tk,f.script).catch(er=>{if(er!==0)throw er})}
+function toMenu(){closeLineup();if(net){net.send({t:'leave'});net=null;if(window.olReset)olReset()}$('gbg').style.display='none';document.body.classList.remove('night','ingame');bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';$('game').style.display='none';$('menu').style.display='block'}
 const out=p=>BidEngine.out(G,p);
 function hint(){if(free>=0){$('info').textContent=t('hintFree',2-free,free+1,skips[free]);return}const a=[0,1].filter(p=>passed[p]);$('info').textContent=a.length?t('hintPass',a[0]+1,2-a[0]):t('hintBase')}
 /* ---------- PUENTE CON EL MOTOR: cada acción devuelve {ev, wait}; aquí se pintan los eventos y se programan las esperas ---------- */
@@ -157,7 +159,7 @@ function onEv(e){switch(e.t){
   case 'pass':timer();render();hint();break;
   case 'sold':{
     SND.sold();render();gavel(e.p,true);const w=e.p,m=$('m'+w),sd=$('P'+(w+1)).firstElementChild;
-    stamp(e.rand?t('stampRand',w+1,dn(cur),e.broke):t('stampSold',w+1,dn(cur),e.free?t('free'):t('forPrice',e.price)),'win w'+(w+1));
+    stamp(e.rand?t('stampRand',w+1,dnh(cur),e.broke):t('stampSold',w+1,dnh(cur),e.free?t('free'):t('forPrice',e.price)),'win w'+(w+1));
     if(e.rand)$('bid').textContent=t('random');
     m.classList.add('pop');sd.classList.add('won');
     $('s'+w).children[cat==='ufc'?UFC_DIVS.findIndex(d=>d.k===cur.cls):cat==='futbol'?futSlot(w,cur):P[w].c.length-1].classList.add('new');
@@ -171,8 +173,9 @@ function onEv(e){switch(e.t){
     render();break;
   case 'finish':
     clearInterval(tick);tick=0;render();$('info').textContent=t('auctionOver');
-    if(net)break; // online: el combate llega del servidor como mensaje 'fight'
-    {const tk=++bt;(cat==='ufc'?night:cat==='futbol'?match:run)(tk).catch(er=>{if(er!==0)throw er})}break;
+    if(net)break; // online: el servidor manda 'order' (anime) y luego 'fight'
+    {const tk=++bt,go=()=>(cat==='ufc'?night:cat==='futbol'?match:run)(tk).catch(er=>{if(er!==0)throw er});
+     if(cat==='anime'&&P.some(p=>p.c.length>1))lineup({me:null}).then(o=>{if(tk!==bt)return;o.forEach((x,p)=>BidEngine.order(G,p,x));go()});else go()}break;
 }}
 function timer(){$('bar').style.width=Math.max(left,0)/SECS*100+'%';$('barw').classList.toggle('low',left<=3);$('tm').textContent='0:'+pad2(Math.max(left,0))}
 function futSlot(p,c){let off=0;for(const d of FDIVS){if(d.k===c.cls)return off+P[p].c.filter(x=>x.cls===d.k).length-1;off+=d.n}return 0}
@@ -187,7 +190,7 @@ function render(){
     let h='';
     const SL=cat==='ufc'?UFC_DIVS.map(d=>P[p].c.find(c=>c.cls===d.k)||d.k):cat==='futbol'?FDIVS.flatMap(d=>{const got=P[p].c.filter(c=>c.cls===d.k);return Array.from({length:d.n},(_,i)=>got[i]||d.k)}):Array.from({length:MAXC},(_,i)=>P[p].c[i]);
     SL.forEach(c=>{const dl=typeof c==='string'?c:c&&cat!=='anime'?c.cls:'',dt=cat==='futbol'?(c&&c.n?`${roleT(c.role)} · ${c.ovr} · `:(POS_S[lang]||POS_S.es)[dl]):dl?u('div_'+dl).split(' · ')[0]+(c&&c.n?' · ':''):'';
-      h+=c&&c.n?`<div class="slot full" style="--h:${c.h}"><div class="av">${imgOf(c.n)?`<img src="${imgOf(c.n)}" alt="${c.n}">`:c.e}</div><div><b>${dn(c)}</b><small>${dt}${c.paid?t('paid',c.paid):c.free?t('free'):t('random')}</small></div></div>`
+      h+=c&&c.n?`<div class="slot full" style="--h:${c.h}"><div class="av">${imgOf(c.n)?`<img src="${imgOf(c.n)}" alt="${c.n}">`:c.e}</div><div><b>${dnh(c)}</b><small>${dt}${c.paid?t('paid',c.paid):c.free?t('free'):t('random')}</small></div></div>`
           :`<div class="slot"><div class="av"></div>${dl?`<div><small>${dt}</small></div>`:''}</div>`});
     $('s'+p).innerHTML=h;
     $('g'+p).disabled=$('i'+p).disabled=locked||passed[p];
@@ -205,6 +208,34 @@ function stamp(t,c){const s=$('stamp');$('st').className=c||'';$('st').innerHTML
 const skipLocked=p=>skips[p]<=0;
 function skip(p){if(net){if(p===net.me)net.send({t:'skip'});return}apply(BidEngine.skip(G,p))}
 function again(){if(net){net.send({t:'rematch'});const b=document.querySelector('.res button');if(b){b.disabled=true;b.textContent=u('olAgainWait')}}else start(cat)}
+
+/* ---------- ORDEN DE COMBATE (anime): antes de pelear cada jugador decide quién sale primero ----------
+   Local: los dos ordenan en la misma pantalla. Online: solo ves tu equipo; el del rival sale sin orden hasta el combate. */
+const LU_T={en:{title:'Battle order',sub:'Who fights first? The winner of each duel stays in with the HP they have left.',ready:'Ready',waiting:'Choosing…',done:'Ready ✓',up:'Move up',down:'Move down'},
+ es:{title:'Orden de combate',sub:'¿Quién sale primero? El que gana un duelo sigue con la vida que le quede.',ready:'Listo',waiting:'Eligiendo…',done:'Listo ✓',up:'Subir',down:'Bajar'}};
+const luT=k=>(LU_T[lang]||LU_T.en)[k];
+let LU=null;
+function closeLineup(){if(!LU)return;clearInterval(LU.clock);LU.el.remove();LU=null}
+function lineup(o){ // o: { me: null (local) | 0 | 1, ms?, done?, send? } → en local devuelve una promesa con los dos órdenes
+  closeLineup();
+  return new Promise(res=>{
+    const ord=[0,1].map(p=>P[p].c.map((_,i)=>i)),ready=(o.done||[false,false]).slice(),mine=p=>o.me==null||o.me===p;
+    const el=document.createElement('div');el.className='modal open lu';document.body.appendChild(el);
+    const end=o.ms?Date.now()+o.ms:0;
+    LU={el,ready,paint:null,clock:0};
+    const card=(p,i,k,ctl)=>{const c=P[p].c[i];return `<li class="lu-c" style="--h:${c.h}"><span class="lu-n">${ctl||o.me==null?k+1:'?'}</span><span class="lu-av">${spr(c)}</span><span class="lu-t"><b>${dnh(c)}</b>${trBadge(c)}<small>${an(c.a)} · ${c.pw}</small></span>${ctl?`<span class="lu-mv"><button data-p="${p}" data-k="${k}" data-d="-1" ${k?'':'disabled'} aria-label="${luT('up')}">▲</button><button data-p="${p}" data-k="${k}" data-d="1" ${k<ord[p].length-1?'':'disabled'} aria-label="${luT('down')}">▼</button></span>`:''}</li>`};
+    const col=p=>{const ctl=mine(p)&&!ready[p];return `<section class="lu-col" style="--c:var(--p${p+1});--on:var(--on${p+1})"><h4>${t('player',p+1)}</h4><ol>${ord[p].map((i,k)=>card(p,i,k,ctl)).join('')||'<li class="lu-c e">—</li>'}</ol>${mine(p)?`<button class="lu-go" data-go="${p}" ${ready[p]?'disabled':''}>${luT(ready[p]?'done':'ready')}</button>`:`<p class="lu-st${ready[p]?' ok':''}">${luT(ready[p]?'done':'waiting')}</p>`}</section>`};
+    const paint=()=>{el.innerHTML=`<div class="mbox lu-box"><div class="mh"><h3>${luT('title')}</h3>${end?'<b class="lu-tm" id="lutm"></b>':''}</div><p class="lu-sub">${luT('sub')}</p><div class="lu-cols">${col(0)}${col(1)}</div></div>`;tm()};
+    const tm=()=>{const e=el.querySelector('#lutm');if(e)e.textContent=Math.max(0,Math.ceil((end-Date.now())/1000))+'s'};
+    LU.paint=paint;if(end)LU.clock=setInterval(tm,250);
+    el.onclick=ev=>{const b=ev.target.closest('button');if(!b||b.disabled)return;
+      if(b.dataset.go!=null){const p=+b.dataset.go;ready[p]=true;if(o.send)o.send(ord[p]);paint();if(o.me==null&&ready[0]&&ready[1]){closeLineup();res(ord)}return}
+      const p=+b.dataset.p,k=+b.dataset.k,j=k+(+b.dataset.d),a=ord[p];[a[k],a[j]]=[a[j],a[k]];paint()};
+    paint();
+  });
+}
+function netOrder(m){if(cat==='anime')lineup({me:net.me,ms:m.ms,done:m.done,send:o=>net.send({t:'order',order:o})})}
+function netOrderReady(i){if(LU){LU.ready[i]=true;LU.paint()}}
 
 /* ---------- COMBATE FINAL ---------- */
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -243,13 +274,47 @@ const AB_T={
   ctr:'<b>{a}</b> counterattacks!',clash:'Technique clash! “{m1}” vs “{m2}”',clashWin:'<b>{w}</b> wins the clash!',
   awake:'<b>{a}</b> awakens their true power!',critPop:'Critical!',dodgePop:'Dodge!',awakePop:'Awakening!',clashPop:'Clash!',
   log:'<b>{0}</b> defeats {1} · {2}% left',kos:'{0} K.O.s',kos1:'1 K.O.',mvp:'MVP'}};
+// Rasgos: [nombre, qué hace, frase al activarse]. Las reglas están en engine.js (RASGOS).
+const TR_T={
+ en:{touch:['Touch of God','Acts first and erases anyone with a single touch','<b>{a}</b> reaches out… one touch is enough.'],
+  inf:['Infinity','The first 2 attacks never reach them','{b}’s attack stops in mid-air: <b>{a}</b>’s Infinity!'],
+  time:['Time Stop','Once per duel: 2 hits that can’t be dodged','<b>{a}</b>: “Time, stop!”'],
+  ui:['Untouchable','Rivals miss 18% more often',''],
+  req:['Requiem','Cancels the first blow that would K.O. them · rivals can’t awaken','<b>{a}</b>’s Requiem returns the blow to zero!'],
+  serious:['Serious Punch','After taking 3 hits, the next attack takes at least 55% HP','<b>{a}</b> gets serious…'],
+  toll:['The Toll','Each duel starts with the rival losing 40% ki and 10% HP','<b>{a}</b> collects the toll from {d}'],
+  domain:['Domain Expansion','Once per duel: 4 attacks that never miss and hit 40% harder','<b>{a}</b>: “Domain Expansion!”'],
+  regen:['Regeneration','Below 60% HP heals 7% each turn (up to 4 times)','<b>{a}</b> regenerates'],
+  adapt:['Adaptation','Each hit taken deals 10% less (up to 4 times)','<b>{a}</b> adapts to the attacks'],
+  gen:['Genjutsu','On their first turn the rival loses 2 turns','<b>{a}</b> traps {d} in a genjutsu'],
+  stun:['','','<b>{a}</b> is trapped and can’t move'],
+  rage:['Berserk','Below 40% HP hits 30% harder','<b>{a}</b> goes berserk!'],
+  sun:['The One','Hits 50% harder during the first 4 turns','<b>{a}</b>: the sun is at its peak!'],
+  pops:{stun:'Trapped!',adapt:'Adapted',regen:'Regen'}},
+ es:{touch:['Toque de Dios','Actúa primero y borra a cualquiera de un solo toque','<b>{a}</b> extiende la mano… basta un toque.'],
+  inf:['Infinito','Los 2 primeros ataques no le llegan','El ataque de {b} se frena en el aire: ¡Infinito de <b>{a}</b>!'],
+  time:['Tiempo detenido','1 vez por duelo: 2 golpes imposibles de esquivar','<b>{a}</b>: «¡Tiempo, detente!»'],
+  ui:['Intocable','El rival falla un 18 % más',''],
+  req:['Requiem','Anula el primer golpe que le dejaría K.O. · el rival no puede despertar','¡El Requiem de <b>{a}</b> devuelve el golpe a cero!'],
+  serious:['Golpe serio','Tras recibir 3 golpes, su siguiente ataque quita al menos un 55 %','<b>{a}</b> se pone serio…'],
+  toll:['El peaje','Cada duelo el rival empieza perdiendo un 40 % de ki y un 10 % de vida','<b>{a}</b> cobra el peaje a {d}'],
+  domain:['Expansión de dominio','1 vez por duelo: 4 ataques que no fallan y hacen un 40 % más','<b>{a}</b>: «¡Expansión de dominio!»'],
+  regen:['Regeneración','Por debajo del 60 % se cura un 7 % por turno (hasta 4 veces)','<b>{a}</b> se regenera'],
+  adapt:['Adaptación','Cada golpe recibido le hace un 10 % menos (hasta 4 veces)','<b>{a}</b> se adapta a los ataques'],
+  gen:['Genjutsu','En su primer turno el rival pierde 2 turnos','<b>{a}</b> atrapa a {d} en un genjutsu'],
+  stun:['','','<b>{a}</b> está atrapado y no puede moverse'],
+  rage:['Furia','Por debajo del 40 % pega un 30 % más','¡<b>{a}</b> entra en furia!'],
+  sun:['The One','Pega un 50 % más en sus 4 primeros turnos','<b>{a}</b>: ¡el sol está en lo más alto!'],
+  pops:{stun:'¡Atrapado!',adapt:'Adaptado',regen:'Regenera'}}};
+const trT=(k,i)=>{const d=TR_T[lang]||TR_T.en,v=d[k];return v?v[i]||'':''};
+const trBadge=c=>c&&c.tr?`<em class="trb" title="${trT(c.tr,1)}">✦ ${trT(c.tr,0)}</em>`:'';
 const abT=(k,...a)=>{let s=(AB_T[lang]||AB_T.es)[k];if(Array.isArray(s))s=s[(a[0]||0)%s.length];return String(s??k)};
 const abF=(s,o)=>s.replace(/\{(\w+)\}/g,(m,k)=>o[k]??m);
 const mvOf=(c,v)=>{const l=(lang==='es'?c.mvEs:c.mv)||c.mv||[];return l.length?l[(v||0)%l.length]:abT('special')};
 let ABS=1;try{ABS=+localStorage.getItem('bvabs')===2?2:1}catch(e){}
 function abArena(){
   const plate=p=>`<div class="ab-pl a${p}" style="--c:var(--p${p+1});--on:var(--on${p+1})">
-<div class="ab-who"><span>${t('player',p+1)}</span><b id="abn${p}">—</b></div>
+<div class="ab-who"><span>${t('player',p+1)}</span><b id="abn${p}">—</b></div><div class="ab-trn" id="abtr${p}"></div>
 <div class="ab-bar ab-hp"><i class="g" id="abg${p}"></i><i class="v" id="abh${p}"></i><em id="abhp${p}">100%</em></div>
 <div class="ab-bar ab-ki"><i id="abk${p}"></i></div>
 <div class="ab-tm" id="abt${p}"></div><div class="ab-stw" id="abs${p}"></div></div>`;
@@ -257,9 +322,29 @@ function abArena(){
 <div class="ab-stage" id="abst"><div class="ab-sky"></div><div class="ab-floor"></div>
 <div class="ab-f a0" id="abf0" style="--c:var(--p1)"><div class="ab-card" id="abc0"></div></div>
 <div class="ab-f a1" id="abf1" style="--c:var(--p2)"><div class="ab-card" id="abc1"></div></div><div class="ab-fx" id="abfx"></div></div>
+<div class="ab-com" id="abcom" aria-live="polite"></div>
 <div class="ab-bot"><div class="ab-dlg" id="abdl"></div><div class="ab-spd" id="abspd"><button data-s="1">x1</button><button data-s="2">x2</button><button data-s="40" title="${abT('skip')}" aria-label="${abT('skip')}">»</button></div></div>
 <div class="ab-log" id="ablog"></div></div>`;
 }
+// Elemento de las técnicas (solo cambia el color y el estilo del rayo). Sin elemento = color del jugador.
+const ELEM={fire:['Ace','Tanjiro','Feitan','Rengoku','Roy Mustang','Jogo','Escanor','Demon King'],
+ bolt:['Sasuke','Minato','Hajime Kashimo','Zeus','Killua','Zenitsu','Thor','Killer B'],
+ water:['Whitebeard','Giyu','Kisame','Noelle','Tobirama Senju'],
+ dark:['Sung Jin-Woo','Yami','Pride','Muzan','Madara','Itachi','Obito','Sukuna','Mahito','Kenjaku','Geto','Dio Brando','Zeldris','Aizen','Choso','Father','Griffith','Meruem','Kaneki','Chrollo Lucilfer','Orochimaru','Pain'],
+ light:['Giorno Giovanna','God','Grand Priest','Whis','Hagoromo Otsutsuki','Netero','Saitama','Van Hohenheim','Yuki Tsukumo'],
+ void:['Gojo','Frieza','Beerus','Zeno','Truth','Rick Sanchez','Boros'],
+ wind:['Naruto','Zoro','Yuno','Asta'],
+ psy:['Tatsumaki','Mob','Broly','Hashirama']};
+const ELC={fire:['#ff6a00','#ffe08a'],bolt:['#5fd0ff','#ffffff'],water:['#1f7bff','#bfe9ff'],dark:['#8a2be2','#14021f'],light:['#ffc400','#fffbe6'],void:['#b13cff','#ffd1ff'],wind:['#39e6a0','#f0fff8'],psy:['#2bff6e','#e6ffe9']};
+const ELN={};for(const k in ELEM)ELEM[k].forEach(n=>ELN[n]=k);
+// Comentarista: frases según lo que pasa (diferencia de poder, remontadas, sorpresas…)
+const COM_T={en:{first:'First blood!',gap:['<b>{a}</b> is toying with {b}…','This looks like a mismatch!'],even:'Evenly matched: anything can happen!',
+  comeback:'What a comeback by <b>{a}</b>!',flawless:'Flawless! <b>{a}</b> didn’t take a scratch.',upset:'Upset! <b>{a}</b> beats a far stronger rival!',
+  close:'<b>{a}</b> survives by a thread!',last:'<b>{a}</b> is {p}’s last hope!',combo:'{0} HITS'},
+ es:{first:'¡Primera sangre!',gap:['<b>{a}</b> está jugando con {b}…','¡Esto parece muy desigual!'],even:'¡Igualadísimo: puede pasar cualquier cosa!',
+  comeback:'¡Qué remontada de <b>{a}</b>!',flawless:'¡Impecable! <b>{a}</b> no ha recibido ni un rasguño.',upset:'¡Sorpresa! <b>{a}</b> tumba a un rival mucho más fuerte',
+  close:'¡<b>{a}</b> sobrevive por los pelos!',last:'<b>{a}</b> es la última esperanza de {p}',combo:'{0} GOLPES'}};
+const comT=k=>(COM_T[lang]||COM_T.en)[k];
 async function run(tk,script){
   const S0=script||BidEngine.resolveAnime(G);
   const z=async ms=>{await sleep(ms/ABS);if(tk!==bt)throw 0};
@@ -268,76 +353,123 @@ async function run(tk,script){
   const AB=$('ab'),ST=$('abst'),FX=$('abfx');
   const setSpd=s=>{ABS=s;AB.style.setProperty('--k',1/s);AB.classList.toggle('fast',s>2);$('abspd').querySelectorAll('button').forEach(b=>b.classList.toggle('on',+b.dataset.s===s));if(s<=2)try{localStorage.setItem('bvabs',s)}catch(e){}};
   setSpd(ABS);$('abspd').onclick=e=>{const b=e.target.closest('button');if(b)setSpd(+b.dataset.s)};
-  const team=[0,1].map(p=>(P[p]&&P[p].c||[]).map(c=>c.n)),ko=[[],[]],act=[-1,-1],cur=[null,null];let hpN=[1,1],lastDown='',dno=0;
+  const T0=S0.ev[0]&&S0.ev[0].teams; // orden real de cada equipo (el motor lo manda; si no, el de la compra)
+  const team=[0,1].map(p=>T0?T0[p]:(P[p]&&P[p].c||[]).map(c=>c.n)),ko=[[],[]],act=[-1,-1],cur=[null,null];let hpN=[1,1],lastDown='',lastL=null,dno=0;
   const roster=p=>$('abt'+p).innerHTML=team[p].map((n,k)=>{const c=C(n);return c?`<i class="ab-th${k===act[p]?' on':''}${ko[p][k]?' ko':''}" data-n="${n}" style="--h:${c.h}">${spr(c)}</i>`:''}).join('');
   roster(0);roster(1);
   const say=async(h,ms)=>{$('abdl').innerHTML='<span>'+h+'</span>';if(ms)await z(ms)};
   const re=(el,c)=>{el.classList.remove(c);void el.offsetWidth;el.classList.add(c)};
+  const com=h=>{const c=$('abcom');c.innerHTML='<span>🎙 '+h+'</span>';re(c,'on')};
   const tmp=(html,ms)=>{const w=document.createElement('div');w.innerHTML=html;const el=w.firstElementChild;FX.appendChild(el);setTimeout(()=>el.remove(),ms/Math.min(ABS,2));return el};
   const ctr=(p,f=.42)=>{const s=ST.getBoundingClientRect(),r=$('abc'+p).getBoundingClientRect();return{x:r.left+r.width/2-s.left,y:r.top+r.height*f-s.top}};
   const setB=(p,hp,en)=>{const v=$('abh'+p);if(hp!=null){hp=Math.max(0,Math.min(1,hp));v.style.width=$('abg'+p).style.width=hp*100+'%';v.className='v'+(hp>.5?'':hp>.2?' mid':' low');$('abhp'+p).textContent=Math.ceil(hp*100)+'%'}if(en!=null)$('abk'+p).style.width=Math.max(0,Math.min(1,en))*100+'%'};
   const num=(p,txt,k='')=>{const c=ctr(p,.22);tmp(`<span class="ab-num ${k}" style="left:${c.x+(Math.random()*40-20)}px;top:${c.y}px">${txt}</span>`,1200)};
-  const burst=(p,big)=>{const c=ctr(p);tmp(`<i class="ab-burst" style="left:${c.x}px;top:${c.y}px;--s:${big?170:95}px;--c:var(--p${2-p})"></i>`,600)};
+  const elC=a=>{const e=cur[a]&&ELC[ELN[cur[a].n]];return e?e[0]:null};
+  const burst=(p,big,col)=>{const c=ctr(p);tmp(`<i class="ab-burst" style="left:${c.x}px;top:${c.y}px;--s:${big?170:95}px;--c:${col||`var(--p${2-p})`}"></i>`,600)};
   const pop=(txt,k='',col)=>tmp(`<b class="ab-pop ${k}" style="${col?'--pc:'+col:''}">${txt}</b>`,1000);
   const shake=()=>re(ST,'shk'),flash=c=>{ST.style.setProperty('--fc',c||'#fff');re(ST,'fl')};
+  const shield=p=>{const c=ctr(p,.5);tmp(`<i class="ab-shield" style="left:${c.x}px;top:${c.y}px;--c:var(--p${p+1})"></i>`,800)};
   const fa=(p,c)=>{const f=$('abf'+p);f.classList.remove('in','atk','hit','dodge');void f.offsetWidth;f.classList.add(c)};
   const lunge=p=>fa(p,'atk'),hurt=p=>fa(p,'hit'),dodge=p=>fa(p,'dodge');
   const sfx=k=>{if(ABS<=2)SND.fx(k)};
   const pct=x=>'-'+Math.max(1,Math.round(x*100))+'%';
-  const cutin=async(p,c,m)=>{const el=tmp(`<div class="ab-cut${p?' r':''}" style="--c:var(--p${p+1});--on:var(--on${p+1})"><span class="ci" style="--h:${c.h}">${spr(c)}</span><span class="ct"><small>${dn(c)}</small><b>${m}</b></span></div>`,1000);sfx('charge');await z(820);return el};
-  const beam=(a,big)=>{const A=ctr(a),D=ctr(1-a),l=Math.min(A.x,D.x),w=Math.abs(D.x-A.x);tmp(`<i class="ab-beam" style="left:${l}px;width:${w}px;top:${(A.y+D.y)/2}px;--c:var(--p${a+1});--o:${a?'right':'left'};--bh:${big?38:26}px"></i>`,700);sfx('beam')};
+  const cutin=async(p,c,m)=>{const el=tmp(`<div class="ab-cut${p?' r':''}" style="--c:var(--p${p+1});--on:var(--on${p+1})"><span class="ci" style="--h:${c.h}">${spr(c)}</span><span class="ct"><small>${dnh(c)}</small><b>${m}</b></span></div>`,1000);sfx('charge');await z(820);return el};
+  const beam=(a,big)=>{const A=ctr(a),D=ctr(1-a),l=Math.min(A.x,D.x),w=Math.abs(D.x-A.x),k=cur[a]&&ELN[cur[a].n],e=ELC[k];
+    tmp(`<i class="ab-beam${k?' el-'+k:''}" style="left:${l}px;width:${w}px;top:${(A.y+D.y)/2}px;--c:${e?e[0]:`var(--p${a+1})`};${e?`--core:${e[1]};`:''}--o:${a?'right':'left'};--bh:${big?38:26}px"></i>`,700);sfx('beam')};
+  // golpe final: viñeta y bandas de cine centradas en el que cae
+  const finisher=async t=>{const c=ctr(t,.5);tmp(`<div class="ab-fin" style="--fx:${c.x}px"></div>`,1600);ST.classList.add('fin');sfx('charge');await z(560)};
+  let combo={a:-1,n:0},first=false,behind=[0,0];
+  const comboHit=a=>{if(combo.a===a)combo.n++;else combo={a,n:1};if(combo.n>=3){const c=ctr(a,.02);tmp(`<b class="ab-combo" style="left:${c.x}px;top:${c.y}px;--c:var(--p${a+1})">${abF(comT('combo'),{0:combo.n})}</b>`,900)}};
+  const scene=h=>{ST.classList.toggle('dz0',!!(h.dz&&h.dz[0]));ST.classList.toggle('dz1',!!(h.dz&&h.dz[1]));if(!h.ts&&h.k!=='tr')ST.classList.remove('tstop')};
+  const pops=()=>(TR_T[lang]||TR_T.en).pops;
+  const trait=async(h,a,d,An,Dn,upd)=>{ // animación de cada rasgo (a = dueño del rasgo, salvo 'stun' = el atrapado)
+    const k=h.tr,nm=trT(k,0),by=h.by==null?d:h.by,line=abF(trT(k,2),{a:An,d:Dn,b:dnh(cur[by])}),pc=`var(--p${a+1})`;
+    if(line)say(line);
+    switch(k){
+      case 'inf':lunge(by);await z(170);shield(a);num(a,'∞','txt');sfx('whiff');pop(nm,'',pc);await z(650);break;
+      case 'time':ST.classList.add('tstop');pop(nm,'',pc);sfx('time');await z(950);break;
+      case 'req':shield(a);flash('#ffd23f');pop(nm,'','#ffd23f');sfx('awake');num(a,'0','txt');await z(1100);break;
+      case 'serious':await cutin(a,cur[a],nm);break;
+      case 'toll':pop(nm,'',pc);flash('#fff');hurt(d);if(h.dmg)num(d,pct(h.dmg));sfx('boom');upd();await z(1000);break;
+      case 'domain':await cutin(a,cur[a],nm);ST.classList.add('dz'+a);sfx('domain');await z(400);break;
+      case 'regen':num(a,'+'+Math.round((h.heal||0)*100)+'%','heal');sfx('awake');upd();await z(650);break;
+      case 'adapt':shield(a);num(a,pops().adapt+(h.lv>1?' ×'+h.lv:''),'txt');sfx('hum');await z(600);break;
+      case 'gen':flash('#c4001a');ST.classList.add('gen');pop(nm,'','#ff3b3b');sfx('charge');await z(1000);ST.classList.remove('gen');break;
+      case 'stun':num(a,pops().stun,'txt');sfx('whiff');await z(650);break;
+      case 'rage':$('abf'+a).classList.add('rg');pop(nm,'','#ff3b3b');sfx('awake');shake();await z(900);break;
+      case 'sun':flash('#ffd23f');pop(nm,'','#ffd23f');sfx('awake');await z(1000);break;
+      case 'touch':ST.classList.add('god');pop(nm,'','#fff');sfx('awake');await z(1300);ST.classList.remove('god');break;
+      default:await z(300);
+    }
+    upd();
+  };
   for(const e of S0.ev){
     if(e.t==='start')await say(t('fightStart'),900);
     else if(e.t==='send'){
       const c=C(e.n),p=e.p,f=$('abf'+p),card=$('abc'+p);act[p]=e.k;cur[p]=c;hpN[p]=e.f==null?1:e.f;
-      $('abn'+p).textContent=dn(c);card.dataset.n=c.n;card.style.setProperty('--h',c.h);card.innerHTML=spr(c);
+      $('abn'+p).innerHTML=dnh(c);$('abtr'+p).innerHTML=trBadge(c);card.dataset.n=c.n;card.style.setProperty('--h',c.h);card.innerHTML=spr(c);
       f.className='ab-f a'+p;re(f,'in');setB(p,hpN[p],e.e==null?1:e.e);$('abs'+p).innerHTML=stT(c,e.st);roster(p);
-      await say(t('sends',p+1,dn(c)),1150);
+      if(team[p].length>1&&e.k===team[p].length-1)com(abF(comT('last'),{a:dnh(c),p:t('player',p+1)}));
+      await say(t('sends',p+1,dnh(c)),1150);
     }else if(e.t==='duel'){
       const A=C(e.a),B=C(e.b);$('abdn').textContent=++dno;
-      tmp(`<div class="ab-vs"><span class="l">${dn(A)}</span><b>${t('vs')}</b><span class="r">${dn(B)}</span></div>`,1500);
-      await say(`<b>${dn(A)}</b> ${t('vs')} <b>${dn(B)}</b>`,1450);
+      tmp(`<div class="ab-vs"><span class="l">${dnh(A)}</span><b>${t('vs')}</b><span class="r">${dnh(B)}</span></div>`,1500);
+      const gp=A.pw-B.pw;if(Math.abs(gp)>=250){const s=gp>0?[A,B]:[B,A];com(abF(comT('gap')[dno%2],{a:dnh(s[0]),b:dnh(s[1])}))}else if(Math.abs(gp)<=40)com(comT('even'));
+      combo={a:-1,n:0};behind=[0,0];
+      await say(`<b>${dnh(A)}</b> ${t('vs')} <b>${dnh(B)}</b>`,1450);
       for(const h of e.hits){
-        const a=h.a,d=1-a,An=dn(cur[a]),Dn=dn(cur[d]),prev=[...hpN],v=h.v||0;
+        const a=h.a,d=1-a,An=dnh(cur[a]),Dn=dnh(cur[d]),prev=[...hpN],v=h.v||0;
         const upd=()=>{hpN=[h.hp[0],h.hp[1]];setB(0,h.hp[0],h.en&&h.en[0]);setB(1,h.hp[1],h.en&&h.en[1])};
         const dm=p=>h.dmg!=null?h.dmg:Math.max(0,prev[p]-h.hp[p]);
+        const tg=h.k==='clash'?1-(h.w==null?a:h.w):d,lethal=['hit','crit','ctr','sp','spc','clash'].includes(h.k)&&h.hp[tg]<=0&&prev[tg]>0;
+        if(h.dmg>0&&!first&&h.k!=='tr'&&h.k!=='clash'){first=true;com(comT('first'))}
         if(h.k==='hit'||h.k==='crit'||h.k==='ctr'){
           say(h.k==='ctr'?abF(abT('ctr'),{a:An,d:Dn}):abF(abT(h.k==='crit'?'crit':'hit',v),{a:An,d:Dn}));
-          lunge(a);await z(170);hurt(d);burst(d,h.crit);num(d,pct(dm(d)),h.crit?'crit':'');sfx(h.crit?'crit':'hit');
-          if(h.crit){shake();pop(abT('critPop'))}upd();await z(h.crit?720:520);
+          if(lethal)await finisher(d);
+          lunge(a);await z(h.ts?110:170);hurt(d);burst(d,h.crit||lethal);num(d,pct(dm(d)),h.crit||lethal?'crit':'');sfx(h.crit||lethal?'crit':'hit');
+          if(h.crit||lethal){shake();if(!lethal)pop(abT('critPop'))}if(lethal)flash();
+          comboHit(a);upd();await z(lethal?950:h.ts?380:h.crit?720:520);
         }else if(h.k==='sp'||h.k==='spc'){
           const m=mvOf(cur[a],v);say(abF(abT(h.k),{a:An,m}));if(h.en)setB(a,null,h.en[a]);
-          await cutin(a,cur[a],m);lunge(a);beam(a,h.k==='spc');await z(240);
-          hurt(d);burst(d,true);shake();flash();num(d,pct(dm(d)),'crit');if(h.k==='spc')pop(abT('critPop'));sfx('boom');upd();await z(760);
+          await cutin(a,cur[a],m);if(lethal)await finisher(d);lunge(a);beam(a,h.k==='spc'||lethal);await z(240);
+          hurt(d);burst(d,true,elC(a));shake();flash(elC(a));num(d,pct(dm(d)),'crit');if(h.k==='spc'&&!lethal)pop(abT('critPop'));sfx('boom');comboHit(a);upd();await z(lethal?1050:760);
         }else if(h.k==='miss'){
+          combo={a:-1,n:0};
           say(h.sp?abF(abT('missSp'),{a:An,d:Dn,m:mvOf(cur[a],v)}):abF(abT('miss',v),{a:An,d:Dn}));
           lunge(a);await z(150);dodge(d);num(d,abT('dodgePop'),'txt');sfx('whiff');upd();await z(470);
         }else if(h.k==='clash'){
-          const w=h.w==null?a:h.w,l=1-w,m1=mvOf(cur[a],v),m2=mvOf(cur[d],h.vw||0);
+          const w=h.w==null?a:h.w,l=1-w,m1=mvOf(cur[a],v),m2=mvOf(cur[d],h.vw||0);combo={a:-1,n:0};
           say(abF(abT('clash'),{m1,m2}));if(h.en){setB(0,null,h.en[0]);setB(1,null,h.en[1])}
           const c0=ctr(0),c1=ctr(1),cl=tmp(`<div class="ab-clash" style="left:${c0.x}px;width:${c1.x-c0.x}px;top:${(c0.y+c1.y)/2}px;--x:.5"><i class="l"></i><i class="r"></i><b></b></div>`,4000);
           pop(abT('clashPop'),'',`var(--p${a+1})`);sfx('beam');shake();await z(600);
           for(const x of (h.fr||[.45,.55,l?1:0])){cl.style.setProperty('--x',x);if(x===0||x===1)break;sfx('hum');await z(330)}
-          await z(260);cl.remove();hurt(l);burst(l,true);shake();flash();num(l,pct(dm(l)),'crit');sfx('boom');upd();
-          await say(abF(abT('clashWin'),{w:dn(cur[w])}),900);
+          if(lethal)await finisher(l);
+          await z(260);cl.remove();hurt(l);burst(l,true,elC(w));shake();flash(elC(w));if(h.dmg>0)num(l,pct(dm(l)),'crit');sfx('boom');upd();
+          await say(abF(abT('clashWin'),{w:dnh(cur[w])}),lethal?1100:900);
         }else if(h.k==='awake'){
           say(abF(abT('awake'),{a:An}));$('abf'+a).classList.add('aw');flash(`var(--p${a+1})`);pop(abT('awakePop'),'',`var(--p${a+1})`);sfx('awake');
           if(h.hp[a]>prev[a])num(a,'+'+Math.round((h.hp[a]-prev[a])*100)+'%','heal');upd();await z(1250);
-        }else{upd();await z(300)}
+        }else if(h.k==='tr')await trait(h,a,d,An,Dn,upd);
+        else{upd();await z(300)}
+        scene(h);if(lethal)ST.classList.remove('fin');
+        behind=[0,1].map(p=>Math.max(behind[p],h.hp[1-p]-h.hp[p]));
       }
     }else if(e.t==='down'){
-      ko[e.p][e.k]=true;lastDown=dn(C(e.n));pop('K.O.','ko');sfx('ko');shake();
-      await say(t('down',lastDown),250);$('abf'+e.p).classList.add('ko');roster(e.p);await z(1300);
+      ko[e.p][e.k]=true;lastL=C(e.n);lastDown=dn(lastL);pop('K.O.','ko');sfx('ko');shake();ST.classList.remove('dz0','dz1','tstop','fin');
+      await say(t('down',dnh(lastL)),250);$('abf'+e.p).classList.add('ko');roster(e.p);await z(1300);
       $('abc'+e.p).innerHTML='';delete $('abc'+e.p).dataset.n;
     }else if(e.t==='stands'){
-      [0,1].forEach(p=>$('abf'+p).classList.remove('aw'));if(e.e!=null)setB(e.p,null,e.e);
-      $('ablog').insertAdjacentHTML('beforeend',`<div><i>${$('abdn').textContent}.</i>${abF(abT('log'),{0:dn(C(e.n)),1:lastDown,2:e.pct})}</div>`);
-      await say(t('stands',dn(C(e.n)),e.pct),1300);
+      [0,1].forEach(p=>$('abf'+p).classList.remove('aw','rg'));if(e.e!=null)setB(e.p,null,e.e);
+      const W=C(e.n);let cm='';
+      if(e.pct>=100)cm='flawless';else if(lastL&&lastL.pw-W.pw>=120)cm='upset';else if(behind[e.p]>=.35)cm='comeback';else if(e.pct<=10)cm='close';
+      if(cm)com(abF(comT(cm),{a:dnh(W)}));
+      $('ablog').insertAdjacentHTML('beforeend',`<div><i>${$('abdn').textContent}.</i>${abF(abT('log'),{0:dnh(W),1:dnh(lastL),2:e.pct})}</div>`);
+      await say(t('stands',dnh(W),e.pct),1300);
     }else if(e.t==='end'){
       $('abspd').style.visibility='hidden';
       await say(e.w<0?t('tie'):t('wins',e.w+1),200);
-      const sv=(e.sv||[]).map(s=>{const c=C(s.n);return `<span class="ab-svc"><i class="ab-th" data-n="${s.n}" style="--h:${c.h}">${spr(c)}</i><b>${dn(c)}</b><small>${Math.max(1,Math.round(s.f*100))}%</small></span>`}).join('');
-      const mv=e.mvp&&C(e.mvp.n)?`<div class="ab-mvp" style="--c:var(--p${e.mvp.p+1})"><em>${abT('mvp')}</em><i class="ab-th" data-n="${e.mvp.n}" style="--h:${C(e.mvp.n).h}">${spr(C(e.mvp.n))}</i><span><b>${dn(C(e.mvp.n))}</b><small>${t('player',e.mvp.p+1)} · ${e.mvp.ko===1?abT('kos1'):abF(abT('kos'),{0:e.mvp.ko})}</small></span></div>`:'';
+      const sv=(e.sv||[]).map(s=>{const c=C(s.n);return `<span class="ab-svc"><i class="ab-th" data-n="${s.n}" style="--h:${c.h}">${spr(c)}</i><b>${dnh(c)}</b><small>${Math.max(1,Math.round(s.f*100))}%</small></span>`}).join('');
+      const mv=e.mvp&&C(e.mvp.n)?`<div class="ab-mvp" style="--c:var(--p${e.mvp.p+1})"><em>${abT('mvp')}</em><i class="ab-th" data-n="${e.mvp.n}" style="--h:${C(e.mvp.n).h}">${spr(C(e.mvp.n))}</i><span><b>${dnh(C(e.mvp.n))}</b><small>${t('player',e.mvp.p+1)} · ${e.mvp.ko===1?abT('kos1'):abF(abT('kos'),{0:e.mvp.ko})}</small></span></div>`:'';
       E.insertAdjacentHTML('beforeend',`<div class="res ab-res"${e.w>=0?` style="--c:var(--p${e.w+1})"`:''}><h2>${e.w<0?t('tie'):t('winsH',e.w+1)}</h2><p class="ab-note"></p><div class="ab-sv">${sv||`<small>${t('nobody')}</small>`}</div>${mv}<button onclick="again()">${t('again')}</button></div>`);
       E.querySelector('.ab-res').scrollIntoView({behavior:'smooth',block:'nearest'});
     }
@@ -354,14 +486,14 @@ async function night(tk,script){
   const E=await arenaIn(z,`<div class="arena fn"><h2 class="fnh">${u('fnTitle')}</h2><div class="fsc" id="fsc"></div><div id="fst"></div><div class="dlg" id="dlg"></div><button class="fskip" onclick="FAST=1">»</button><div class="flg" id="flg"></div></div>`);
   const sc=[0,0],say=async(h,ms=1000)=>{$('dlg').innerHTML=h;await z(ms)};
   const board=()=>$('fsc').innerHTML=`<span>${u('player',1)} <b>${sc[0]}</b></span><i>–</i><span><b>${sc[1]}</b> ${u('player',2)}</span>`;
-  const card=(c,p)=>`<div class="fc" data-n="${c.n}" style="--c:var(--p${p+1})"><div class="sp" style="--h:${c.h}">${spr(c)}</div><b>${dn(c)}</b><div class="fhp"><i id="fh${p}"></i></div><small>${u('player',p+1)}</small></div>`;
+  const card=(c,p)=>`<div class="fc" data-n="${c.n}" style="--c:var(--p${p+1})"><div class="sp" style="--h:${c.h}">${spr(c)}</div><b>${dnh(c)}</b><div class="fhp"><i id="fh${p}"></i></div><small>${u('player',p+1)}</small></div>`;
   const hp=(p,f)=>{const e=$('fh'+p);e.style.width=Math.max(f,0)*100+'%';e.className=f>.5?'':f>.2?'mid':'low'};
   const hx=(p,c)=>{const s=document.querySelectorAll('#fst .fc .sp')[p];s.classList.remove('atk','hit');void s.offsetWidth;s.classList.add(c)};
   board();
   for(const b of bs){
     const A=C(b.a),B=C(b.b),wp=b.w,lp=1-wp,W=wp?B:A,L=wp?A:B;
     $('fst').innerHTML=`<div class="fbt">${u('fnBout',b.k+1,bs.length)} · ${u('div_'+b.cls)}</div><div class="fvs">${card(A,0)}<span class="vs">${u('vs')}</span>${card(B,1)}</div>`;
-    await say(u('fnIntro',`<b>${dn(A)}</b>`,`<b>${dn(B)}</b>`),b.k?750:1100);
+    await say(u('fnIntro',`<b>${dnh(A)}</b>`,`<b>${dnh(B)}</b>`),b.k?750:1100);
     await say(u('fnBell'),450);
     for(const rd of b.rounds){
       await say(u('fnRound',rd.r,rd.time),300);
@@ -578,7 +710,7 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
       E.insertAdjacentHTML('beforeend',`<div class="res fm-res"${w>=0?` style="--c:var(--p${w+1})"`:''}><h2>${w<0?t('tie'):t('winsH',w+1)}</h2><p class="ab-note"></p>
 <div class="fm-fin"><b>${e.sc[0]}</b><i>–</i><b>${e.sc[1]}</b>${e.pens?`<small>${fmT('pens')} ${e.pens[0]} – ${e.pens[1]}</small>`:''}</div>
 <div class="fm-sts">${rows.map(([k,s],i)=>bar(k,s,i)).join('')}</div>
-${mc?`<div class="ab-mvp" style="--c:var(--p${m.p+1})"><em>${fmT('motm')}</em><i class="ab-th" data-n="${mc.n}" style="--h:${mc.h}">${spr(mc)}</i><span><b>${dn(mc)}</b><small>${P_(m.p)} · ${m.r.toFixed(1)}</small></span></div>`:''}
+${mc?`<div class="ab-mvp" style="--c:var(--p${m.p+1})"><em>${fmT('motm')}</em><i class="ab-th" data-n="${mc.n}" style="--h:${mc.h}">${spr(mc)}</i><span><b>${dnh(mc)}</b><small>${P_(m.p)} · ${m.r.toFixed(1)}</small></span></div>`:''}
 <button onclick="again()">${t('again')}</button></div>`);
       E.querySelector('.fm-res').scrollIntoView({behavior:'smooth',block:'nearest'});
     }
@@ -589,7 +721,7 @@ ${mc?`<div class="ab-mvp" style="--c:var(--p${m.p+1})"><em>${fmT('motm')}</em><i
 function scaleTab(k){scTab=k;openScale()}
 function openScale(){
   wantImg(POOLS[scTab]);
-  const row=(c,k,m)=>`<div class="sr"><span class="rk">${k}</span><div class="av" data-n="${c.n}" style="--h:${c.h}">${c.img?`<img src="${c.img}" alt="">`:c.e}</div><div><b>${dn(c)}</b><small>${m}</small><div class="bar2"><i style="width:${c.kind==='futbol'?Math.max(0,(c.ovr-40)/59*100):c.pw/10}%"></i></div>${c.kind==='anime'?stT(c):''}</div><span class="pv">${c.kind==='futbol'?c.ovr:c.pw}</span></div>`;
+  const row=(c,k,m)=>`<div class="sr"><span class="rk">${k}</span><div class="av" data-n="${c.n}" style="--h:${c.h}">${c.img?`<img src="${c.img}" alt="">`:c.e}</div><div><b>${dnh(c)}</b>${c.kind==='anime'?trBadge(c):''}<small>${m}</small><div class="bar2"><i style="width:${c.kind==='futbol'?Math.max(0,(c.ovr-40)/59*100):c.pw/10}%"></i></div>${c.kind==='anime'?stT(c):''}</div><span class="pv">${c.kind==='futbol'?c.ovr:c.pw}</span></div>`;
   $('scn').textContent=u(scTab==='ufc'?'scaleNoteUfc':scTab==='futbol'?'scaleNoteFut':'scaleNote');
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.k===scTab));
   $('scl').innerHTML=scTab==='futbol'
@@ -605,19 +737,19 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeScale()});
 /* ---------- FOTOS: anime → Jikan (MyAnimeList) · UFC → Wikipedia; se guardan en caché ---------- */
 const loads=src=>new Promise(ok=>{const im=new Image();im.onload=()=>ok(1);im.onerror=()=>ok(0);im.src=src});
 const wk=(q,s)=>`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q+' '+(s||'mixed martial artist'))}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=320&format=json&origin=*`;
-async function findWiki(c){const r=await fetch(wk(c.q,c.kind==='futbol'?'footballer':''));if(!r.ok)return;const pg=Object.values((await r.json()).query?.pages||{})[0],src=pg?.thumbnail?.source;if(src&&await loads(src))return src}
+async function findWiki(c){const r=await fetch(wk(c.q,c.kind==='futbol'?'footballer':''));if(r.status===429)throw 'rl';if(!r.ok)return;const pg=Object.values((await r.json()).query?.pages||{})[0],src=pg?.thumbnail?.source;if(src&&await loads(src))return src}
 let IMGC={};try{IMGC=JSON.parse(localStorage.getItem('bvimg')||'{}')}catch(e){}
-let imgQ=[],imgBusy=false;
+if(typeof IMG_URLS!=='undefined')for(const k in IMG_URLS)IMGC[k]=IMG_URLS[k]; // data-imgs.js (tools/build-imgs.js)
 const jk=q=>`https://api.jikan.moe/v4/characters?q=${encodeURIComponent(q)}&order_by=favorites&sort=desc&limit=1`;
 // Prioridad 1: fotos propias en pics/ (nombre del personaje + .jpg/.png/.webp/.jpeg). Se buscan TODAS a la vez al cargar la página, sin esperar a la cola de internet.
 const LOC_EXT=['jpg','png','webp','jpeg'],ALT={Frieza:['Freezer'],'Grand Priest':['Gran Sacerdote','Daishinkan'],Truth:['La Verdad'],Father:['Padre'],Whitebeard:['Barbablanca','Edward Newgate'],'Sung Jin-Woo':['Jinwoo','Sung Jinwoo']};
 const tryLoad=src=>new Promise(ok=>{const im=new Image();im.onload=()=>ok(src);im.onerror=()=>ok(0);im.src=src});
 const picNames=c=>[...new Set([c.n,LANGS.es&&LANGS.es.names&&LANGS.es.names[c.n],LANGS.en&&LANGS.en.names&&LANGS.en.names[c.n],...(ALT[c.n]||[])].filter(Boolean))];
-async function localImg(c){const ufc=c.kind==='ufc'||c.kind==='futbol',pre=c.kind==='futbol'?'fut-':c.kind==='ufc'?'ufc-':'',v=(ufc?[c.n]:picNames(c)).flatMap(n=>(ufc?['jpg','png','webp']:LOC_EXT).map(x=>'pics/'+pre+encodeURIComponent(n)+'.'+x));return (await Promise.all(v.map(tryLoad))).find(Boolean)}
+async function localImg(c){const ufc=c.kind==='ufc'||c.kind==='futbol',pre=c.kind==='futbol'?'fut-':c.kind==='ufc'?'ufc-':'',v=(ufc?[c.n]:picNames(c)).flatMap(n=>(ufc?['jpg']:LOC_EXT).map(x=>'pics/'+pre+encodeURIComponent(n)+'.'+x));return (await Promise.all(v.map(tryLoad))).find(Boolean)}
 let localDone=Promise.resolve();
 function scanLocal(){
   POOLS.anime.forEach(c=>{if(!c.img&&IMGC[c.n])c.img=IMGC[c.n]}); // caché de internet: al instante
-  const L=[...POOLS.anime,...UFC];let k=0;
+  const L=[...POOLS.anime];let k=0;
   const worker=async()=>{while(k<L.length){const c=L[k++];try{const l=await localImg(c);if(l){c.loc=1;if(c.img!==l){c.img=l;imgShown(c)}}}catch(e){}}};
   return localDone=Promise.all(Array.from({length:16},worker));
 }
@@ -634,21 +766,46 @@ async function findImg(c){
     await sleep(1100);
   }
 }
-async function pump(){
-  imgBusy=true;await localDone;
-  while(imgQ.length){
-    const c=imgQ.shift();if(c.loc||(c.img&&c.kind!=='ufc'))continue;
-    try{if(IMGC[c.n]){c.img=IMGC[c.n];imgShown(c);continue}
-      const u=await findImg(c);if(u){c.img=u;IMGC[c.n]=u;try{localStorage.setItem('bvimg',JSON.stringify(IMGC))}catch(e){}imgShown(c)}}catch(e){}
-    await sleep(c.kind==='anime'?1100:300);
-  }
-  imgBusy=false;
+// Anime (Jikan): de una en una por su límite de peticiones.
+// UFC y fútbol (Wikipedia): en lotes de 50 nombres por petición (300 jugadores = 6 peticiones; en paralelo Wikipedia responde 429).
+// Los que no salen por el título exacto se buscan luego uno a uno.
+let imgQA=[],imgQW=[],wkPend=[],busyA=false,busyW=false,busyB=false;
+const saveC=()=>{try{localStorage.setItem('bvimg',JSON.stringify(IMGC))}catch(e){}};
+const got=(c,u)=>{c.img=u;IMGC[c.n]=u;imgShown(c)};
+async function grab(c){
+  if(c.loc||(c.img&&c.kind!=='ufc'))return;
+  if(IMGC[c.n]){c.img=IMGC[c.n];imgShown(c);return}
+  const u=await findImg(c);if(u){got(c,u);saveC()}
 }
+async function pumpA(){busyA=true;await localDone;
+  while(imgQA.length){const c=imgQA.shift();try{await grab(c)}catch(e){}await sleep(1100)}busyA=false}
+async function pumpW(){busyW=true;
+  while(imgQW.length){const c=imgQW.shift();try{await grab(c)}catch(e){if(e==='rl'){imgQW.unshift(c);await sleep(6000)}}await sleep(250)}busyW=false}
+const wkT=ts=>`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(ts.join('|'))}&redirects=1&prop=pageimages|pageprops&ppprop=disambiguation&piprop=thumbnail&pithumbsize=320&pilimit=50&format=json&origin=*`;
+async function pumpB(){busyB=true;
+  while(wkPend.length){const ch=wkPend.splice(0,50).filter(c=>!c.img),miss=[];if(!ch.length)continue;
+    try{let r=null;
+      for(let k=0;k<3;k++){try{r=await fetch(wkT(ch.map(c=>c.q)))}catch(e){r=null}if(r&&r.status===429){await sleep(1500*(k+1));continue}break}
+      if(r&&r.status===429){wkPend.unshift(...ch);await sleep(6000);continue}
+      const q=r&&r.ok?((await r.json()).query||{}):{},nm={},rd={},byT={};
+      (q.normalized||[]).forEach(x=>nm[x.from]=x.to);(q.redirects||[]).forEach(x=>rd[x.from]=x.to);
+      Object.values(q.pages||{}).forEach(pg=>{if(pg.thumbnail&&!(pg.pageprops&&'disambiguation' in pg.pageprops))byT[pg.title]=pg.thumbnail.source});
+      ch.forEach(c=>{let t=nm[c.q]||c.q;t=rd[t]||t;const u=byT[t];if(u){got(c,u);new Image().src=u}else miss.push(c)}); // new Image: la foto se descarga ya y queda en la caché del navegador
+      saveC();
+    }catch(e){miss.push(...ch.filter(c=>!c.img))}
+    imgQW.push(...miss);if(!busyW)pumpW();
+  }
+  busyB=false}
 function wantImg(list,front){
-  list.forEach(c=>{if(c.img)return;const k=imgQ.indexOf(c);
-    if(k>=0){if(front&&k>0){imgQ.splice(k,1);imgQ.unshift(c)}return}
-    if(c.done)return;c.done=true;front?imgQ.unshift(c):imgQ.push(c)});
-  if(!imgBusy)pump();
+  (list||[]).forEach(c=>{if(!c||c.img)return;
+    if(c.kind==='anime'){const k=imgQA.indexOf(c);if(k>=0){if(front&&k>0){imgQA.splice(k,1);imgQA.unshift(c)}return}
+      if(c.done)return;c.done=true;front?imgQA.unshift(c):imgQA.push(c);return}
+    if(IMGC[c.n]){c.done=true;c.img=IMGC[c.n];imgShown(c);return} // caché: al instante
+    const k=imgQW.indexOf(c);if(k>=0){if(front&&k>0){imgQW.splice(k,1);imgQW.unshift(c)}return}
+    const j=wkPend.indexOf(c);if(j>=0){if(front&&j>0){wkPend.splice(j,1);wkPend.unshift(c)}return}
+    if(c.done)return;c.done=true;front?wkPend.unshift(c):wkPend.push(c)});
+  if(imgQA.length&&!busyA)pumpA();
+  if(wkPend.length&&!busyB)pumpB();
 }
 function imgShown(c){
   if(cur&&cur.n===c.n){const e=$('pic').querySelector('.e');if(e)e.outerHTML=`<img src="${c.img}" alt="${c.n}">`}

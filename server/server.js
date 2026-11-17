@@ -9,7 +9,7 @@ const ws = require('./ws.js'), { Hub } = require('./rooms.js');
 const ROOT = path.resolve(__dirname, '..');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.mp4': 'video/mp4', '.webm': 'video/webm', '.ico': 'image/x-icon' };
 // Solo se sirve esto: nada de server/, tests/, .git, node_modules…
-const FILES = new Set(['index.html', 'styles.css', 'game.js', 'engine.js', 'online.js', 'data-anime.js', 'data-ufc.js', 'data-futbol.js']);
+const FILES = new Set(['index.html', 'styles.css', 'game.js', 'engine.js', 'online.js', 'data-anime.js', 'data-ufc.js', 'data-futbol.js', 'data-imgs.js']);
 const DIRS = new Set(['lang', 'pics', 'bg']);
 
 function loadPools() { // los datos son scripts de navegador: se evalúan aquí para tener los mismos personajes que el cliente
@@ -30,7 +30,11 @@ function staticHandler(req, res) {
   if (!file || !type || !file.startsWith(ROOT + path.sep)) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No encontrado'); }
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No encontrado'); }
-    res.writeHead(200, { 'Content-Type': type, 'Content-Length': st.size, 'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY' });
+    // ETag: el navegador solo vuelve a descargar un archivo si ha cambiado; las imágenes además se guardan 1 día
+    const etag = '"' + st.size.toString(36) + '-' + Math.floor(st.mtimeMs).toString(36) + '"';
+    const head = { ETag: etag, 'Cache-Control': DIRS.has(parts[0]) && parts[0] !== 'lang' ? 'public, max-age=86400' : 'no-cache', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY' };
+    if (req.headers['if-none-match'] === etag) { res.writeHead(304, head); return res.end(); }
+    res.writeHead(200, Object.assign({ 'Content-Type': type, 'Content-Length': st.size }, head));
     if (req.method === 'HEAD') return res.end();
     fs.createReadStream(file).pipe(res);
   });
@@ -74,9 +78,11 @@ module.exports = { create };
 if (require.main === module) {
   const a = process.argv.slice(2), lan = a.includes('--lan'), pi = a.indexOf('--port');
   const port = pi >= 0 ? parseInt(a[pi + 1], 10) || 3000 : parseInt(process.env.PORT, 10) || 3000;
-  create({ port, host: lan ? '0.0.0.0' : '127.0.0.1', trustProxy: process.env.TRUST_PROXY === '1', allowedOrigins: (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean) }).then(s => {
+    // En un hosting (Render, Railway…) la plataforma define PORT y hay que escuchar en todas las interfaces
+  const host = process.env.HOST || (lan || process.env.PORT ? '0.0.0.0' : '127.0.0.1');
+  create({ port, host, trustProxy: process.env.TRUST_PROXY === '1', allowedOrigins: (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean) }).then(s => {
     console.log('\n  BidVerse está en marcha.\n');
-    console.log('  En este ordenador:  http://localhost:' + s.port);
+    console.log('  En este ordenador:  http://localhost:' + s.port + (host === '0.0.0.0' && !lan ? '  (escuchando en 0.0.0.0)' : ''));
     if (lan) { for (const l of Object.values(os.networkInterfaces()).flat()) if (l && l.family === 'IPv4' && !l.internal) console.log('  En tu red local:    http://' + l.address + ':' + s.port); }
     else console.log('  (para que otros dispositivos de tu red entren, arráncalo con --lan)');
     console.log('\n  Para pararlo: Ctrl+C\n');

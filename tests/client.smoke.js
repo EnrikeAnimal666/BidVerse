@@ -12,9 +12,10 @@ function mkEl(id){
       if(k==='children')return new Proxy([],{get:(a,i)=>mkEl('child'+String(i))});
       if(k==='firstElementChild'||k==='querySelector'&&0)return mkEl('first');
       if(k==='insertAdjacentHTML')return(w,h)=>{t.innerHTML+=h};
-      if(k==='querySelector')return()=>null;
+      if(k==='querySelector')return()=>mkEl('q');
       if(k==='querySelectorAll')return()=>[];
       if(k==='offsetWidth')return 0;
+      if(k==='getBoundingClientRect')return()=>({left:0,top:0,width:100,height:100});
       if(k==='matches')return()=>false;
       if(typeof k==='symbol'||k==='then')return undefined; // 'then' indefinido: si no, await del elemento se queda colgado
       return()=>{};
@@ -76,7 +77,11 @@ async function play(cat,seed){
   }
   assert.strictEqual(J(h,'G.phase'),'fight','la subasta debe llegar al combate');
   // deja que se reproduzca todo el combate
-  const done=()=>{const e=h.ctx.document.getElementById('end');return /class="res"/.test(String(e.innerHTML))};
+  const done=()=>{const e=h.ctx.document.getElementById('end');return /class="res[ "]/.test(String(e.innerHTML))};
+  // anime: pantalla de orden de combate → los dos pulsan "Listo" (el jugador 2 antes sube a su último luchador)
+  const click=ds=>J(h,`LU&&LU.el.onclick({target:{closest:()=>({disabled:false,dataset:${JSON.stringify(ds)}})}})`);
+  await drain(h,()=>J(h,'!!LU')||done());
+  if(J(h,'!!LU')){if(J(h,'P[1].c.length')>1)click({p:'1',k:String(J(h,'P[1].c.length')-1),d:'-1'});click({go:'0'});click({go:'1'});assert(!J(h,'LU'),'la pantalla de orden se cierra')}
   await drain(h,done);
   assert(done(),'el combate termina y muestra el resultado');
   const P=J(h,'G.P');

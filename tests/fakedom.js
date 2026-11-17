@@ -9,9 +9,10 @@ function mkEl(id){
       if(k==='children')return new Proxy([],{get:(a,i)=>mkEl('child'+String(i))});
       if(k==='firstElementChild'||k==='querySelector'&&0)return mkEl('first');
       if(k==='insertAdjacentHTML')return(w,h)=>{t.innerHTML+=h};
-      if(k==='querySelector')return()=>null;
+      if(k==='querySelector')return()=>mkEl('q');
       if(k==='querySelectorAll')return()=>[];
       if(k==='offsetWidth')return 0;
+      if(k==='getBoundingClientRect')return()=>({left:0,top:0,width:100,height:100});
       if(k==='matches')return()=>false;
       if(typeof k==='symbol'||k==='then')return undefined; // 'then' indefinido: si no, await del elemento se queda colgado
       return()=>{};

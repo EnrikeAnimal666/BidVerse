@@ -47,11 +47,27 @@ class Room {
     if (bidding && !this.ticking) { this.ticking = true; this.nextTick = this.time + 1000; } else if (!bidding) this.ticking = false;
     if (ev.length === 1 && ev[0].t === 'tick') this.all({ t: 'tick', left: g.left });
     else if (ev.length) this.all({ t: 'state', s: snap(g), ev });
-    if (g.phase === 'fight' && this.phase === 'auction') { // subasta terminada: se resuelve el combate entero en el servidor
-      this.phase = 'fight'; this.sched = null; this.ticking = false;
-      this.fight = Object.assign({ t: 'fight' }, BE.resolve(g)); // { kind: 'anime' | 'ufc' | 'futbol', script }
-      this.all(this.fight);
+    if (g.phase === 'fight' && this.phase === 'auction') { // subasta terminada: en anime cada uno elige su orden; luego se resuelve el combate en el servidor
+      this.sched = null; this.ticking = false;
+      if (this.cat === 'anime' && g.P.some(p => p.c.length > 1)) this.startOrder(); else this.fightNow();
     }
+  }
+  // ORDEN DE COMBATE (anime): cada jugador manda su orden en secreto; si se acaba el tiempo, se queda el orden de compra
+  startOrder() {
+    Object.assign(this, { phase: 'order', ord: [null, null], ordAt: this.time + this.hub.orderMs });
+    this.all({ t: 'order', ms: this.hub.orderMs, done: [false, false] });
+  }
+  setOrder(s, perm) {
+    const i = this.idx(s);
+    if (i < 0 || this.phase !== 'order' || this.ord[i] || !Array.isArray(perm) || perm.length > 3) return;
+    if (!BE.order(this.g, i, perm)) return;
+    this.ord[i] = perm; this.all({ t: 'orderReady', i });
+    if (this.ord[0] && this.ord[1]) this.fightNow();
+  }
+  fightNow() {
+    this.phase = 'fight'; this.sched = null; this.ticking = false;
+    this.fight = Object.assign({ t: 'fight' }, BE.resolve(this.g)); // { kind: 'anime' | 'ufc' | 'futbol', script }
+    this.all(this.fight);
   }
 
   bid(s, amount) {
@@ -70,6 +86,7 @@ class Room {
   advance(dt) {
     const anyConn = this.players.some(s => s && s.conn);
     this.idleMs = anyConn ? 0 : this.idleMs + dt;
+    if (this.phase === 'order') { this.time += dt; if (this.time >= this.ordAt) this.fightNow(); return; }
     if (this.phase !== 'auction') return;
     if (this.paused()) { this.pausedMs += dt; if (this.pausedMs > this.hub.abandonMs) this.abandon(); return; }
     this.pausedMs = 0;
@@ -90,6 +107,7 @@ class Room {
     if (this.phase === 'lobby') return s.conn.send(this.info());
     s.conn.send({ t: 'start', cat: this.cat, names: this.names(), you: i, resume: true });
     s.conn.send({ t: 'state', s: snap(this.g), ev: this.g.cur ? [{ t: 'lot' }] : [] });
+    if (this.phase === 'order') s.conn.send({ t: 'order', ms: Math.max(0, this.ordAt - this.time), done: this.ord.map(Boolean) });
     if (this.phase === 'fight' && this.fight) s.conn.send(this.fight);
     this.send(1 - i, { t: 'peer', i, connected: true });
   }
@@ -113,8 +131,8 @@ class Room {
 }
 
 class Hub {
-  constructor({ pools, divs, futDivs, rng, speed = 1, maxRooms = 300, abandonMs = 90000 }) {
-    Object.assign(this, { pools, divs, futDivs, rng, speed, maxRooms, abandonMs, rooms: new Map(), sessions: new Map(), real: 0, sweep: 0 });
+  constructor({ pools, divs, futDivs, rng, speed = 1, maxRooms = 300, abandonMs = 90000, orderMs = 25000 }) {
+    Object.assign(this, { pools, divs, futDivs, rng, speed, maxRooms, abandonMs, orderMs, rooms: new Map(), sessions: new Map(), real: 0, sweep: 0 });
   }
   newCode() {
     for (let k = 0; k < 50; k++) {
@@ -161,6 +179,7 @@ class Hub {
       }
       case 'bid': if (s.room) s.room.bid(s, msg.amount); return;
       case 'skip': if (s.room) s.room.skip(s); return;
+      case 'order': if (s.room) s.room.setOrder(s, msg.order); return;
       case 'rematch': if (s.room) s.room.again(s); return;
       case 'leave': if (s.room) s.room.leave(s); return;
     }

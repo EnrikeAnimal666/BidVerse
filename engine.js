@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '2026-11-17f';
+  const VERSION = '2026-11-18a';
   const CFG = { anime: { start: 20 }, ufc: { start: 40 }, futbol: { start: 100 } }, MAXC = 3, SECS = 10;
   // Fútbol: 4-3-3 (1 portero, 4 defensas, 3 medios, 3 delanteros). Se subasta por posiciones, igual que la UFC por categorías.
   const FUT_DIVS = [{ k: 'GK', n: 1 }, { k: 'DEF', n: 4 }, { k: 'MID', n: 3 }, { k: 'FWD', n: 3 }];
@@ -155,33 +155,76 @@
   const AN = { FORM: 80, K1: 7000, K3: 900, BASE: .19, KS: 3000, KA: 2600, AWK: 55, AWHP: .33, AWP: .55, SPC: .34, REGEN: .05, CAP: 80 };
   const ex = d => d / AN.K1 + Math.sign(d) * Math.pow(Math.abs(d) / AN.K3, 3); // exponente: lineal suave + cúbico (castiga las diferencias enormes)
   const mul = d => Math.pow(10, ex(d));
+  /* ---------- RASGOS (anime): habilidades propias de algunos personajes. La clave está en data-anime.js (TRAITS) y llega como c.tr ----------
+       touch   God: actúa primero y borra al rival de un solo toque
+       inf     Infinito: los 2 primeros ataques que recibe no le llegan
+       time    Tiempo detenido: 1 vez por duelo, 2 golpes seguidos imposibles de esquivar
+       ui      Intocable: el rival falla un 18 % más
+       req     Requiem: anula el primer golpe que le dejaría K.O. y el rival no puede despertar
+       serious Golpe serio: tras recibir 3 golpes, su siguiente ataque quita al menos un 55 % de vida (atraviesa el Infinito)
+       toll    Peaje: al empezar el duelo el rival pierde un 40 % de ki y un 10 % de vida
+       domain  Expansión de dominio: 1 vez por duelo (gasta 50 % de ki): sus 4 siguientes ataques no fallan y hacen un 40 % más
+       regen   Regeneración: por debajo del 60 % de vida se cura un 7 % al actuar (hasta 4 veces por duelo)
+       adapt   Adaptación: cada golpe que recibe le hace un 10 % menos de daño (hasta 4 veces)
+       gen     Genjutsu: en su primer turno deja al rival 2 turnos sin actuar
+       rage    Furia: por debajo del 40 % de vida pega un 30 % más
+       sun     The One: sus 4 primeros turnos pega un 50 % más
+     Todo sale en el guion como golpes { k:'tr', tr:<clave> } para animarlo. */
+  const TR = { INF: 2, TS: 2, UI: .18, TOLLE: .4, TOLLH: .1, DOMC: .5, DOMN: 4, DOMX: 1.4, RGHP: .6, RG: .07, RGN: 4, AD: .1, ADN: 4, GEN: 2, RAGEHP: .4, RAGEX: 1.3, SUNN: 4, SUNX: 1.5, SER: 3, SERX: .55 };
   function duel(rng, A, B) {
     const fm = [0, 1].map(() => (rng() - .5) * 2 * AN.FORM), F = [A, B];
     const base = F.map((c, i) => { const s = c.st || stats(c); return { STR: s.STR + fm[i], SPD: s.SPD + fm[i], DUR: s.DUR + fm[i], TEC: s.TEC + fm[i], ENE: s.ENE + fm[i] }; });
     const hp = F.map(c => c.f == null ? 1 : c.f), en = F.map(c => c.e == null ? 1 : c.e), aw = F.map(c => !!c.aw), bo = [0, 0], dmg = [0, 0], hits = [];
+    const tr = F.map(c => c.tr || ''), has = (i, k) => tr[i] === k;
+    const inf = tr.map(t => t === 'inf' ? TR.INF : 0), used = [{}, {}], dom = [0, 0], stun = [0, 0], acts = [0, 0], taken = [0, 0], ad = [0, 0], rg = [0, 0];
     const S = (i, k) => base[i][k] + bo[i];
-    const rec = o => hits.push(Object.assign(o, { hp: hp.map(x => +x.toFixed(4)), en: en.map(x => +x.toFixed(3)) }));
+    const rec = o => hits.push(Object.assign(o, { hp: hp.map(x => +x.toFixed(4)), en: en.map(x => +x.toFixed(3)) }, dom[0] || dom[1] ? { dz: [...dom] } : null));
     const pA = () => clamp(1 / (1 + Math.pow(10, -ex(S(0, 'SPD') - S(1, 'SPD')) * AN.K1 / AN.KS)), .2, .8);
     const skill = i => .6 * S(i, 'SPD') + .4 * S(i, 'TEC');
     const hurt = (d, x) => { const v = Math.min(hp[d], x); hp[d] = Math.max(0, hp[d] - x); dmg[1 - d] += v; return v; };
-    const awaken = d => { // despertar: solo si sigue en pie y aún no lo ha usado
-      if (aw[d] || hp[d] <= 0 || hp[d] > AN.AWHP) return;
+    const saves = (d, x) => has(d, 'req') && !used[d].req && x >= hp[d]; // Requiem: ¿este golpe se anula?
+    const save = d => { used[d].req = 1; rec({ a: d, k: 'tr', tr: 'req' }); };
+    const boost = (a, d) => (dom[a] > 0 ? TR.DOMX : 1) * (has(a, 'sun') && acts[a] <= TR.SUNN ? TR.SUNX : 1) * (has(a, 'rage') && hp[a] < TR.RAGEHP ? TR.RAGEX : 1) * (has(d, 'adapt') ? 1 - TR.AD * ad[d] : 1);
+    const took = (d, v) => { if (!(v > 0)) return; taken[d]++; if (has(d, 'adapt') && ad[d] < TR.ADN && hp[d] > 0) { ad[d]++; rec({ a: d, k: 'tr', tr: 'adapt', lv: ad[d] }); } };
+    const awaken = d => { // despertar: solo si sigue en pie, aún no lo ha usado y el rival no tiene Requiem
+      if (aw[d] || hp[d] <= 0 || hp[d] > AN.AWHP || has(1 - d, 'req')) return;
       aw[d] = true; if (rng() > AN.AWP) return; // solo lo intenta una vez por combate, y no siempre sale
       bo[d] += AN.AWK; hp[d] = Math.min(1, hp[d] + .06); en[d] = Math.min(1, en[d] + .5);
       rec({ a: d, k: 'awake' });
     };
-    const strike = (a, kind) => { // kind: 'hit' | 'sp' | 'ctr'
+    const strike = (a, kind, extra) => { // kind: 'hit' | 'sp' | 'ctr'
       const d = 1 - a, sp = kind === 'sp', ctr = kind === 'ctr';
+      if (inf[d] > 0) { inf[d]--; rec(Object.assign({ a: d, k: 'tr', tr: 'inf', by: a }, extra)); return; }
       const crit = rng() < .06 + clamp(S(a, 'TEC'), 0, 1000) / 1000 * .1;
       const P = sp ? S(a, 'ENE') : S(a, 'STR');
-      const x = AN.BASE * mul(P - S(d, 'DUR')) * (.7 + .6 * rng()) * (crit ? 1.6 : 1) * (sp ? 1.55 : 1) * (ctr ? .6 : 1);
-      const v = hurt(d, Math.min(1, x));
-      rec({ a, k: ctr ? 'ctr' : sp ? (crit ? 'spc' : 'sp') : crit ? 'crit' : 'hit', crit, dmg: +v.toFixed(4), v: rndi(rng, 0, 5) });
-      awaken(d);
+      const x = Math.min(1, AN.BASE * mul(P - S(d, 'DUR')) * (.7 + .6 * rng()) * (crit ? 1.6 : 1) * (sp ? 1.55 : 1) * (ctr ? .6 : 1) * boost(a, d));
+      if (saves(d, x)) return save(d);
+      const v = hurt(d, x);
+      rec(Object.assign({ a, k: ctr ? 'ctr' : sp ? (crit ? 'spc' : 'sp') : crit ? 'crit' : 'hit', crit, dmg: +v.toFixed(4), v: rndi(rng, 0, 5) }, extra));
+      took(d, v); awaken(d);
     };
-    const act = a => {
+    const turn = a => {
       const d = 1 - a;
+      if (stun[a] > 0) { stun[a]--; rec({ a, k: 'tr', tr: 'stun' }); return; }
+      acts[a]++;
       en[a] = Math.min(1, en[a] + AN.REGEN);
+      // rasgos que se activan al empezar su turno
+      if (has(a, 'regen') && hp[a] < TR.RGHP && rg[a] < TR.RGN) { rg[a]++; hp[a] = Math.min(1, hp[a] + TR.RG); rec({ a, k: 'tr', tr: 'regen', heal: TR.RG }); }
+      if (has(a, 'rage') && hp[a] < TR.RAGEHP && !used[a].rage) { used[a].rage = 1; rec({ a, k: 'tr', tr: 'rage' }); }
+      if (has(a, 'gen') && !used[a].gen) { used[a].gen = 1; stun[d] = TR.GEN; rec({ a, k: 'tr', tr: 'gen' }); return; }
+      if (has(a, 'serious') && !used[a].ser && taken[a] >= TR.SER) { // atraviesa el Infinito; solo el Requiem lo para
+        used[a].ser = 1; rec({ a, k: 'tr', tr: 'serious' });
+        const x = Math.max(TR.SERX, Math.min(1, AN.BASE * mul(S(a, 'STR') - S(d, 'DUR')) * 2.5));
+        if (saves(d, x)) return save(d);
+        const v = hurt(d, x); rec({ a, k: 'spc', crit: true, dmg: +v.toFixed(4), v: 0 }); took(d, v); awaken(d); return;
+      }
+      if (has(a, 'time') && !used[a].ts && (hp[a] < .75 || rng() < .25)) {
+        used[a].ts = 1; rec({ a, k: 'tr', tr: 'time' });
+        for (let j = 0; j < TR.TS && hp[d] > 0; j++) strike(a, 'hit', { ts: 1 });
+        return;
+      }
+      if (has(a, 'domain') && !used[a].dom && en[a] >= TR.DOMC && (hp[a] < .8 || rng() < .25)) { used[a].dom = 1; en[a] -= TR.DOMC; dom[a] = TR.DOMN; rec({ a, k: 'tr', tr: 'domain' }); return; }
+      const sure = dom[a] > 0;
       const wantSp = en[a] >= AN.SPC && rng() < .2 + (S(a, 'ENE') >= S(a, 'STR') ? .14 : 0) + (hp[a] < .4 ? .12 : 0);
       if (wantSp) {
         en[a] -= AN.SPC;
@@ -191,13 +234,14 @@
           let x = .5; const fr = []; // punto de choque (0 = lado del jugador 0, 1 = lado del jugador 1); empuja hacia el perdedor
           for (let i = 0; i < 4; i++) { x = clamp(x + (rng() - .5) * .34 + (l === 1 ? .05 : -.05), .2, .8); fr.push(+x.toFixed(2)); }
           fr.push(l === 1 ? 1 : 0);
-          const crit = rng() < .1, v = hurt(l, Math.min(1, AN.BASE * mul(S(w, 'ENE') - S(l, 'DUR')) * (.8 + .4 * rng()) * 1.7 * (crit ? 1.4 : 1)));
+          const crit = rng() < .1, dx = Math.min(1, AN.BASE * mul(S(w, 'ENE') - S(l, 'DUR')) * (.8 + .4 * rng()) * 1.7 * (crit ? 1.4 : 1) * boost(w, l));
+          const neg = saves(l, dx), v = neg ? 0 : hurt(l, dx);
           rec({ a, k: 'clash', w, crit, fr, dmg: +v.toFixed(4), v: rndi(rng, 0, 5), vw: rndi(rng, 0, 5) });
-          awaken(l);
+          if (neg) save(l); else { took(l, v); awaken(l); }
           return;
         }
       }
-      const acc = clamp(.8 + (skill(a) - skill(d)) / AN.KA + (wantSp ? .05 : 0), .5, .95);
+      const acc = sure ? 1 : clamp(.8 + (skill(a) - skill(d)) / AN.KA + (wantSp ? .05 : 0) - (has(d, 'ui') ? TR.UI : 0), .35, .95);
       if (rng() > acc) {
         rec({ a, k: 'miss', crit: false, sp: wantSp, v: rndi(rng, 0, 5) });
         if (rng() < .22 + Math.max(0, S(d, 'TEC') - S(a, 'TEC')) / 1500) strike(d, 'ctr');
@@ -205,6 +249,21 @@
       }
       strike(a, wantSp ? 'sp' : 'hit');
     };
+    const act = a => { const inDom = dom[a] > 0; turn(a); if (inDom) dom[a] = Math.max(0, dom[a] - 1); };
+    // GOD: actúa primero y borra al rival de un solo toque (si los dos lo fueran, combate normal)
+    const gd = tr.map(t => t === 'touch');
+    if (gd[0] !== gd[1]) {
+      const a = gd[0] ? 0 : 1;
+      rec({ a, k: 'tr', tr: 'touch' });
+      const v = hurt(1 - a, hp[1 - a]);
+      rec({ a, k: 'spc', crit: true, dmg: +v.toFixed(4), v: 0 });
+      return { w: a, hp, hits, en, aw, dmg };
+    }
+    for (const i of [0, 1]) { // rasgos que se activan al empezar el duelo
+      const o = 1 - i;
+      if (has(i, 'toll')) { en[o] = Math.max(0, en[o] - TR.TOLLE); const v = hurt(o, Math.max(0, Math.min(hp[o] - .02, TR.TOLLH))); rec({ a: i, k: 'tr', tr: 'toll', dmg: +v.toFixed(4) }); }
+      if (has(i, 'sun')) rec({ a: i, k: 'tr', tr: 'sun' });
+    }
     while (hp[0] > 0 && hp[1] > 0 && hits.length < AN.CAP) act(rng() < pA() ? 0 : 1);
     if (hp[0] > 0 && hp[1] > 0) { // tope de golpes: el que va peor cae con un último golpe
       const l = hp[0] < hp[1] ? 0 : hp[1] < hp[0] ? 1 : +(rng() < .5), v = hurt(l, hp[l]);
@@ -213,10 +272,18 @@
     return { w: hp[0] > 0 ? 0 : 1, hp, hits, en, aw, dmg };
   }
 
+  // Antes del combate de anime cada jugador puede ordenar a sus luchadores. perm = nuevo orden con los índices actuales (p. ej. [2,0,1]).
+  function order(g, p, perm) {
+    if (g.cat !== 'anime' || g.phase !== 'fight' || (p !== 0 && p !== 1)) return false;
+    const c = g.P[p].c;
+    if (!Array.isArray(perm) || perm.length !== c.length || new Set(perm).size !== c.length || perm.some(x => !Number.isInteger(x) || x < 0 || x >= c.length)) return false;
+    g.P[p].c = perm.map(x => c[x]); return true;
+  }
+
   // Combate final de anime: devuelve el guion completo (eventos) para animarlo. Solo lleva nombres, vida, ki y estadísticas.
   function resolveAnime(g) {
-    const rng = g.rng, T = g.P.map(p => p.c.map(c => ({ n: c.n, pw: c.pw, st: stats(c), f: 1, e: 1, aw: false, dead: false, ko: 0, dmg: 0 }))), i = [0, 0];
-    const alive = p => i[p] < T[p].length, ev = [{ t: 'start' }];
+    const rng = g.rng, T = g.P.map(p => p.c.map(c => ({ n: c.n, pw: c.pw, tr: c.tr || '', st: stats(c), f: 1, e: 1, aw: false, dead: false, ko: 0, dmg: 0 }))), i = [0, 0];
+    const alive = p => i[p] < T[p].length, ev = [{ t: 'start', teams: T.map(t => t.map(c => c.n)) }];
     const send = p => { const c = T[p][i[p]]; ev.push({ t: 'send', p, k: i[p], n: c.n, f: +c.f.toFixed(4), e: +c.e.toFixed(3), aw: c.aw, st: c.st }); };
     if (alive(0)) send(0);
     if (alive(1)) send(1);
@@ -375,5 +442,5 @@
     return { kind: 'anime', script: resolveAnime(g) };
   }
 
-  return { VERSION, CFG, MAXC, SECS, AN, FT, FUT_DIVS, futXI, resolveFutbol, resolve, create, can, out, next, tick, place, skip, close, duel, stats, decide, resolveAnime, resolveUfc, mulberry32 };
+  return { VERSION, CFG, MAXC, SECS, AN, TR, order, FT, FUT_DIVS, futXI, resolveFutbol, resolve, create, can, out, next, tick, place, skip, close, duel, stats, decide, resolveAnime, resolveUfc, mulberry32 };
 });

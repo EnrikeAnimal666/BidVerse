@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "bidverse", "runtimeExecutable": "node", "runtimeArgs": ["server/server.js", "--port", "3100"], "port": 3100 }
+  ]
+}

@@ -126,14 +126,27 @@ const R=[
 ["Hajime Kashimo","⚡",440,55,"Jujutsu Kaisen","Heian lightning sorcerer: Mythical Beast Amber","Hajime Kashimo"],
 ["Ryu Ishigori","🗿",420,30,"Jujutsu Kaisen","Heian sorcerer with the greatest cursed energy output: Granite Blast","Ryu Ishigori"],
 ["Hiromi Higuruma","⚖️",420,200,"Jujutsu Kaisen","Judgeman and the Deadly Sentencing domain","Hiromi Higuruma"],
-["Hagoromo Otsutsuki","☯️",760,270,"Naruto","Sage of Six Paths: sealed the Ten-Tails and formed the moon","Hagoromo Otsutsuki"],
+["Hagoromo Otsutsuki","☯️",760,270,"Naruto","Sage of Six Paths: sealed the Ten-Tails and formed the moon","Hagoromo Otsutsuki", "God"],
 ["Tobirama Senju","🧊",490,210,"Naruto","Flying Thunder God and the creator of Edo Tensei","Tobirama Senju"],
-["Killer B","🐙",430,35,"Naruto","Eight-Tails jinchūriki: Tailed Beast Bomb","Killer B"]
+["Killer B","🐙",430,35,"Naruto","Eight-Tails jinchūriki: Tailed Beast Bomb","Killer B"],
+["Kaneki","🐛",330,0,"Tokyo Ghoul","Dragon Kaneki: kakuja that engulfs half of Tokyo","Ken Kaneki|Kaneki Ken"],
+["Yujiro Hanma","👹",340,10,"Baki","The Ogre: strongest creature on Earth, stops an earthquake with a punch","Yuujirou Hanma|Yujiro Hanma"],
+["Zeus","⚡",500,50,"Record of Ragnarok","Adamas: punches faster than time itself","Zeus"],
+["Thor","🔨",470,210,"Record of Ragnarok","Awakened Mjölnir: Geirröd one-shots","Thor"],
+["Lu Bu","🐎",400,0,"Record of Ragnarok","Sky Eater: shatters both of his own legs to hit a god","Lu Bu|Ryofu Housen"],
+["Adam","🍎",420,100,"Record of Ragnarok","Eyes of the Lord: copies any divine technique","Adam"],
+["Guts","🗡️",330,0,"Berserk","Berserker Armor: Dragon Slayer cleaves apostles","Guts"],
+["Griffith","🦅",560,220,"Berserk","Femto of the God Hand: reshapes the world into Fantasia","Griffith|Femto"],
+["Rick Sanchez","🧪",580,170,"Rick and Morty","Portal gun and dimension-scale gadgets","Rick Sanchez"],
+["God","✨",1000,48,"JoJo's Bizarre Adventure","Absolute being: erases anyone with a single touch","God"]
 ];
 // Perfil de combate (reparte las estadísticas alrededor del poder): B bruto, S veloz, T técnico, M energía, D resistente, U astuto; sin marcar = equilibrado.
-const PROF={"B": ["Saitama", "Eren", "Luffy", "Whitebeard", "Kaido", "Kenpachi", "Asta", "Yuji", "Akaza", "Gon", "Todo", "Maki", "Broly", "Tsunade", "Killer B", "Uvogin", "Phinks", "Escanor", "Yuki Tsukumo", "Jotaro Kujo"], "S": ["Netero", "Sanji", "Hiei", "Toji", "Killua", "Zenitsu", "Inosuke", "Levi", "Mikasa", "Whis", "Minato", "Feitan", "Enrico Pucci", "Dio Brando", "Diavolo"], "T": ["Garou", "Sung Jin-Woo", "Sasuke", "Ichigo", "Sukuna", "Shanks", "Mihawk", "Byakuya", "Zoro", "Renji", "Yami", "Giyu", "Rengoku", "Nanami", "Tanjiro", "Gintoki", "King Bradley"], "M": ["Frieza", "Madara", "Boros", "Gojo", "Tatsumaki", "Mob", "Yuno", "Jiraiya", "Ace", "Yusuke", "Genos", "Noelle", "Roy Mustang", "Zeno", "Grand Priest", "Beerus", "Pain", "Julius", "Jogo", "Father", "Van Hohenheim", "Demon King", "Zeldris", "Hajime Kashimo", "Ryu Ishigori", "Hagoromo Otsutsuki"], "D": ["Cell", "Meruem", "Gaara", "Muzan", "Denji", "Reiner", "Nezuko", "Hashirama", "Kisame", "Mahoraga", "Kars", "Josuke Higashikata", "Ban"], "U": ["Aizen", "Itachi", "Kakashi", "Law", "Megumi", "Armin", "Kurama", "Hisoka", "Kurapika", "Nami", "Reigen", "Obito", "Orochimaru", "Yuta", "Geto", "Mahito", "Choso", "Truth", "Pride", "Giorno Giovanna", "Yoshikage Kira", "Joseph Joestar", "Jolyne Cujoh", "Chrollo Lucilfer", "Kenjaku", "Hiromi Higuruma", "Tobirama Senju"]};
+const PROF={"B": ["Yujiro Hanma", "Zeus", "Thor", "Saitama", "Eren", "Luffy", "Whitebeard", "Kaido", "Kenpachi", "Asta", "Yuji", "Akaza", "Gon", "Todo", "Maki", "Broly", "Tsunade", "Killer B", "Uvogin", "Phinks", "Escanor", "Yuki Tsukumo", "Jotaro Kujo"], "S": ["Netero", "Sanji", "Hiei", "Toji", "Killua", "Zenitsu", "Inosuke", "Levi", "Mikasa", "Whis", "Minato", "Feitan", "Enrico Pucci", "Dio Brando", "Diavolo"], "T": ["Lu Bu", "Guts", "Garou", "Sung Jin-Woo", "Sasuke", "Ichigo", "Sukuna", "Shanks", "Mihawk", "Byakuya", "Zoro", "Renji", "Yami", "Giyu", "Rengoku", "Nanami", "Tanjiro", "Gintoki", "King Bradley"], "M": ["Griffith", "Frieza", "Madara", "Boros", "Gojo", "Tatsumaki", "Mob", "Yuno", "Jiraiya", "Ace", "Yusuke", "Genos", "Noelle", "Roy Mustang", "Zeno", "Grand Priest", "Beerus", "Pain", "Julius", "Jogo", "Father", "Van Hohenheim", "Demon King", "Zeldris", "Hajime Kashimo", "Ryu Ishigori", "Hagoromo Otsutsuki"], "D": ["Kaneki", "Cell", "Meruem", "Gaara", "Muzan", "Denji", "Reiner", "Nezuko", "Hashirama", "Kisame", "Mahoraga", "Kars", "Josuke Higashikata", "Ban"], "U": ["Adam", "Rick Sanchez", "Aizen", "Itachi", "Kakashi", "Law", "Megumi", "Armin", "Kurama", "Hisoka", "Kurapika", "Nami", "Reigen", "Obito", "Orochimaru", "Yuta", "Geto", "Mahito", "Choso", "Truth", "Pride", "Giorno Giovanna", "Yoshikage Kira", "Joseph Joestar", "Jolyne Cujoh", "Chrollo Lucilfer", "Kenjaku", "Hiromi Higuruma", "Tobirama Senju"]};
+// Rasgos (habilidad propia en el combate; las reglas están en engine.js → RASGOS).
+const TRAITS={"touch":["God"],"inf":["Gojo"],"time":["Dio Brando","Jotaro Kujo","Enrico Pucci"],"ui":["Goku","Whis","Diavolo","Killua"],"req":["Giorno Giovanna"],"serious":["Saitama"],"toll":["Truth"],"domain":["Sukuna","Yuta","Mahito","Jogo","Hiromi Higuruma","Kenjaku","Megumi"],"regen":["Cell","Hashirama","Kars","Muzan","Kaneki","Piccolo","Ban","Father","Tsunade","Nezuko"],"adapt":["Mahoraga","Meruem"],"gen":["Itachi","Aizen"],"rage":["Guts","Kenpachi","Broly","Yujiro Hanma"],"sun":["Escanor"]};
+const TRA={};for(const k in TRAITS)TRAITS[k].forEach(n=>TRA[n]=k);
 const PR={};for(const k in PROF)PROF[k].forEach(n=>PR[n]=k);
-const POOLS={anime:R.map(([n,e,pw,h,a,f,q])=>({n,e,pw,h,a,f,q:q||n,pr:PR[n]||'A',img:IMG0[n]||"",kind:'anime'}))};// Técnicas especiales (se ven en el combate cuando el personaje gasta ki). "a|b" = varias; MOVES_ES solo donde el nombre cambia en español.
+const POOLS={anime:R.map(([n,e,pw,h,a,f,q])=>({n,e,pw,h,a,f,q:q||n,pr:PR[n]||'A',img:IMG0[n]||"",kind:'anime',tr:TRA[n]||''}))};// Técnicas especiales (se ven en el combate cuando el personaje gasta ki). "a|b" = varias; MOVES_ES solo donde el nombre cambia en español.
 const MOVES={"Saitama":"Serious Punch|Consecutive Normal Punches","Goku":"Kamehameha|Spirit Bomb","Vegeta":"Final Flash|Galick Gun","Frieza":"Death Ball|Death Beam",
 "Garou":"Gamma Ray Burst|Cosmic Fear Fist","Sung Jin-Woo":"Arise|Ruler's Authority","Cell":"Solar Kamehameha|Perfect Barrier","Piccolo":"Special Beam Cannon|Hellzone Grenade",
 "Madara":"Chibaku Tensei|Limbo: Hengoku","Naruto":"Rasenshuriken|Tailed Beast Bomb","Sasuke":"Chidori|Indra's Arrow","Boros":"Collapsing Star Roaring Cannon|Meteoric Burst",
@@ -165,7 +178,9 @@ const MOVES={"Saitama":"Serious Punch|Consecutive Normal Punches","Goku":"Kameha
 "Zeldris":"Ominous Nebula|Godspeed","Ban":"Snatch|Fox Hunt",
 "Kenjaku":"Uzumaki|Anti-Gravity System","Yuki Tsukumo":"Star Rage|Garuda","Hajime Kashimo":"Mythical Beast Amber",
 "Ryu Ishigori":"Granite Blast","Hiromi Higuruma":"Deadly Sentencing|Executioner's Sword","Hagoromo Otsutsuki":"Planetary Devastation|Truth-Seeking Balls",
-"Tobirama Senju":"Flying Thunder God Slash|Water Dragon Bullet","Killer B":"Tailed Beast Bomb|Lariat"};
+"Tobirama Senju":"Flying Thunder God Slash|Water Dragon Bullet","Killer B":"Tailed Beast Bomb|Lariat",
+"Kaneki":"Kagune Centipede|Dragon Kakuja","Yujiro Hanma":"Ogre's Back|Demon Fist","Zeus":"Adamas Punch|Time Erasing Fist","Thor":"Awakened Mjölnir|Geirröd",
+"Lu Bu":"Sky Eater|Red Hare Charge","Adam":"Eyes of the Lord|Divine Reflection","Guts":"Dragon Slayer|Berserker Armor","Griffith":"Eclipse|Fantasia","Rick Sanchez":"Portal Gun|Neutrino Bomb","God":"Touch of God"};
 const MOVES_ES={"Saitama":"Puñetazo Serio|Golpes Normales Consecutivos","Goku":"Kamehameha|Genkidama","Vegeta":"Final Flash|Galick Ho","Frieza":"Bola de la Muerte|Rayo de la Muerte",
 "Garou":"Explosión de Rayos Gamma|Puño del Miedo Cósmico","Sung Jin-Woo":"Arise|Autoridad del Gobernante","Cell":"Kamehameha Solar|Barrera Perfecta","Piccolo":"Makankosappo|Granada Infernal",
 "Naruto":"Rasen Shuriken|Bijūdama","Sasuke":"Chidori|Flecha de Indra","Boros":"Cañón Rugiente de Estrella Colapsada|Ráfaga Meteórica","Eren":"El Retumbar|Titán Fundador",
@@ -192,5 +207,7 @@ const MOVES_ES={"Saitama":"Puñetazo Serio|Golpes Normales Consecutivos","Goku":
 "Escanor":"Sol Cruel|The One: Ultimate","Demon King":"Llama Infernal|Ira del Rey Demonio","Zeldris":"Nebulosa Siniestra|Velocidad Divina",
 "Ban":"Snatch|Caza del Zorro","Kenjaku":"Uzumaki|Sistema Antigravedad","Yuki Tsukumo":"Furia Estelar|Garuda",
 "Hajime Kashimo":"Bestia Mítica Ámbar","Ryu Ishigori":"Ráfaga de Granito","Hiromi Higuruma":"Sentencia Mortal|Espada del Verdugo",
-"Hagoromo Otsutsuki":"Devastación Planetaria|Esferas Buscadoras de la Verdad","Tobirama Senju":"Corte del Dios del Trueno Volador|Bala de Dragón de Agua","Killer B":"Bijūdama|Lariat"};
+"Hagoromo Otsutsuki":"Devastación Planetaria|Esferas Buscadoras de la Verdad","Tobirama Senju":"Corte del Dios del Trueno Volador|Bala de Dragón de Agua","Kaneki":"Kagune Ciempiés|Kakuja Dragón","Yujiro Hanma":"Espalda de Ogro|Puño Demoníaco","Zeus":"Puño Adamas|Puño que Borra el Tiempo","Thor":"Mjölnir Despertado|Geirröd",
+"Lu Bu":"Devorador del Cielo|Carga de Liebre Roja","Adam":"Ojos del Señor|Reflejo Divino","Guts":"Matadragones|Armadura del Berserker","Griffith":"Eclipse|Fantasia","Rick Sanchez":"Pistola de Portales|Bomba de Neutrinos","God":"Toque de Dios",
+"Killer B":"Bijūdama|Lariat"};
 POOLS.anime.forEach(c=>{c.mv=(MOVES[c.n]||'').split('|').filter(Boolean);c.mvEs=(MOVES_ES[c.n]||MOVES[c.n]||'').split('|').filter(Boolean)});

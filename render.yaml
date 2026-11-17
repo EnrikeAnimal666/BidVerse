@@ -1,0 +1,14 @@
+# Despliegue en Render (https://render.com): New + > Blueprint > elige este repo
+services:
+  - type: web
+    name: bidverse
+    runtime: node
+    plan: free
+    buildCommand: "true"
+    startCommand: node server/server.js
+    healthCheckPath: /
+    envVars:
+      - key: TRUST_PROXY
+        value: "1"
+      - key: NODE_VERSION
+        value: "20"

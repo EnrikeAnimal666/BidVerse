@@ -43,7 +43,7 @@
     case 'welcome':connected=true;token=m.token;try{localStorage.setItem('bvtoken',token);if(!myName)localStorage.setItem('bvname',m.name)}catch(e){}
       if(!myName)$('olName').value=m.name;flush();break;
     case 'room': // sala en espera (o actualización)
-      room=m;if(m.phase==='lobby'){inGame=false;$('olCodeBig').textContent=m.code;say('olCopyOk','');closeOnline();clearTimeout(lbShow);lbShow=setTimeout(()=>lobby(m),iCreated?0:300)}break; // sala en espera: pantalla propia
+      room=m;preload(m.cat);if(m.phase==='lobby'){inGame=false;$('olCodeBig').textContent=m.code;say('olCopyOk','');closeOnline();clearTimeout(lbShow);lbShow=setTimeout(()=>lobby(m),iCreated?0:300)}break; // sala en espera: pantalla propia
     case 'start': // empieza (o se reanuda / revancha) una partida
       clearTimeout(lbShow);hideLobby(false);
       room=Object.assign(room||{},{code:room&&room.code,cat:m.cat,names:m.names,you:m.you});inGame=true;closeOnline();bar('');peerOff=false;
@@ -51,6 +51,8 @@
     case 'state':if(inGame&&net)netState(m.s,m.ev);break;
     case 'tick':if(inGame&&net){left=G.left=m.left;timer();tickSnd()}break;
     case 'fight':if(inGame&&net)netFight(m);break;
+    case 'order':if(inGame&&net)netOrder(m);break;
+    case 'orderReady':if(inGame&&net)netOrderReady(m.i);break;
     case 'peer':if(m.connected){peerOff=false;bar(u('olPeerBack'));setTimeout(()=>{if(!peerOff)bar('')},2500)}else{peerOff=true;bar(u('olPeerOff'))}break;
     case 'again':{const b=document.querySelector('.res p');if(b)b.textContent=u('olAgainAsk')}break;
     case 'peerleft':bar(m.timeout?u('olTimeout'):u('olPeerLeft'));if(net){const b=document.createElement('button');b.textContent=u('olBackMenu');b.onclick=()=>toMenu();$('netbar').appendChild(b)}room=null;inGame=false;break;
@@ -58,6 +60,8 @@
     case 'err':{const msg=errText(m.code);
       if($('online').classList.contains('open')){const c=$('olConn');if(c&&c.style.display!=='none')show('olForm');say('olErr',msg)}else if(net)err(net.me,t(m.code,m.arg));else alert(msg)}break;
   }}
+  function preload(c){try{if(c&&typeof wantImg==='function'&&POOLS[c])wantImg(POOLS[c])}catch(e){}} // fotos de la categoría mientras se espera al rival
+  window.bvPreload=preload;
   window.addEventListener('beforeunload',()=>{wantOpen=false});
 
   /* ---------- PANTALLA DE ESPERA: al crear una sala te lleva aquí hasta que entra el rival ---------- */
@@ -133,8 +137,11 @@
   window.loginBtn=()=>{if(user){user='';put('');paint()}else openLogin()};
   const need=fn=>{if(user)fn();else{openLogin();pend=fn}}; // sin sesión: pide el nombre y luego sigue con lo que querías hacer
   const go=fn=>{openOnline('olConn');if(location.protocol==='file:')return;$('olName').value=user;fn()};
-  window.mkRoom=cat=>need(()=>go(()=>olCreate(cat)));
+  window.mkRoom=cat=>{if(window.bvPreload)bvPreload(cat);need(()=>go(()=>olCreate(cat)))};
   const join=()=>{const c=$('hCode').value.trim();if(!c){$('hCode').focus();return}need(()=>go(()=>{$('olCode').value=c.toUpperCase();olJoin()}))};
   $('hJoin').onclick=join;$('hCode').onkeydown=e=>{if(e.key==='Enter')join()};
-  const m=/[?&]sala=([A-Za-z0-9]{5})/.exec(location.search);if(m)$('hCode').value=m[1].toUpperCase();
+  const m=/[?&]sala=([A-Za-z0-9]{5})/i.exec(location.search);
+  if(m){$('hCode').value=m[1].toUpperCase();
+    try{history.replaceState(null,'',location.pathname+location.search.replace(/[?&]sala=[A-Za-z0-9]{5}/i,'').replace(/^&/,'?')+location.hash)}catch(e){}
+    if(location.protocol!=='file:')setTimeout(join,0)}
 })();
