@@ -99,7 +99,7 @@ function panel(p){const n=p+1;return `<section class="side" style="--c:var(--p${
 <header><div class="pad">${n}</div><div><h2>${t('player',n)}</h2></div><div class="money" id="m${p}"></div></header>
 <div id="s${p}"></div>
 <div class="ctl"><label class="inp"><span>${cat==='futbol'?'€':'$'}</span><input id="i${p}" type="number" min="1" step="1" inputmode="numeric" placeholder="${t('bidPh')}" onkeydown="if(event.key==='Enter')place(${p})"></label>
-<button class="go" id="g${p}" onclick="place(${p})">${t('bidBtn')}</button></div>
+<button class="go" id="g${p}" onclick="place(${p})">${t('bidBtn')}</button><button class="go plus" id="u${p}" onclick="plus(${p})" title="${cat==='futbol'?'+1M':'+$1'}">${cat==='futbol'?'+1M':'+$1'}</button></div>
 <button class="skip" id="k${p}" onclick="skip(${p})"><span class="sl" id="kl${p}">${t('skipLbl')}</span><span class="pips" id="kp${p}"></span></button>
 <div class="msg" id="e${p}"></div></section>`}
 function start(c){
@@ -194,16 +194,18 @@ function render(){
           :`<div class="slot"><div class="av"></div>${dl?`<div><small>${dt}</small></div>`:''}</div>`});
     $('s'+p).innerHTML=h;
     $('g'+p).disabled=$('i'+p).disabled=locked||passed[p];
+    $('u'+p).disabled=locked||passed[p]||free===p||bid+1>P[p].m;
     $('i'+p).disabled=$('i'+p).disabled||free===p;$('g'+p).textContent=t(free===p?'takeBtn':'bidBtn');$('i'+p).placeholder=t(free===p?'free':'bidPh');
     $('k'+p).disabled=locked||leader===p||!(leader>=0)&&(passed[p]||skipLocked(p));
     $('kl'+p).textContent=leader>=0&&leader!==p?t('concede',leader+1):passed[p]?t(out(p)?'autoPass':'passed'):skipLocked(p)?t('noSkips'):t(free===p?(BidEngine.can(G,1-p)?'passGift':'passFree'):'skipLbl');
     $('kp'+p).innerHTML=[0,1].map(i=>`<i class="${i<skips[p]?'on':''}"></i>`).join('');
     $('k'+p).classList.toggle('conc',leader>=0&&leader!==p&&!locked);
-    if(net&&p!==net.me)$('g'+p).disabled=$('i'+p).disabled=$('k'+p).disabled=true; // el panel del rival no se toca
+    if(net&&p!==net.me)$('g'+p).disabled=$('u'+p).disabled=$('i'+p).disabled=$('k'+p).disabled=true; // el panel del rival no se toca
   }
 }
 function err(p,t){$('e'+p).textContent=t;setTimeout(()=>{if($('e'+p).textContent===t)$('e'+p).textContent=''},2500)}
 function place(p){if(net){if(p===net.me)net.send({t:'bid',amount:$('i'+p).value});return}apply(BidEngine.place(G,p,$('i'+p).value))}
+function plus(p){const v=bid+1;if(net){if(p===net.me)net.send({t:'bid',amount:v});return}apply(BidEngine.place(G,p,v))} // puja la última +1 ($1 o 1M)
 function stamp(t,c){const s=$('stamp');$('st').className=c||'';$('st').innerHTML=t;s.style.display='grid'}
 const skipLocked=p=>skips[p]<=0;
 function skip(p){if(net){if(p===net.me)net.send({t:'skip'});return}apply(BidEngine.skip(G,p))}
@@ -311,7 +313,7 @@ const trBadge=c=>c&&c.tr?`<em class="trb" title="${trT(c.tr,1)}">✦ ${trT(c.tr,
 const abT=(k,...a)=>{let s=(AB_T[lang]||AB_T.es)[k];if(Array.isArray(s))s=s[(a[0]||0)%s.length];return String(s??k)};
 const abF=(s,o)=>s.replace(/\{(\w+)\}/g,(m,k)=>o[k]??m);
 const mvOf=(c,v)=>{const l=(lang==='es'?c.mvEs:c.mv)||c.mv||[];return l.length?l[(v||0)%l.length]:abT('special')};
-let ABS=1;try{ABS=+localStorage.getItem('bvabs')===2?2:1}catch(e){}
+let ABS=1; // las peleas siempre a velocidad normal
 function abArena(){
   const plate=p=>`<div class="ab-pl a${p}" style="--c:var(--p${p+1});--on:var(--on${p+1})">
 <div class="ab-who"><span>${t('player',p+1)}</span><b id="abn${p}">—</b></div><div class="ab-trn" id="abtr${p}"></div>
@@ -323,7 +325,7 @@ function abArena(){
 <div class="ab-f a0" id="abf0" style="--c:var(--p1)"><div class="ab-card" id="abc0"></div></div>
 <div class="ab-f a1" id="abf1" style="--c:var(--p2)"><div class="ab-card" id="abc1"></div></div><div class="ab-fx" id="abfx"></div></div>
 <div class="ab-com" id="abcom" aria-live="polite"></div>
-<div class="ab-bot"><div class="ab-dlg" id="abdl"></div><div class="ab-spd" id="abspd"><button data-s="1">x1</button><button data-s="2">x2</button><button data-s="40" title="${abT('skip')}" aria-label="${abT('skip')}">»</button></div></div>
+<div class="ab-bot"><div class="ab-dlg" id="abdl"></div></div>
 <div class="ab-log" id="ablog"></div></div>`;
 }
 // Elemento de las técnicas (solo cambia el color y el estilo del rayo). Sin elemento = color del jugador.
@@ -351,8 +353,7 @@ async function run(tk,script){
   $('gbg').classList.add('fight'); // se acabó la subasta: los martillos se apartan
   const E=await arenaIn(async ms=>{await sleep(ms);if(tk!==bt)throw 0},abArena());
   const AB=$('ab'),ST=$('abst'),FX=$('abfx');
-  const setSpd=s=>{ABS=s;AB.style.setProperty('--k',1/s);AB.classList.toggle('fast',s>2);$('abspd').querySelectorAll('button').forEach(b=>b.classList.toggle('on',+b.dataset.s===s));if(s<=2)try{localStorage.setItem('bvabs',s)}catch(e){}};
-  setSpd(ABS);$('abspd').onclick=e=>{const b=e.target.closest('button');if(b)setSpd(+b.dataset.s)};
+  ABS=1;AB.style.setProperty('--k',1);
   const T0=S0.ev[0]&&S0.ev[0].teams; // orden real de cada equipo (el motor lo manda; si no, el de la compra)
   const team=[0,1].map(p=>T0?T0[p]:(P[p]&&P[p].c||[]).map(c=>c.n)),ko=[[],[]],act=[-1,-1],cur=[null,null];let hpN=[1,1],lastDown='',lastL=null,dno=0;
   const roster=p=>$('abt'+p).innerHTML=team[p].map((n,k)=>{const c=C(n);return c?`<i class="ab-th${k===act[p]?' on':''}${ko[p][k]?' ko':''}" data-n="${n}" style="--h:${c.h}">${spr(c)}</i>`:''}).join('');
@@ -466,7 +467,6 @@ async function run(tk,script){
       $('ablog').insertAdjacentHTML('beforeend',`<div><i>${$('abdn').textContent}.</i>${abF(abT('log'),{0:dnh(W),1:dnh(lastL),2:e.pct})}</div>`);
       await say(t('stands',dnh(W),e.pct),1300);
     }else if(e.t==='end'){
-      $('abspd').style.visibility='hidden';
       await say(e.w<0?t('tie'):t('wins',e.w+1),200);
       const sv=(e.sv||[]).map(s=>{const c=C(s.n);return `<span class="ab-svc"><i class="ab-th" data-n="${s.n}" style="--h:${c.h}">${spr(c)}</i><b>${dnh(c)}</b><small>${Math.max(1,Math.round(s.f*100))}%</small></span>`}).join('');
       const mv=e.mvp&&C(e.mvp.n)?`<div class="ab-mvp" style="--c:var(--p${e.mvp.p+1})"><em>${abT('mvp')}</em><i class="ab-th" data-n="${e.mvp.n}" style="--h:${C(e.mvp.n).h}">${spr(C(e.mvp.n))}</i><span><b>${dnh(C(e.mvp.n))}</b><small>${t('player',e.mvp.p+1)} · ${e.mvp.ko===1?abT('kos1'):abF(abT('kos'),{0:e.mvp.ko})}</small></span></div>`:'';
@@ -483,7 +483,7 @@ async function night(tk,script){
   const z=async ms=>{await sleep(FAST?Math.min(ms,50):ms);if(tk!==bt)throw 0};
   const F=script||BidEngine.resolveUfc(G),bs=F.bouts;
   wantImg(bs.flatMap(b=>[C(b.a),C(b.b)]),true);
-  const E=await arenaIn(z,`<div class="arena fn"><h2 class="fnh">${u('fnTitle')}</h2><div class="fsc" id="fsc"></div><div id="fst"></div><div class="dlg" id="dlg"></div><button class="fskip" onclick="FAST=1">»</button><div class="flg" id="flg"></div></div>`);
+  const E=await arenaIn(z,`<div class="arena fn"><h2 class="fnh">${u('fnTitle')}</h2><div class="fsc" id="fsc"></div><div id="fst"></div><div class="dlg" id="dlg"></div><div class="flg" id="flg"></div></div>`);
   const sc=[0,0],say=async(h,ms=1000)=>{$('dlg').innerHTML=h;await z(ms)};
   const board=()=>$('fsc').innerHTML=`<span>${u('player',1)} <b>${sc[0]}</b></span><i>–</i><span><b>${sc[1]}</b> ${u('player',2)}</span>`;
   const card=(c,p)=>`<div class="fc" data-n="${c.n}" style="--c:var(--p${p+1})"><div class="sp" style="--h:${c.h}">${spr(c)}</div><b>${dnh(c)}</b><div class="fhp"><i id="fh${p}"></i></div><small>${u('player',p+1)}</small></div>`;

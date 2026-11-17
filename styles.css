@@ -77,7 +77,7 @@ button:disabled,input:disabled{opacity:.35;cursor:not-allowed}
 .who{font:500 .68rem var(--mono);letter-spacing:.1em;text-transform:uppercase;border:1.5px solid var(--ink);padding:5px 8px;white-space:nowrap}
 @keyframes pop{40%{transform:scale(1.25)}}
 .stamp{position:absolute;inset:0;z-index:2;display:none;place-items:center;background:color-mix(in srgb,var(--bg) 72%,transparent);animation:st .4s cubic-bezier(.2,1.5,.4,1)}
-.stamp span{font:900 2rem/1.1 var(--serif);text-transform:uppercase;text-align:center;color:var(--acc);border:5px solid var(--acc);background:var(--card);padding:10px 18px;transform:rotate(-8deg);box-shadow:5px 5px 0 var(--ink)}
+.stamp>span{max-width:92%;overflow-wrap:anywhere;font:900 2rem/1.1 var(--serif);text-transform:uppercase;text-align:center;color:var(--acc);border:5px solid var(--acc);background:var(--card);padding:10px 18px;transform:rotate(-8deg);box-shadow:5px 5px 0 var(--ink)}
 @keyframes st{from{opacity:0;transform:scale(2.2)}}
 .clock{display:flex;align-items:center;gap:12px;margin-top:30px}
 .clock b{font:500 1.5rem var(--mono);letter-spacing:0;min-width:3.2ch}
@@ -88,11 +88,12 @@ button:disabled,input:disabled{opacity:.35;cursor:not-allowed}
 .end h2{font-weight:900;font-size:clamp(2rem,6vw,3.6rem);margin:0 0 8px;letter-spacing:0}.end p{font:400 .8rem var(--mono);color:var(--mut)}
 .end button{font:500 .8rem var(--mono);letter-spacing:.14em;text-transform:uppercase;border:1.5px solid var(--ink);background:var(--acc);color:var(--onacc);padding:14px 26px;cursor:pointer;box-shadow:4px 4px 0 var(--ink);margin-top:10px}
 @keyframes ap{50%{transform:scale(1.12);opacity:1}}@keyframes spin{to{transform:rotate(360deg)}}
-.stamp span.win{display:block;background:var(--w);color:var(--wo);border:4px solid var(--ink);padding:14px 26px;transform:rotate(-3deg);box-shadow:6px 6px 0 var(--ink);font-weight:400}
+.stamp>span.win{display:block;background:var(--w);color:var(--wo);border:4px solid var(--ink);padding:14px 26px;transform:rotate(-3deg);box-shadow:6px 6px 0 var(--ink);font-weight:400}
 .w0{--w:var(--acc);--wo:var(--onacc)}.w1{--w:var(--p1);--wo:var(--on1)}.w2{--w:var(--p2);--wo:var(--on2)}
 .win small,.win strong,.win em,.win u{display:block}
 .win small{font:500 .74rem var(--mono);letter-spacing:.24em;text-transform:uppercase}
 .win strong{font:900 2.3rem/1 var(--serif);letter-spacing:0;margin:8px 0;text-transform:none}
+.go.plus{flex:none;padding-left:14px;padding-right:14px;white-space:nowrap}
 .win u{text-decoration:none;font:500 .82rem var(--mono);text-transform:none;letter-spacing:0}.win u b{font:900 1.15rem var(--serif)}
 .win em{font:500 2.3rem/1 var(--mono);font-style:normal;margin-top:8px;letter-spacing:0}
 .side.won{outline:3px solid var(--c);outline-offset:5px;animation:won 1.2s}
