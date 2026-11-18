@@ -972,10 +972,11 @@ let IMGC={};try{IMGC=JSON.parse(localStorage.getItem('bvimg')||'{}')}catch(e){}
 if(typeof IMG_URLS!=='undefined')for(const k in IMG_URLS)IMGC[k]=IMG_URLS[k]; // data-imgs.js (tools/build-imgs.js)
 const jk=q=>`https://api.jikan.moe/v4/characters?q=${encodeURIComponent(q)}&order_by=favorites&sort=desc&limit=1`;
 // Prioridad 1: fotos propias en pics/ (nombre del personaje + .jpg/.png/.webp/.jpeg). Se buscan TODAS a la vez al cargar la página, sin esperar a la cola de internet.
-const LOC_EXT=['jpg','png','webp','jpeg'],ALT={Frieza:['Freezer'],'Grand Priest':['Gran Sacerdote','Daishinkan'],Truth:['La Verdad'],Father:['Padre'],Whitebeard:['Barbablanca','Edward Newgate'],'Sung Jin-Woo':['Jinwoo','Sung Jinwoo']};
+// PIC_V: súbelo cuando sustituyas una foto de pics/ con el MISMO nombre, si no el navegador sigue mostrando la vieja (caché).
+const PIC_V=2,LOC_EXT=['jpg','png','webp','jpeg'],ALT={Frieza:['Freezer'],'Grand Priest':['Gran Sacerdote','Daishinkan'],Truth:['La Verdad'],Father:['Padre'],Whitebeard:['Barbablanca','Edward Newgate'],'Sung Jin-Woo':['Jinwoo','Sung Jinwoo']};
 const tryLoad=src=>new Promise(ok=>{const im=new Image();im.onload=()=>ok(src);im.onerror=()=>ok(0);im.src=src});
 const picNames=c=>[...new Set([c.n,LANGS.es&&LANGS.es.names&&LANGS.es.names[c.n],LANGS.en&&LANGS.en.names&&LANGS.en.names[c.n],...(ALT[c.n]||[])].filter(Boolean))];
-async function localImg(c){const ufc=c.kind==='ufc'||c.kind==='futbol',pre=c.kind==='futbol'?'fut-':c.kind==='ufc'?'ufc-':'',v=(ufc?[c.n]:picNames(c)).flatMap(n=>(ufc?['jpg']:LOC_EXT).map(x=>'pics/'+pre+encodeURIComponent(n)+'.'+x));return (await Promise.all(v.map(tryLoad))).find(Boolean)}
+async function localImg(c){const ufc=c.kind==='ufc'||c.kind==='futbol',pre=c.kind==='futbol'?'fut-':c.kind==='ufc'?'ufc-':'',v=(ufc?[c.n]:picNames(c)).flatMap(n=>(ufc?['jpg']:LOC_EXT).map(x=>'pics/'+pre+encodeURIComponent(n)+'.'+x+'?v='+PIC_V));return (await Promise.all(v.map(tryLoad))).find(Boolean)}
 let localDone=Promise.resolve();
 function scanLocal(){
   POOLS.anime.forEach(c=>{if(!c.img&&IMGC[c.n])c.img=IMGC[c.n]}); // caché de internet: al instante
