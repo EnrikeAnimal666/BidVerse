@@ -62,6 +62,15 @@ const SND=(()=>{
       case 'ko':sweep(440,60,.7,'sawtooth',.07);break
       case 'time':sweep(1400,90,1,'sine',.07);tone(60,0,1,'sawtooth',.04);break
       case 'domain':[130,98,73].forEach((f,i)=>tone(f,i*.12,.7,'sawtooth',.045));sweep(300,1200,.8,'triangle',.03);break
+      case 'sig':tone(110,0,.55,'sawtooth',.05);tone(165,0,.55,'sawtooth',.035);sweep(300,1400,.35,'triangle',.03);tone(880,.32,.35,'square',.03);break // habilidad única
+      case 'write':for(let i=0;i<10;i++)tone(1700+Math.random()*900,i*.08,.04,'square',.012);break
+      case 'heart':[0,.45].forEach(t=>tone(980,t,.12,'sine',.08));tone(980,.95,.9,'sine',.07);break
+      case 'slot':for(let i=0;i<10;i++)tone(700+i*40,i*.08,.05,'square',.03);[784,988,1175,1568].forEach((f,i)=>tone(f,.85+i*.08,.25,'triangle',.06));break
+      case 'quake':tone(45,0,.9,'sawtooth',.08);sweep(120,30,.8,'square',.05);break
+      case 'slash':sweep(3000,600,.12,'sawtooth',.04);sweep(2400,500,.1,'sawtooth',.03);break
+      case 'haki':tone(60,0,.7,'sawtooth',.08);for(let i=0;i<6;i++)tone(200+Math.random()*300,i*.06,.05,'square',.03);break
+      case 'chain':[1200,1500,1100,1650].forEach((f,i)=>tone(f,i*.06,.08,'triangle',.04));break
+      case 'nuke':sweep(200,30,1.2,'sawtooth',.1);tone(40,0,1.3,'square',.07);break
       case 'whistle':[0,.12,.24].forEach(t=>{tone(2900,t,.09,'square',.03);tone(3100,t+.045,.06,'square',.025)});tone(2950,.36,.45,'square',.03);break // fútbol
       case 'kick':tone(95,0,.06,'square',.06);break
       case 'save':tone(120,0,.09,'square',.07);tone(70,.02,.12,'sawtooth',.05);break
@@ -79,7 +88,7 @@ function popBid(e,prev){ // efecto visual de la última puja: número que salta,
 }
 function lotText(){$('fr').textContent=cur.kind==='ufc'||cur.kind==='futbol'?u('div_'+cur.cls):an(cur.a);
   if(cur.kind==='futbol'){$('nm').innerHTML=dnh(cur)+`<small>${cur.e} ${roleT(cur.role)} · ${cur.club}${cur.leg?` ${cur.yr} · <em class="lg">${u('legend')}</em>`:''}</small>`;return}
-  $('nm').innerHTML=dnh(cur)+(cur.kind==='anime'&&cur.tr?`<small class="trl">✦ <b>${trT(cur.tr,0)}</b> · ${trT(cur.tr,1)}</small>`:'')+(cur.kind==='ufc'?`<small>${cur.e} ${cur.nick?'“'+cur.nick+'” · ':''}${u('sty_'+cur.sty)}</small>`:'')}
+  $('nm').innerHTML=dnh(cur)+(cur.kind==='anime'&&cur.tr?`<small class="trl">${UNQ.has(cur.tr)?'★':'✦'} <b>${trT(cur.tr,0)}</b> · ${trT(cur.tr,1)}</small>`:'')+(cur.kind==='ufc'?`<small>${cur.e} ${cur.nick?'“'+cur.nick+'” · ':''}${u('sty_'+cur.sty)}</small>`:'')}
 function menuInfo(){if($('ch-foot'))$('ch-foot').textContent=u('nPlayers',FUTP.length)+' · 4-3-3';$('ch-anime').textContent=u('nChars',POOLS.anime.length);$('ch-ufc').textContent=u('nFighters',UFC.length)+' · '+u('nDivs',UFC_DIVS.length)}
 function applyLang(){
   document.documentElement.lang=lang;
@@ -254,9 +263,10 @@ async function arenaIn(z,html){ // transición común
 const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),pick=a=>a[rnd(0,a.length-1)];
 const C=n=>byN.get(n);
 
-/* ---------- COMBATE FINAL (anime) v2: el motor resuelve todo y devuelve un guion; aquí solo se anima ----------
-   Escenario con los dos luchadores, barras de vida (con estela de daño) y de ki, equipo de reserva, técnicas con nombre propio,
-   choques de técnicas, despertar, K.O. y velocidad x1 / x2 / saltar. */
+/* ---------- COMBATE FINAL (anime) v3: el motor resuelve todo y devuelve un guion; aquí solo se anima ----------
+   HUD de juego de lucha (retrato, barras inclinadas con estela de daño, ki por segmentos, equipo), escenario por capas (nebulosa, rayos,
+   suelo en perspectiva, ascuas), marcos de impacto, líneas de velocidad, zoom de cámara, técnicas con nombre propio, choques, despertar,
+   habilidades únicas con su cut-in de firma y su propia animación, K.O. y doble K.O. */
 const ST_LBL={es:{STR:'FUE',SPD:'VEL',DUR:'RES',TEC:'TÉC',ENE:'ENE'},en:{STR:'STR',SPD:'SPD',DUR:'DUR',TEC:'TEC',ENE:'ENG'}};
 const stT=(c,st)=>{const s=st||BidEngine.stats(c),L=ST_LBL[lang]||ST_LBL.es;return '<div class="sts">'+['STR','SPD','DUR','TEC','ENE'].map(k=>`<span><small>${L[k]}</small><i><u style="width:${Math.min(100,s[k]/10)}%"></u></i><b>${s[k]}</b></span>`).join('')+'</div>'};
 const AB_T={
@@ -267,7 +277,12 @@ const AB_T={
   miss:['<b>{d}</b> esquiva a {a}','<b>{d}</b> bloquea el golpe de {a}','{a} falla: <b>{d}</b> es más rápido'],missSp:'<b>{d}</b> esquiva «{m}»',
   ctr:'¡<b>{a}</b> contraataca!',clash:'¡Choque de técnicas! «{m1}» contra «{m2}»',clashWin:'¡<b>{w}</b> se impone en el choque!',
   awake:'¡<b>{a}</b> despierta su verdadero poder!',critPop:'¡Crítico!',dodgePop:'¡Esquiva!',awakePop:'¡Despertar!',clashPop:'¡Choque!',
-  log:'<b>{0}</b> derrota a {1} · le queda un {2} %',kos:'{0} K.O.',kos1:'1 K.O.',mvp:'MVP'},
+  log:'<b>{0}</b> derrota a {1} · le queda un {2} %',kos:'{0} K.O.',kos1:'1 K.O.',mvp:'MVP',
+  uctr:'¡El cuerpo de <b>{a}</b> esquiva y contraataca solo!',uiPop:'Ultra Instinto',bfPop:'¡Destello Negro!',asPop:'¡Asura!',
+  clone:'¡Un clon de <b>{a}</b> golpea a {d}!',roller:'¡<b>{a}</b> aplasta a {d} con una apisonadora!',copied:'<b>{a}</b> devuelve «{m}»',
+  fc:'«{m}» vuelve contra {d} con el doble de fuerza',dko:'¡Doble K.O.!',dkoLog:'<b>{0}</b> y <b>{1}</b> caen a la vez',
+  sac:'<b>{0}</b> ha sido sacrificado',sacLog:'{0} cae sacrificado en el Eclipse',unique:'Habilidad única',illusion:'¡Ilusión!',erased:'Borrado',
+  ult:{hakai:'Hakai',gates:'Night Guy',mugetsu:'Mugetsu',rumbling:'El Retumbar'}},
  en:{duel:'Duel',ki:'KI',skip:'Skip animation',special:'Special technique',
   hit:['<b>{a}</b> hits {d}','<b>{a}</b> chains a combo on {d}','<b>{a}</b> lands a straight on {d}','Flying kick by <b>{a}</b>','<b>{a}</b> appears behind {d} and strikes','<b>{a}</b> charges at {d}'],
   crit:['Critical hit by <b>{a}</b>!','<b>{a}</b> finds {d}’s weak spot!'],
@@ -275,8 +290,13 @@ const AB_T={
   miss:['<b>{d}</b> dodges {a}','<b>{d}</b> blocks {a}’s strike','{a} misses: <b>{d}</b> is faster'],missSp:'<b>{d}</b> dodges “{m}”',
   ctr:'<b>{a}</b> counterattacks!',clash:'Technique clash! “{m1}” vs “{m2}”',clashWin:'<b>{w}</b> wins the clash!',
   awake:'<b>{a}</b> awakens their true power!',critPop:'Critical!',dodgePop:'Dodge!',awakePop:'Awakening!',clashPop:'Clash!',
-  log:'<b>{0}</b> defeats {1} · {2}% left',kos:'{0} K.O.s',kos1:'1 K.O.',mvp:'MVP'}};
-// Rasgos: [nombre, qué hace, frase al activarse]. Las reglas están en engine.js (RASGOS).
+  log:'<b>{0}</b> defeats {1} · {2}% left',kos:'{0} K.O.s',kos1:'1 K.O.',mvp:'MVP',
+  uctr:'<b>{a}</b>’s body dodges and counters on its own!',uiPop:'Ultra Instinct',bfPop:'Black Flash!',asPop:'Asura!',
+  clone:'A clone of <b>{a}</b> hits {d}!',roller:'<b>{a}</b> crushes {d} with a road roller!',copied:'<b>{a}</b> fires back “{m}”',
+  fc:'“{m}” hits {d} back at double power',dko:'Double K.O.!',dkoLog:'<b>{0}</b> and <b>{1}</b> fall together',
+  sac:'<b>{0}</b> has been sacrificed',sacLog:'{0} is sacrificed in the Eclipse',unique:'Unique ability',illusion:'Illusion!',erased:'Erased',
+  ult:{hakai:'Hakai',gates:'Night Guy',mugetsu:'Mugetsu',rumbling:'The Rumbling'}}};
+// Rasgos: [nombre, qué hace, frase al activarse, frase alternativa]. Las reglas están en engine.js (RASGOS).
 const TR_T={
  en:{touch:['Touch of God','Acts first and erases anyone with a single touch','<b>{a}</b> reaches out… one touch is enough.'],
   inf:['Infinity','The first 2 attacks never reach them','{b}’s attack stops in mid-air: <b>{a}</b>’s Infinity!'],
@@ -292,6 +312,52 @@ const TR_T={
   stun:['','','<b>{a}</b> is trapped and can’t move'],
   rage:['Berserk','Below 40% HP hits 30% harder','<b>{a}</b> goes berserk!'],
   sun:['The One','Hits 50% harder during the first 4 turns','<b>{a}</b>: the sun is at its peak!'],
+  ultra:['Ultra Instinct','Rivals miss 22% more and every dodge becomes a full-power counter',''],
+  ego:['Ultra Ego','Every hit taken raises all stats by 22 (up to 6 times)','<b>{a}</b> grows stronger with the pain'],
+  hakai:['Hakai','Once per duel: destroys a rival below 35% HP','<b>{a}</b> raises a hand: “Hakai.”'],
+  erase:['Erase','Each duel starts with a 50% chance of erasing the rival on a whim','<b>{a}</b> points at {d}… and erases them.','<b>{a}</b> is distracted, playing…'],
+  rewind:['Temporal Do-Over','Once per duel: undoes the first hit of 15%+ and the rival loses a turn','<b>{a}</b> rewinds time three seconds'],
+  copy:['Mimicry','When hit by a technique, copies it and fires it back (twice per duel)','<b>{a}</b> copies “{m}”!'],
+  clones:['Shadow Clones','A clone also strikes in their first 3 attacks','<b>{a}</b>: “Multi Shadow Clone Jutsu!”'],
+  amaterasu:['Amaterasu','The first hit sets black flames: the rival burns 4% every turn','Black flames engulf {d}!'],
+  burn:['','','{d} burns in the black flames'],
+  meteor:['Tengai Shinsei','Opens each duel by dropping 2 meteors','<b>{a}</b>: “Tengai Shinsei!”'],
+  rock:['','','A meteor crashes onto {d}!','{d} dodges the meteor'],
+  tsukuyomi:['Tsukuyomi','First turn: the rival loses 2 turns, 12% HP and 30% ki','<b>{a}</b>: “Welcome to my Tsukuyomi.”'],
+  kamui:['Kamui','Sends the rival’s first technique to another dimension','<b>{a}</b> swallows “{m}” into another dimension!'],
+  gates:['Eighth Gate','Once below 35%: Night Guy, a 60%+ blow that burns their own body','<b>{a}</b> opens the Eighth Gate: the Gate of Death!'],
+  gear5:['Gear 5','Once below 50%: heals 25%, +70 to all stats and hits more often','<b>{a}</b> laughs… the Drums of Liberation are beating!'],
+  asura:['Asura','More critical hits, and they hit ×2.4',''],
+  quake:['Gura Gura','Techniques shake the world: 50% chance the rival loses a turn','The world cracks: {d} loses their footing!'],
+  haki:['Conqueror’s Haki','Rivals 200+ power weaker faint; the rest lose their first turn','<b>{a}</b> unleashes Conqueror’s Haki','{d} faints from the pressure!'],
+  mugetsu:['Mugetsu','Once below 30%: a 65%+ blow, then loses their powers','<b>{a}</b> becomes the Getsuga itself: “Mugetsu.”'],
+  kyoka:['Kyōka Suigetsu','The rival’s first 2 attacks hit an illusion','<b>{a}</b>: “Since when were you under the impression…?”'],
+  mirage:['','','{b} attacks… an illusion. <b>{a}</b> was never there.'],
+  shrine:['Malevolent Shrine','Domain: 4 sure hits at +40%, and the slashes cut the rival every turn','<b>{a}</b>: “Domain Expansion: Malevolent Shrine.”'],
+  slash:['','','Dismantle slices {d}'],
+  bflash:['Black Flash','15% of hits become Black Flash (×2.5, recovers ki); each one makes the next likelier',''],
+  jackpot:['Jackpot','Each turn 12% to hit the jackpot: full heal and the next 4 hits regenerate instantly','JACKPOT! <b>{a}</b> is unkillable for a while'],
+  jpheal:['','','<b>{a}</b> regenerates instantly'],
+  rumbling:['The Rumbling','Once below 40%: 3 Colossal Titan stomps that can’t be dodged','<b>{a}</b> unleashes the Rumbling'],
+  ackerman:['Ackerman','The stronger the rival, the harder the blows: up to +80%','<b>{a}</b> sizes up the giant'],
+  adult:['Adult Gon','Once below 30%: +220 to all stats for 3 turns, then burns out (−150)','<b>{a}</b> gives everything: “This is where it ends.”'],
+  spent:['','','<b>{a}</b> has burned out'],
+  rose:['Poor Man’s Rose','When they fall, the rose explodes: 50% damage to the rival','<b>{a}</b> smiles… and the Poor Man’s Rose goes off'],
+  steal:['Skill Hunter','Steals the rival’s ability at the start of each duel','<b>{a}</b> opens the book and steals “{s}”'],
+  chain:['Judgment Chain','Kills any Phantom Troupe member on the spot; against others, Emperor Time (+90, costs 3% HP a turn)','<b>{a}</b>’s chain pierces {d}’s heart','<b>{a}</b>’s eyes turn scarlet: Emperor Time'],
+  hinokami:['Hinokami Kagura','After the first technique, the dance chains 3 more without ki','<b>{a}</b> dances the Dance of the Fire God'],
+  anti:['Anti-Magic','Cancels the rival’s ability; techniques do 40% less to them','<b>{a}</b> cuts {d}’s “{s}” in half'],
+  zawarudo:['ZA WARUDO','Once per duel: stops time, strikes and finishes with a road roller','<b>{a}</b>: “ZA WARUDO! Toki wo tomare!”'],
+  roller:['','','“ROAD ROLLER DA!”'],
+  heaven:['Made in Heaven','Time accelerates: takes at least 60% of the turns','<b>{a}</b>: “Made in Heaven!” Time accelerates'],
+  counter:['Full Counter','Sends the rival’s first technique back at double power','<b>{a}</b>: “Full Counter!”'],
+  arise:['Arise','Opens each duel with the shadow army: 2 shadows +1 per rival defeated','<b>{a}</b>: “Arise.”'],
+  shadow:['','','A shadow soldier strikes {d}'],
+  geass:['Geass','One order per person: the rival’s first attack turns against them','<b>{a}</b>: “Lelouch vi Britannia commands you!”'],
+  self:['','','<b>{a}</b> obeys the Geass and strikes themselves'],
+  eclipse:['Eclipse','Once, instead of falling, sacrifices the next teammate and is reborn at 60%','<b>{a}</b> offers up {s}… the Eclipse begins'],
+  dnote:['Death Note','Writes the rival’s name: when Light falls (or 40 s pass) the rival dies of a heart attack','<b>{a}</b> writes {d}’s name in the Death Note…','','Heart attack · 40 s'],
+  heart:['','','40 seconds later… {d}’s heart stops.'],
   pops:{stun:'Trapped!',adapt:'Adapted',regen:'Regen'}},
  es:{touch:['Toque de Dios','Actúa primero y borra a cualquiera de un solo toque','<b>{a}</b> extiende la mano… basta un toque.'],
   inf:['Infinito','Los 2 primeros ataques no le llegan','El ataque de {b} se frena en el aire: ¡Infinito de <b>{a}</b>!'],
@@ -307,23 +373,78 @@ const TR_T={
   stun:['','','<b>{a}</b> está atrapado y no puede moverse'],
   rage:['Furia','Por debajo del 40 % pega un 30 % más','¡<b>{a}</b> entra en furia!'],
   sun:['The One','Pega un 50 % más en sus 4 primeros turnos','<b>{a}</b>: ¡el sol está en lo más alto!'],
+  ultra:['Ultra Instinto','El rival falla un 22 % más y cada esquiva es un contraataque a plena potencia',''],
+  ego:['Ultra Ego','Cada golpe que recibe le sube 22 a todo (hasta 6 veces)','<b>{a}</b> se crece con el dolor'],
+  hakai:['Hakai','1 vez por duelo: destruye a un rival por debajo del 35 %','<b>{a}</b> levanta la mano: «Hakai».'],
+  erase:['Borrar','Cada duelo empieza con un 50 % de borrar al rival por capricho','<b>{a}</b> señala a {d}… y lo borra.','<b>{a}</b> se distrae jugando…'],
+  rewind:['Retroceso temporal','1 vez por duelo: deshace el primer golpe de más del 15 % y el rival pierde un turno','<b>{a}</b> rebobina el tiempo tres segundos'],
+  copy:['Imitación','Cuando le alcanza una técnica, la copia y la devuelve (2 veces por duelo)','¡<b>{a}</b> copia «{m}»!'],
+  clones:['Multiclones de Sombra','En sus 3 primeros ataques un clon también golpea','<b>{a}</b>: «¡Multiclones de Sombra!»'],
+  amaterasu:['Amaterasu','Su primer golpe prende llamas negras: el rival arde un 4 % cada turno','¡Las llamas negras envuelven a {d}!'],
+  burn:['','','{d} arde en las llamas negras'],
+  meteor:['Tengai Shinsei','Empieza cada duelo dejando caer 2 meteoritos','<b>{a}</b>: «¡Tengai Shinsei!»'],
+  rock:['','','¡Un meteorito se estrella contra {d}!','{d} esquiva el meteorito'],
+  tsukuyomi:['Tsukuyomi','Primer turno: el rival pierde 2 turnos, un 12 % de vida y un 30 % de ki','<b>{a}</b>: «Bienvenido a mi Tsukuyomi».'],
+  kamui:['Kamui','Manda la primera técnica del rival a otra dimensión','¡<b>{a}</b> se traga «{m}» a otra dimensión!'],
+  gates:['Octava Puerta','1 vez por debajo del 35 %: Night Guy, un golpe de más del 60 % que le quema el cuerpo','¡<b>{a}</b> abre la Octava Puerta: la Puerta de la Muerte!'],
+  gear5:['Gear 5','1 vez por debajo del 50 %: se cura un 25 %, +70 a todo y acierta más','<b>{a}</b> se ríe… ¡suenan los Tambores de la Liberación!'],
+  asura:['Asura','Más críticos, y sus críticos pegan ×2,4',''],
+  quake:['Gura Gura','Sus técnicas parten el mundo: 50 % de que el rival pierda un turno','¡El mundo se agrieta: {d} pierde el equilibrio!'],
+  haki:['Haki del Rey','Los rivales con 200 de poder menos se desmayan; el resto pierde su primer turno','<b>{a}</b> desata el Haki del Rey','¡{d} se desmaya por la presión!'],
+  mugetsu:['Mugetsu','1 vez por debajo del 30 %: un golpe de más del 65 %, y después pierde sus poderes','<b>{a}</b> se convierte en el Getsuga: «Mugetsu».'],
+  kyoka:['Kyōka Suigetsu','Los 2 primeros ataques del rival golpean una ilusión','<b>{a}</b>: «¿Desde cuándo creías que…?»'],
+  mirage:['','','{b} ataca… a una ilusión. <b>{a}</b> nunca estuvo ahí.'],
+  shrine:['Santuario Malévolo','Dominio: 4 golpes seguros con un 40 % más, y los cortes hieren al rival cada turno','<b>{a}</b>: «Expansión de dominio: Santuario Malévolo».'],
+  slash:['','','Desmantelar corta a {d}'],
+  bflash:['Destello Negro','El 15 % de sus golpes son Destello Negro (×2,5, recupera ki); cada uno hace más probable el siguiente',''],
+  jackpot:['Jackpot','Cada turno, 12 % de premio: se cura entero y regenera al instante los 4 golpes siguientes','¡JACKPOT! <b>{a}</b> es inmortal durante un rato'],
+  jpheal:['','','<b>{a}</b> se regenera al instante'],
+  rumbling:['El Retumbar','1 vez por debajo del 40 %: 3 pisotones de Titanes Colosales imposibles de esquivar','<b>{a}</b> desata el Retumbar'],
+  ackerman:['Ackerman','Cuanto más fuerte el rival, más duro pega: hasta un 80 % más','<b>{a}</b> mide al gigante'],
+  adult:['Gon adulto','1 vez por debajo del 30 %: +220 a todo durante 3 turnos; después se consume (−150)','<b>{a}</b> lo da todo: «Esto se acaba aquí».'],
+  spent:['','','<b>{a}</b> se ha consumido'],
+  rose:['Rosa del Pobre','Al caer, la rosa explota: un 50 % de daño al rival','<b>{a}</b> sonríe… y la Rosa del Pobre explota'],
+  steal:['Skill Hunter','Roba la habilidad del rival al empezar cada duelo','<b>{a}</b> abre el libro y roba «{s}»'],
+  chain:['Cadena del Juicio','Mata al instante a cualquier miembro de la Brigada Fantasma; contra el resto, Emperor Time (+90, cuesta un 3 % de vida por turno)','La cadena de <b>{a}</b> atraviesa el corazón de {d}','Los ojos de <b>{a}</b> se vuelven escarlata: Emperor Time'],
+  hinokami:['Hinokami Kagura','Tras su primera técnica, la danza encadena 3 más sin gastar ki','<b>{a}</b> baila la Danza del Dios del Fuego'],
+  anti:['Anti-magia','Anula la habilidad del rival; las técnicas le hacen un 40 % menos','<b>{a}</b> parte en dos «{s}» de {d}'],
+  zawarudo:['ZA WARUDO','1 vez por duelo: detiene el tiempo, golpea y remata con una apisonadora','<b>{a}</b>: «¡ZA WARUDO! ¡Toki wo tomare!»'],
+  roller:['','','«¡ROAD ROLLER DA!»'],
+  heaven:['Made in Heaven','El tiempo se acelera: tiene al menos el 60 % de los turnos','<b>{a}</b>: «¡Made in Heaven!» El tiempo se acelera'],
+  counter:['Full Counter','Devuelve la primera técnica del rival con el doble de fuerza','<b>{a}</b>: «¡Full Counter!»'],
+  arise:['Arise','Empieza cada duelo con su ejército de sombras: 2 sombras +1 por cada rival derrotado','<b>{a}</b>: «Arise».'],
+  shadow:['','','Un soldado de las sombras golpea a {d}'],
+  geass:['Geass','Una orden por persona: el primer ataque del rival se vuelve contra él','<b>{a}</b>: «¡Lelouch vi Britannia te lo ordena!»'],
+  self:['','','<b>{a}</b> obedece el Geass y se golpea'],
+  eclipse:['Eclipse','1 vez, en vez de caer, sacrifica al siguiente de su equipo y renace al 60 %','<b>{a}</b> ofrece a {s}… comienza el Eclipse'],
+  dnote:['Death Note','Escribe el nombre del rival: cuando Light cae (o pasan 40 s), el rival muere de un ataque al corazón','<b>{a}</b> escribe el nombre de {d} en el Death Note…','','Ataque al corazón · 40 s'],
+  heart:['','','40 segundos después… el corazón de {d} se para.'],
   pops:{stun:'¡Atrapado!',adapt:'Adaptado',regen:'Regenera'}}};
 const trT=(k,i)=>{const d=TR_T[lang]||TR_T.en,v=d[k];return v?v[i]||'':''};
-const trBadge=c=>c&&c.tr?`<em class="trb" title="${trT(c.tr,1)}">✦ ${trT(c.tr,0)}</em>`:'';
+// Habilidades únicas (una por personaje icónico) y su color de firma
+const SIGC={touch:'#fff3c4',inf:'#7fd8ff',serious:'#ffd23f',sun:'#ffb02e',ultra:'#dfe7ff',ego:'#b04dff',hakai:'#a43cff',erase:'#ffffff',rewind:'#7ad7ff',copy:'#ff4d6d',
+ clones:'#ff9d2e',amaterasu:'#a35cff',meteor:'#ff7a2e',tsukuyomi:'#ff2a3a',kamui:'#8f6bff',gates:'#3dff9e',gear5:'#ffffff',asura:'#7dff8a',quake:'#cfe9ff',haki:'#ff2a2a',
+ mugetsu:'#aab2c8',kyoka:'#8affd0',shrine:'#ff1f3d',bflash:'#ff1f3d',jackpot:'#ffd23f',rumbling:'#ffb27a',ackerman:'#c9d6e3',adult:'#ffd23f',rose:'#ff9ec4',steal:'#b07cff',
+ chain:'#ffcf5a',hinokami:'#ff6a00',anti:'#9dff6a',zawarudo:'#ffd23f',heaven:'#9be7ff',counter:'#ff3b6b',arise:'#8a7cff',geass:'#ff2a55',eclipse:'#ff1f1f',dnote:'#f2f2f2'};
+const UNQ=new Set(Object.keys(SIGC));
+const trB=k=>k?`<em class="trb${UNQ.has(k)?' u':''}" title="${trT(k,1)}"${UNQ.has(k)?` style="--sc:${SIGC[k]}"`:''}>${UNQ.has(k)?'★':'✦'} ${trT(k,0)}</em>`:'';
+const trBadge=c=>c&&c.tr?trB(c.tr):'';
 const abT=(k,...a)=>{let s=(AB_T[lang]||AB_T.es)[k];if(Array.isArray(s))s=s[(a[0]||0)%s.length];return String(s??k)};
 const abF=(s,o)=>s.replace(/\{(\w+)\}/g,(m,k)=>o[k]??m);
-const mvOf=(c,v)=>{const l=(lang==='es'?c.mvEs:c.mv)||c.mv||[];return l.length?l[(v||0)%l.length]:abT('special')};
+const mvOf=(c,v)=>{const l=c?(lang==='es'?c.mvEs:c.mv)||c.mv||[]:[];return l.length?l[(v||0)%l.length]:abT('special')};
 let ABS=1; // las peleas siempre a velocidad normal
 function abArena(){
   const plate=p=>`<div class="ab-pl a${p}" style="--c:var(--p${p+1});--on:var(--on${p+1})">
-<div class="ab-who"><span>${t('player',p+1)}</span><b id="abn${p}">—</b></div><div class="ab-trn" id="abtr${p}"></div>
+<div class="ab-face" id="abfc${p}"></div>
+<div class="ab-pm"><div class="ab-who"><span>${t('player',p+1)}</span><b id="abn${p}">—</b></div><div class="ab-trn" id="abtr${p}"></div>
 <div class="ab-bar ab-hp"><i class="g" id="abg${p}"></i><i class="v" id="abh${p}"></i><em id="abhp${p}">100%</em></div>
 <div class="ab-bar ab-ki"><i id="abk${p}"></i></div>
-<div class="ab-tm" id="abt${p}"></div><div class="ab-stw" id="abs${p}"></div></div>`;
+<div class="ab-tm" id="abt${p}"></div></div><div class="ab-stw" id="abs${p}"></div></div>`;
+  const emb=Array.from({length:18},(_,i)=>`<s style="left:${rnd(2,98)}%;--s:${rnd(3,7)}px;--d:${rnd(6,13)}s;--dl:-${rnd(0,13)}s;--x:${rnd(-70,70)}px;--ec:var(--p${i%2+1})"></s>`).join('');
+  const fighter=p=>`<div class="ab-f a${p}" id="abf${p}" style="--c:var(--p${p+1})"><i class="ab-aura"></i><div class="ab-card" id="abc${p}"></div><i class="ab-shd"></i></div>`;
   return `<div class="ab" id="ab"><div class="ab-top">${plate(0)}<div class="ab-c"><small>${abT('duel')}</small><b id="abdn">1</b></div>${plate(1)}</div>
-<div class="ab-stage" id="abst"><div class="ab-sky"></div><div class="ab-floor"></div>
-<div class="ab-f a0" id="abf0" style="--c:var(--p1)"><div class="ab-card" id="abc0"></div></div>
-<div class="ab-f a1" id="abf1" style="--c:var(--p2)"><div class="ab-card" id="abc1"></div></div><div class="ab-fx" id="abfx"></div></div>
+<div class="ab-stage" id="abst"><div class="ab-world" id="abw"><div class="ab-sky"></div><div class="ab-neb"></div><div class="ab-alt"></div><div class="ab-floor"></div><div class="ab-emb">${emb}</div>${fighter(0)}${fighter(1)}</div>
+<div class="ab-spl"></div><div class="ab-vig"></div><div class="ab-fx" id="abfx"></div></div>
 <div class="ab-com" id="abcom" aria-live="polite"></div>
 <div class="ab-bot"><div class="ab-dlg" id="abdl"></div></div>
 <div class="ab-log" id="ablog"></div></div>`;
@@ -332,7 +453,7 @@ function abArena(){
 const ELEM={fire:['Mereoleona','Deidara','Ace','Tanjiro','Feitan','Rengoku','Roy Mustang','Jogo','Escanor','Demon King'],
  bolt:['Fourth Raikage','Sasuke','Minato','Hajime Kashimo','Zeus','Killua','Zenitsu','Thor','Killer B'],
  water:['Dagon','Uraume','Whitebeard','Giyu','Kisame','Noelle','Tobirama Senju'],
- dark:['Lucifero','Dante Zogratis','Shisui Uchiha','Kabuto','Sung Jin-Woo','Yami','Pride','Muzan','Madara','Itachi','Obito','Sukuna','Mahito','Kenjaku','Geto','Dio Brando','Zeldris','Aizen','Choso','Father','Griffith','Meruem','Kaneki','Chrollo Lucilfer','Orochimaru','Pain'],
+ dark:['Light Yagami','Lucifero','Dante Zogratis','Shisui Uchiha','Kabuto','Sung Jin-Woo','Yami','Pride','Muzan','Madara','Itachi','Obito','Sukuna','Mahito','Kenjaku','Geto','Dio Brando','Zeldris','Aizen','Choso','Father','Griffith','Meruem','Kaneki','Chrollo Lucilfer','Orochimaru','Pain'],
  light:['Lucius Zogratis','Hana Kurusu','Nanika','Giorno Giovanna','God','Grand Priest','Whis','Hagoromo Otsutsuki','Netero','Saitama','Van Hohenheim','Yuki Tsukumo'],
  void:['Kaguya Otsutsuki','Gojo','Frieza','Beerus','Zeno','Truth','Rick Sanchez','Boros'],
  wind:['Danzo','Takako Uro','Naruto','Zoro','Yuno','Asta'],
@@ -347,12 +468,13 @@ const COM_T={en:{first:'First blood!',gap:['<b>{a}</b> is toying with {b}…','T
   comeback:'¡Qué remontada de <b>{a}</b>!',flawless:'¡Impecable! <b>{a}</b> no ha recibido ni un rasguño.',upset:'¡Sorpresa! <b>{a}</b> tumba a un rival mucho más fuerte',
   close:'¡<b>{a}</b> sobrevive por los pelos!',last:'<b>{a}</b> es la última esperanza de {p}',combo:'{0} GOLPES'}};
 const comT=k=>(COM_T[lang]||COM_T.en)[k];
+const STAGE_FX=['dz0','dz1','tstop','fin','gen','god','tsk','ecl','mih','shr','rmb','mug','hki','dark','rwd'];
 async function run(tk,script){
   const S0=script||BidEngine.resolveAnime(G);
   const z=async ms=>{await sleep(ms/ABS);if(tk!==bt)throw 0};
   $('gbg').classList.add('fight'); // se acabó la subasta: los martillos se apartan
   const E=await arenaIn(async ms=>{await sleep(ms);if(tk!==bt)throw 0},abArena());
-  const AB=$('ab'),ST=$('abst'),FX=$('abfx');
+  const AB=$('ab'),ST=$('abst'),FX=$('abfx'),WD=$('abw');
   ABS=1;AB.style.setProperty('--k',1);
   const T0=S0.ev[0]&&S0.ev[0].teams; // orden real de cada equipo (el motor lo manda; si no, el de la compra)
   const team=[0,1].map(p=>T0?T0[p]:(P[p]&&P[p].c||[]).map(c=>c.n)),ko=[[],[]],act=[-1,-1],cur=[null,null];let hpN=[1,1],lastDown='',lastL=null,dno=0;
@@ -366,40 +488,124 @@ async function run(tk,script){
   const setB=(p,hp,en)=>{const v=$('abh'+p);if(hp!=null){hp=Math.max(0,Math.min(1,hp));v.style.width=$('abg'+p).style.width=hp*100+'%';v.className='v'+(hp>.5?'':hp>.2?' mid':' low');$('abhp'+p).textContent=Math.ceil(hp*100)+'%'}if(en!=null)$('abk'+p).style.width=Math.max(0,Math.min(1,en))*100+'%'};
   const num=(p,txt,k='')=>{const c=ctr(p,.22);tmp(`<span class="ab-num ${k}" style="left:${c.x+(Math.random()*40-20)}px;top:${c.y}px">${txt}</span>`,1200)};
   const elC=a=>{const e=cur[a]&&ELC[ELN[cur[a].n]];return e?e[0]:null};
-  const burst=(p,big,col)=>{const c=ctr(p);tmp(`<i class="ab-burst" style="left:${c.x}px;top:${c.y}px;--s:${big?170:95}px;--c:${col||`var(--p${2-p})`}"></i>`,600)};
+  const at=(p,f,cls,inner='',ms=1200,st='')=>{const c=ctr(p,f);return tmp(`<span class="${cls}" style="left:${c.x}px;top:${c.y}px;${st}">${inner}</span>`,ms)};
+  const burst=(p,big,col)=>at(p,.42,'ab-burst','',650,`--s:${big?180:100}px;--c:${col||`var(--p${2-p})`}`);
   const pop=(txt,k='',col)=>tmp(`<b class="ab-pop ${k}" style="${col?'--pc:'+col:''}">${txt}</b>`,1000);
   const shake=()=>re(ST,'shk'),flash=c=>{ST.style.setProperty('--fc',c||'#fff');re(ST,'fl')};
-  const shield=p=>{const c=ctr(p,.5);tmp(`<i class="ab-shield" style="left:${c.x}px;top:${c.y}px;--c:var(--p${p+1})"></i>`,800)};
+  const imp=()=>re(ST,'imp'); // marco de impacto: dos fotogramas en negativo, como en el anime
+  const zoom=p=>{const c=ctr(p,.5);WD.style.setProperty('--zx',c.x+'px');re(ST,'zm')}; // golpe de cámara hacia quien recibe
+  const speed=p=>{const c=ctr(p,.5),w=ST.getBoundingClientRect().width||1;ST.style.setProperty('--sx',c.x/w*100+'%');re(ST,'spd')};
+  const shield=p=>at(p,.5,'ab-shield','',800,`--c:var(--p${p+1})`);
+  const mark=(p,c,on=true)=>$('abf'+p).classList.toggle(c,on),stg=(c,on=true)=>ST.classList.toggle(c,on);
   const fa=(p,c)=>{const f=$('abf'+p);f.classList.remove('in','atk','hit','dodge');void f.offsetWidth;f.classList.add(c)};
-  const lunge=p=>fa(p,'atk'),hurt=p=>fa(p,'hit'),dodge=p=>fa(p,'dodge');
+  const lunge=p=>{fa(p,'atk');speed(1-p)},hurt=p=>{fa(p,'hit');re($('abfc'+p),'hit')},dodge=p=>fa(p,'dodge');
   const sfx=k=>{if(ABS<=2)SND.fx(k)};
   const pct=x=>'-'+Math.max(1,Math.round(x*100))+'%';
+  const badge=(p,k,cut)=>{$('abtr'+p).innerHTML=cut?`<span class="trx">${$('abtr'+p).innerHTML}</span>`:trB(k)};
   const cutin=async(p,c,m)=>{const el=tmp(`<div class="ab-cut${p?' r':''}" style="--c:var(--p${p+1});--on:var(--on${p+1})"><span class="ci" style="--h:${c.h}">${spr(c)}</span><span class="ct"><small>${dnh(c)}</small><b>${m}</b></span></div>`,1000);sfx('charge');await z(820);return el};
-  const beam=(a,big)=>{const A=ctr(a),D=ctr(1-a),l=Math.min(A.x,D.x),w=Math.abs(D.x-A.x),k=cur[a]&&ELN[cur[a].n],e=ELC[k];
-    tmp(`<i class="ab-beam${k?' el-'+k:''}" style="left:${l}px;width:${w}px;top:${(A.y+D.y)/2}px;--c:${e?e[0]:`var(--p${a+1})`};${e?`--core:${e[1]};`:''}--o:${a?'right':'left'};--bh:${big?38:26}px"></i>`,700);sfx('beam')};
+  // cut-in de firma de las habilidades únicas: retrato enorme, banda del color de la habilidad y su nombre
+  const sig=async(a,k,name)=>{const c=cur[a];if(!c)return;sfx('sig');
+    tmp(`<div class="ab-sig${a?' r':''}" style="--c:${SIGC[k]||`var(--p${a+1})`};--pc:var(--p${a+1})"><i class="sg-bg"></i><span class="sg-pic" style="--h:${c.h}">${spr(c)}</span><span class="sg-t"><small>★ ${abT('unique')} · ${dnh(c)}</small><b>${name||trT(k,0)}</b></span></div>`,1500);
+    await z(1300)};
+  const beam=(a,big,col)=>{const A=ctr(a),D=ctr(1-a),l=Math.min(A.x,D.x),w=Math.abs(D.x-A.x),k=cur[a]&&ELN[cur[a].n],e=ELC[k];
+    tmp(`<i class="ab-beam${k&&!col?' el-'+k:''}" style="left:${l}px;width:${w}px;top:${(A.y+D.y)/2}px;--c:${col||(e?e[0]:`var(--p${a+1})`)};${e&&!col?`--core:${e[1]};`:''}--o:${a?'right':'left'};--bh:${big?42:28}px"></i>`,700);sfx('beam')};
+  const drop=(p,kind,miss)=>{const c=ctr(p,.5);return tmp(`<i class="ab-drop ${kind}" style="left:${c.x+(miss?(p?-1:1)*80:0)}px;top:${c.y}px"></i>`,1150)};
+  const ghost=(a,d)=>{const A=ctr(a,.5),D=ctr(d,.5),c=cur[a];tmp(`<span class="ab-ghost" style="left:${A.x}px;top:${A.y}px;--dx:${D.x-A.x}px;--h:${c.h};--c:var(--p${a+1})">${spr(c)}</span>`,650);sfx('whiff')};
+  const slashes=(p,col,n=4)=>{let h='';for(let i=0;i<n;i++)h+=`<i style="--a:${rnd(-70,70)}deg;--dl:${i*70}ms;--y:${rnd(-40,40)}px"></i>`;at(p,.45,'ab-slash',h,900,`--c:${col||'#fff'}`)};
+  const shades=(a,n)=>{for(let i=0;i<n;i++)at(a,.98,'ab-shade','',1500,`--dx:${(i-(n-1)/2)*44}px;--dl:${i*90}ms`)};
+  const shadeHit=(a,d)=>{const A=ctr(a,.5),D=ctr(d,.5);tmp(`<span class="ab-shade go" style="left:${A.x}px;top:${A.y}px;--tx:${D.x-A.x}px"></span>`,600)};
+  const chain=(a,d)=>{const A=ctr(a,.45),D=ctr(d,.45);tmp(`<i class="ab-chain" style="left:${Math.min(A.x,D.x)}px;width:${Math.abs(D.x-A.x)}px;top:${A.y}px;--o:${a?'right':'left'}"></i>`,1500)};
+  const book=(from,to)=>{const A=ctr(from,.3),D=ctr(to,.3);tmp(`<span class="ab-book" style="left:${A.x}px;top:${A.y}px;--dx:${D.x-A.x}px">📖</span>`,1000)};
+  const note=d=>{const n=dn(cur[d]);tmp(`<div class="ab-dnote"><small>DEATH NOTE</small><b style="--n:${n.length}">${n}</b><em>${trT('dnote',4)}</em></div>`,2300)};
+  const ecg=()=>tmp('<div class="ab-ecg"><svg viewBox="0 0 400 100" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,50 70,50 82,22 96,84 108,50 170,50 182,26 195,80 206,50 400,50"/></svg><b>♥</b></div>',1900);
+  const slot=()=>tmp(`<div class="ab-slot">${[0,1,2].map(i=>`<span style="--i:${i}"><i><b>💎</b><b>🍒</b><b>⭐</b><b>🔔</b><b>7</b></i></span>`).join('')}</div>`,1500);
+  const crack=()=>tmp('<svg class="ab-crack" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><path d="M50 30L38 18L30 20L18 6M50 30L64 14L72 16L84 2M50 30L40 44L26 46L12 58M50 30L62 44L76 42L92 58M50 30L20 32L4 28M50 30L80 30L98 34"/></svg>',1300);
   // golpe final: viñeta y bandas de cine centradas en el que cae
   const finisher=async t=>{const c=ctr(t,.5);tmp(`<div class="ab-fin" style="--fx:${c.x}px"></div>`,1600);ST.classList.add('fin');sfx('charge');await z(560)};
   let combo={a:-1,n:0},first=false,behind=[0,0];
   const comboHit=a=>{if(combo.a===a)combo.n++;else combo={a,n:1};if(combo.n>=3){const c=ctr(a,.02);tmp(`<b class="ab-combo" style="left:${c.x}px;top:${c.y}px;--c:var(--p${a+1})">${abF(comT('combo'),{0:combo.n})}</b>`,900)}};
-  const scene=h=>{ST.classList.toggle('dz0',!!(h.dz&&h.dz[0]));ST.classList.toggle('dz1',!!(h.dz&&h.dz[1]));if(!h.ts&&h.k!=='tr')ST.classList.remove('tstop')};
+  const scene=h=>{ST.classList.toggle('dz0',!!(h.dz&&h.dz[0]));ST.classList.toggle('dz1',!!(h.dz&&h.dz[1]));if(!(h.dz&&(h.dz[0]||h.dz[1])))stg('shr',false);
+    if(!h.ts&&h.k!=='tr')stg('tstop',false);if(h.u!=='rumbling'&&h.tr!=='rumbling')stg('rmb',false);if(h.u!=='mugetsu'&&h.tr!=='mugetsu')stg('mug',false)};
   const pops=()=>(TR_T[lang]||TR_T.en).pops;
-  const trait=async(h,a,d,An,Dn,upd)=>{ // animación de cada rasgo (a = dueño del rasgo, salvo 'stun' = el atrapado)
-    const k=h.tr,nm=trT(k,0),by=h.by==null?d:h.by,line=abF(trT(k,2),{a:An,d:Dn,b:dnh(cur[by])}),pc=`var(--p${a+1})`;
-    if(line)say(line);
+  // golpes definitivos de las habilidades únicas (no se esquivan)
+  const ultHit=async(h,a,d,lethal,upd)=>{
+    const dmgFx=(big=true)=>{hurt(d);burst(d,big,SIGC[h.u]);num(d,pct(h.dmg),'crit');shake();zoom(d);imp();upd()};
+    say(`<b>${dnh(cur[a])}</b>: «${(AB_T[lang]||AB_T.es).ult[h.u]||''}»`);
+    if(lethal)await finisher(d);
+    if(h.u==='hakai'){at(d,.45,'ab-orb','',1300);sfx('time');await z(750);dmgFx();if(lethal)mark(d,'gone');flash('#a43cff');sfx('boom');await z(900)}
+    else if(h.u==='rumbling'){drop(d,'stomp');await z(520);dmgFx();sfx('quake');await z(520)}
+    else if(h.u==='mugetsu'){tmp('<i class="ab-mug"></i>',1300);sfx('beam');await z(520);dmgFx();flash('#000');sfx('boom');await z(1000)}
+    else{lunge(a);beam(a,true,SIGC[h.u]);await z(260);dmgFx();flash(SIGC[h.u]);sfx('boom');await z(950)} // Night Guy
+  };
+  const trait=async(h,a,d,An,Dn,upd)=>{ // animación de cada rasgo (a = dueño del rasgo, salvo 'stun' y 'self' = quien lo sufre)
+    const k=h.tr,nm=trT(k,0),by=h.by==null?d:h.by,col=SIGC[k]||`var(--p${a+1})`;
+    const sName=h.s?(TR_T.en[h.s]?trT(h.s,0):C(h.s)?dnh(C(h.s)):h.s):'';
+    const L=i=>abF(trT(k,i),{a:An,d:Dn,b:dnh(cur[by]),m:h.m!=null?mvOf(cur[by],h.m):'',s:sName});
+    const dmgOn=(p,big)=>{if(h.dmg>0){hurt(p);burst(p,big,col);num(p,pct(h.dmg),big?'crit':'')}};
+    const line=L(2);if(line&&!['erase','haki','chain','rock'].includes(k))say(line);
     switch(k){
-      case 'inf':lunge(by);await z(170);shield(a);num(a,'∞','txt');sfx('whiff');pop(nm,'',pc);await z(650);break;
-      case 'time':ST.classList.add('tstop');pop(nm,'',pc);sfx('time');await z(950);break;
+      // ---- compartidos ----
+      case 'inf':lunge(by);await z(170);shield(a);num(a,'∞','txt');sfx('whiff');pop(nm,'',col);await z(650);break;
+      case 'time':stg('tstop');pop(nm,'',col);sfx('time');await z(950);break;
       case 'req':shield(a);flash('#ffd23f');pop(nm,'','#ffd23f');sfx('awake');num(a,'0','txt');await z(1100);break;
-      case 'serious':await cutin(a,cur[a],nm);break;
-      case 'toll':pop(nm,'',pc);flash('#fff');hurt(d);if(h.dmg)num(d,pct(h.dmg));sfx('boom');upd();await z(1000);break;
-      case 'domain':await cutin(a,cur[a],nm);ST.classList.add('dz'+a);sfx('domain');await z(400);break;
+      case 'serious':await sig(a,k);break;
+      case 'toll':pop(nm,'',`var(--p${a+1})`);flash('#fff');hurt(d);if(h.dmg)num(d,pct(h.dmg));sfx('boom');upd();await z(1000);break;
+      case 'domain':await cutin(a,cur[a],nm);stg('dz'+a);sfx('domain');await z(400);break;
       case 'regen':num(a,'+'+Math.round((h.heal||0)*100)+'%','heal');sfx('awake');upd();await z(650);break;
       case 'adapt':shield(a);num(a,pops().adapt+(h.lv>1?' ×'+h.lv:''),'txt');sfx('hum');await z(600);break;
-      case 'gen':flash('#c4001a');ST.classList.add('gen');pop(nm,'','#ff3b3b');sfx('charge');await z(1000);ST.classList.remove('gen');break;
+      case 'gen':flash('#c4001a');stg('gen');pop(nm,'','#ff3b3b');sfx('charge');await z(1000);stg('gen',false);break;
       case 'stun':num(a,pops().stun,'txt');sfx('whiff');await z(650);break;
-      case 'rage':$('abf'+a).classList.add('rg');pop(nm,'','#ff3b3b');sfx('awake');shake();await z(900);break;
-      case 'sun':flash('#ffd23f');pop(nm,'','#ffd23f');sfx('awake');await z(1000);break;
-      case 'touch':ST.classList.add('god');pop(nm,'','#fff');sfx('awake');await z(1300);ST.classList.remove('god');break;
+      case 'rage':mark(a,'rg');pop(nm,'','#ff3b3b');sfx('awake');shake();await z(900);break;
+      case 'sun':await sig(a,k);flash('#ffd23f');break;
+      case 'touch':await sig(a,k);stg('god');sfx('awake');await z(1100);stg('god',false);break;
+      // ---- únicas ----
+      case 'ego':mark(a,'ego');$('abf'+a).style.setProperty('--lv',h.lv||1);if((h.lv||1)===1)await sig(a,k);else{num(a,'EGO ×'+h.lv,'txt');sfx('hum');await z(450)}break;
+      case 'hakai':await sig(a,k);break;
+      case 'erase':if(h.no){say(L(3));pop('…','',col);sfx('whiff');await z(1000);break}
+        say(line);await sig(a,k);flash('#fff');mark(d,'gone');num(d,abT('erased'),'txt');sfx('boom');upd();await z(1200);break;
+      case 'rewind':tmp('<i class="ab-rew"></i>',1400);stg('rwd');sfx('time');num(a,'↺','txt');await z(1200);stg('rwd',false);break;
+      case 'copy':pop(nm,'',col);sfx('charge');await z(700);break;
+      case 'clones':await sig(a,k);mark(a,'cln');break;
+      case 'amaterasu':mark(d,'burn');pop(nm,'',col);flash('#2a0838');sfx('boom');await z(850);break;
+      case 'burn':hurt(d);num(d,pct(h.dmg));sfx('hum');upd();await z(450);break;
+      case 'meteor':await sig(a,k);break;
+      case 'rock':if(h.miss){say(L(3));drop(d,'meteor',true);await z(520);dodge(d);num(d,abT('dodgePop'),'txt');sfx('boom');shake();await z(500);break}
+        say(line);drop(d,'meteor');await z(540);dmgOn(d,true);shake();imp();sfx('boom');upd();await z(520);break;
+      case 'tsukuyomi':await sig(a,k);stg('tsk');flash('#c4001a');sfx('charge');if(h.dmg){hurt(d);num(d,pct(h.dmg))}upd();await z(1300);stg('tsk',false);break;
+      case 'kamui':lunge(by);await z(170);at(a,.45,'ab-vtx','',1100);sfx('time');pop(nm,'',col);upd();await z(950);break;
+      case 'gates':mark(a,'gt');upd();await sig(a,k);break;
+      case 'gear5':await sig(a,k);mark(a,'g5');if(h.heal)num(a,'+'+Math.round(h.heal*100)+'%','heal');sfx('awake');upd();await z(500);break;
+      case 'quake':crack();shake();setTimeout(shake,260);sfx('quake');num(d,pops().stun,'txt');await z(900);break;
+      case 'haki':say(line);at(a,.5,'ab-ring','',1100);stg('hki');shake();sfx('haki');await z(750);
+        if(h.ko){say(L(3));hurt(d);num(d,pct(h.dmg),'crit');imp();upd()}else num(d,pops().stun,'txt');await z(850);stg('hki',false);break;
+      case 'mugetsu':stg('mug');await sig(a,k);break;
+      case 'kyoka':await sig(a,k);break;
+      case 'mirage':lunge(by);await z(170);mark(a,'mir');num(a,abT('illusion'),'txt');sfx('whiff');await z(650);mark(a,'mir',false);break;
+      case 'shrine':await sig(a,k);stg('shr');stg('dz'+a);sfx('domain');await z(300);break;
+      case 'slash':slashes(d,col);hurt(d);num(d,pct(h.dmg));sfx('slash');upd();await z(500);break;
+      case 'jackpot':slot();sfx('slot');await z(1350);mark(a,'jp');num(a,'+'+Math.round((h.heal||0)*100)+'%','heal');flash('#ffd23f');sfx('awake');upd();await z(500);break;
+      case 'jpheal':lunge(by);await z(170);hurt(a);num(a,pops().regen,'heal');sfx('hit');await z(450);break;
+      case 'rumbling':await sig(a,k);stg('rmb');break;
+      case 'ackerman':pop(nm,'',col);sfx('charge');await z(800);break;
+      case 'adult':await sig(a,k);mark(a,'adult');sfx('awake');break;
+      case 'spent':mark(a,'adult',false);mark(a,'spent');sfx('whiff');await z(800);break;
+      case 'rose':at(d,.5,'ab-rose','',1700);flash('#fff');imp();shake();sfx('nuke');await z(700);dmgOn(d,true);shake();upd();await z(1000);break;
+      case 'steal':book(d,a);sfx('charge');await z(700);badge(a,h.s);badge(d,'',true);pop(trT(h.s,0),'',col);sfx('awake');await z(800);break;
+      case 'anti':slashes(d,'#0b0b0b',3);mark(a,'anti');badge(d,'',true);sfx('slash');pop(nm,'',col);await z(950);break;
+      case 'chain':if(h.ko){say(line);chain(a,d);sfx('chain');await z(750);hurt(d);imp();shake();num(d,pct(h.dmg),'crit');upd();await z(950)}
+        else{say(L(3));await sig(a,k,'Emperor Time');mark(a,'emp')}break;
+      case 'hinokami':await sig(a,k);mark(a,'hk');break;
+      case 'zawarudo':await sig(a,k);stg('tstop');sfx('time');await z(450);break;
+      case 'roller':pop('ROAD ROLLER','',col);await z(450);break;
+      case 'heaven':await sig(a,k);stg('mih');break;
+      case 'counter':shield(a);sfx('charge');pop(nm,'',col);await z(750);break;
+      case 'arise':await sig(a,k);shades(a,h.n||2);sfx('hum');await z(700);break;
+      case 'shadow':shadeHit(a,d);await z(260);dmgOn(d,false);sfx('hit');upd();await z(380);break;
+      case 'geass':await sig(a,k);mark(d,'gs');break;
+      case 'self':mark(a,'gs',false);fa(a,'hit');burst(a,false,'#ff2a55');num(a,pct(h.dmg));sfx('hit');upd();await z(700);break;
+      case 'eclipse':stg('ecl');await sig(a,k);flash('#ff1f1f');num(a,'+60%','heal');sfx('awake');upd();await z(700);break;
+      case 'dnote':note(d);sfx('write');await z(2100);mark(d,'dn');break;
+      case 'heart':stg('dark');ecg();sfx('heart');await z(1750);mark(d,'dn',false);hurt(d);num(d,'♥','crit');flash('#ff2a3a');upd();await z(800);stg('dark',false);break;
       default:await z(300);
     }
     upd();
@@ -409,15 +615,18 @@ async function run(tk,script){
     else if(e.t==='send'){
       const c=C(e.n),p=e.p,f=$('abf'+p),card=$('abc'+p);act[p]=e.k;cur[p]=c;hpN[p]=e.f==null?1:e.f;
       $('abn'+p).innerHTML=dnh(c);$('abtr'+p).innerHTML=trBadge(c);card.dataset.n=c.n;card.style.setProperty('--h',c.h);card.innerHTML=spr(c);
-      f.className='ab-f a'+p;re(f,'in');setB(p,hpN[p],e.e==null?1:e.e);$('abs'+p).innerHTML=stT(c,e.st);roster(p);
+      const fc=$('abfc'+p);fc.className='ab-face';fc.dataset.n=c.n;fc.style.setProperty('--h',c.h);fc.innerHTML=spr(c);
+      f.className='ab-f a'+p;f.style.setProperty('--lv','');re(f,'in');setB(p,hpN[p],e.e==null?1:e.e);$('abs'+p).innerHTML=stT(c,e.st);roster(p);
       if(team[p].length>1&&e.k===team[p].length-1)com(abF(comT('last'),{a:dnh(c),p:t('player',p+1)}));
       await say(t('sends',p+1,dnh(c)),1150);
     }else if(e.t==='duel'){
       const A=C(e.a),B=C(e.b);$('abdn').textContent=++dno;
-      tmp(`<div class="ab-vs"><span class="l">${dnh(A)}</span><b>${t('vs')}</b><span class="r">${dnh(B)}</span></div>`,1500);
+      STAGE_FX.forEach(c=>stg(c,false));[0,1].forEach(p=>{mark(p,'win',false);if(cur[p])$('abtr'+p).innerHTML=trBadge(cur[p])});
+      tmp(`<div class="ab-vs"><div class="vs-s l"><b>${dnh(A)}</b></div><b class="vs-x">${t('vs')}</b><div class="vs-s r"><b>${dnh(B)}</b></div><small class="vs-n">${abT('duel')} ${dno}</small></div>`,1700);
+      sfx('charge');
       const gp=A.pw-B.pw;if(Math.abs(gp)>=250){const s=gp>0?[A,B]:[B,A];com(abF(comT('gap')[dno%2],{a:dnh(s[0]),b:dnh(s[1])}))}else if(Math.abs(gp)<=40)com(comT('even'));
       combo={a:-1,n:0};behind=[0,0];
-      await say(`<b>${dnh(A)}</b> ${t('vs')} <b>${dnh(B)}</b>`,1450);
+      await say(`<b>${dnh(A)}</b> ${t('vs')} <b>${dnh(B)}</b>`,1650);
       for(const h of e.hits){
         const a=h.a,d=1-a,An=dnh(cur[a]),Dn=dnh(cur[d]),prev=[...hpN],v=h.v||0;
         const upd=()=>{hpN=[h.hp[0],h.hp[1]];setB(0,h.hp[0],h.en&&h.en[0]);setB(1,h.hp[1],h.en&&h.en[1])};
@@ -425,15 +634,26 @@ async function run(tk,script){
         const tg=h.k==='clash'?1-(h.w==null?a:h.w):d,lethal=['hit','crit','ctr','sp','spc','clash'].includes(h.k)&&h.hp[tg]<=0&&prev[tg]>0;
         if(h.dmg>0&&!first&&h.k!=='tr'&&h.k!=='clash'){first=true;com(comT('first'))}
         if(h.k==='hit'||h.k==='crit'||h.k==='ctr'){
-          say(h.k==='ctr'?abF(abT('ctr'),{a:An,d:Dn}):abF(abT(h.k==='crit'?'crit':'hit',v),{a:An,d:Dn}));
+          say(h.k==='ctr'?abF(abT(h.ui?'uctr':'ctr'),{a:An,d:Dn}):h.cl?abF(abT('clone'),{a:An,d:Dn}):h.rr?abF(abT('roller'),{a:An,d:Dn}):abF(abT(h.k==='crit'?'crit':'hit',v),{a:An,d:Dn}));
           if(lethal)await finisher(d);
-          lunge(a);await z(h.ts?110:170);hurt(d);burst(d,h.crit||lethal);num(d,pct(dm(d)),h.crit||lethal?'crit':'');sfx(h.crit||lethal?'crit':'hit');
-          if(h.crit||lethal){shake();if(!lethal)pop(abT('critPop'))}if(lethal)flash();
-          comboHit(a);upd();await z(lethal?950:h.ts?380:h.crit?720:520);
+          if(h.rr){drop(d,'roller');await z(560)}else if(h.cl){ghost(a,d);await z(220)}else{lunge(a);await z(h.ts?110:170)}
+          const big=h.crit||lethal||h.bf||h.rr;
+          hurt(d);burst(d,big,h.bf?'#ff1f3d':h.as?'#7dff8a':null);num(d,pct(dm(d)),big?'crit':'');sfx(big?'crit':'hit');
+          if(h.bf){at(d,.45,'ab-bfl','<b>黒閃</b>',950);pop(abT('bfPop'),'','#ff1f3d');imp()}
+          else if(h.as){slashes(d,'#7dff8a',3);pop(abT('asPop'),'','#7dff8a')}
+          else if(h.ui)pop(abT('uiPop'),'','#dfe7ff');
+          if(big){shake();zoom(d);if(!lethal&&!h.bf&&!h.as&&!h.ui&&!h.rr)pop(abT('critPop'))}if(lethal){flash();imp()}
+          comboHit(a);upd();await z(lethal?950:h.ts?380:big?720:520);
         }else if(h.k==='sp'||h.k==='spc'){
-          const m=mvOf(cur[a],v);say(abF(abT(h.k),{a:An,m}));if(h.en)setB(a,null,h.en[a]);
-          await cutin(a,cur[a],m);if(lethal)await finisher(d);lunge(a);beam(a,h.k==='spc'||lethal);await z(240);
-          hurt(d);burst(d,true,elC(a));shake();flash(elC(a));num(d,pct(dm(d)),'crit');if(h.k==='spc'&&!lethal)pop(abT('critPop'));sfx('boom');comboHit(a);upd();await z(lethal?1050:760);
+          if(h.u)await ultHit(h,a,d,lethal,upd);
+          else{
+            const m=h.cp!=null?mvOf(cur[d],h.cp):h.fc!=null?mvOf(cur[d],h.fc):mvOf(cur[a],v);
+            say(h.cp!=null?abF(abT('copied'),{a:An,m}):h.fc!=null?abF(abT('fc'),{a:An,d:Dn,m}):abF(abT(h.k),{a:An,m}));if(h.en)setB(a,null,h.en[a]);
+            if(h.fc==null)await cutin(a,cur[a],m);if(lethal)await finisher(d);
+            lunge(a);beam(a,h.k==='spc'||lethal,h.cp!=null?elC(d):h.fc!=null?SIGC.counter:null);await z(240);
+            hurt(d);burst(d,true,elC(a));shake();zoom(d);flash(elC(a));num(d,pct(dm(d)),'crit');if(h.k==='spc'&&!lethal)pop(abT('critPop'));if(h.k==='spc'||lethal)imp();
+            sfx('boom');comboHit(a);upd();await z(lethal?1050:760);
+          }
         }else if(h.k==='miss'){
           combo={a:-1,n:0};
           say(h.sp?abF(abT('missSp'),{a:An,d:Dn,m:mvOf(cur[a],v)}):abF(abT('miss',v),{a:An,d:Dn}));
@@ -445,22 +665,30 @@ async function run(tk,script){
           pop(abT('clashPop'),'',`var(--p${a+1})`);sfx('beam');shake();await z(600);
           for(const x of (h.fr||[.45,.55,l?1:0])){cl.style.setProperty('--x',x);if(x===0||x===1)break;sfx('hum');await z(330)}
           if(lethal)await finisher(l);
-          await z(260);cl.remove();hurt(l);burst(l,true,elC(w));shake();flash(elC(w));if(h.dmg>0)num(l,pct(dm(l)),'crit');sfx('boom');upd();
+          await z(260);cl.remove();hurt(l);burst(l,true,elC(w));shake();zoom(l);imp();flash(elC(w));if(h.dmg>0)num(l,pct(dm(l)),'crit');sfx('boom');upd();
           await say(abF(abT('clashWin'),{w:dnh(cur[w])}),lethal?1100:900);
         }else if(h.k==='awake'){
-          say(abF(abT('awake'),{a:An}));$('abf'+a).classList.add('aw');flash(`var(--p${a+1})`);pop(abT('awakePop'),'',`var(--p${a+1})`);sfx('awake');
+          say(abF(abT('awake'),{a:An}));mark(a,'aw');flash(`var(--p${a+1})`);pop(abT('awakePop'),'',`var(--p${a+1})`);sfx('awake');
           if(h.hp[a]>prev[a])num(a,'+'+Math.round((h.hp[a]-prev[a])*100)+'%','heal');upd();await z(1250);
         }else if(h.k==='tr')await trait(h,a,d,An,Dn,upd);
         else{upd();await z(300)}
-        scene(h);if(lethal)ST.classList.remove('fin');
+        scene(h);if(lethal)stg('fin',false);
         behind=[0,1].map(p=>Math.max(behind[p],h.hp[1-p]-h.hp[p]));
       }
+    }else if(e.t==='sac'){
+      ko[e.p][e.k]=true;roster(e.p);const s=C(e.n);
+      $('ablog').insertAdjacentHTML('beforeend',`<div><i>${dno}.</i>${abF(abT('sacLog'),{0:dnh(s)})}</div>`);
+      await say(abF(abT('sac'),{0:dnh(s)}),1000);
     }else if(e.t==='down'){
-      ko[e.p][e.k]=true;lastL=C(e.n);lastDown=dn(lastL);pop('K.O.','ko');sfx('ko');shake();ST.classList.remove('dz0','dz1','tstop','fin');
-      await say(t('down',dnh(lastL)),250);$('abf'+e.p).classList.add('ko');roster(e.p);await z(1300);
+      ko[e.p][e.k]=true;lastL=C(e.n);lastDown=dn(lastL);pop('K.O.','ko');sfx('ko');shake();STAGE_FX.filter(c=>c!=='ecl').forEach(c=>stg(c,false));
+      await say(t('down',dnh(lastL)),250);$('abf'+e.p).classList.add('ko');$('abfc'+e.p).classList.add('ko');roster(e.p);await z(1300);
       $('abc'+e.p).innerHTML='';delete $('abc'+e.p).dataset.n;
+    }else if(e.t==='dko'){
+      pop(abT('dko'),'ko');sfx('ko');shake();
+      $('ablog').insertAdjacentHTML('beforeend',`<div><i>${dno}.</i>${abF(abT('dkoLog'),{0:dnh(C(e.a)),1:dnh(C(e.b))})}</div>`);
+      await say(abF(abT('dkoLog'),{0:dnh(C(e.a)),1:dnh(C(e.b))}),1500);
     }else if(e.t==='stands'){
-      [0,1].forEach(p=>$('abf'+p).classList.remove('aw','rg'));if(e.e!=null)setB(e.p,null,e.e);
+      [0,1].forEach(p=>$('abf'+p).classList.remove('aw','rg'));if(e.e!=null)setB(e.p,null,e.e);mark(e.p,'win');
       const W=C(e.n);let cm='';
       if(e.pct>=100)cm='flawless';else if(lastL&&lastL.pw-W.pw>=120)cm='upset';else if(behind[e.p]>=.35)cm='comeback';else if(e.pct<=10)cm='close';
       if(cm)com(abF(comT(cm),{a:dnh(W)}));

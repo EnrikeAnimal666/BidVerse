@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '2026-11-18a';
+  const VERSION = '2026-11-18b';
   const CFG = { anime: { start: 20 }, ufc: { start: 40 }, futbol: { start: 100 } }, MAXC = 3, SECS = 10;
   // Fútbol: 4-3-3 (1 portero, 4 defensas, 3 medios, 3 delanteros). Se subasta por posiciones, igual que la UFC por categorías.
   const FUT_DIVS = [{ k: 'GK', n: 1 }, { k: 'DEF', n: 4 }, { k: 'MID', n: 3 }, { k: 'FWD', n: 3 }];
@@ -23,10 +23,15 @@
   const rndi = (rng, a, b) => a + Math.floor(rng() * (b - a + 1));
   const pick = (rng, a) => a[rndi(rng, 0, a.length - 1)];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  // Rareza (solo anime): los dioses casi no salen y los más fuertes salen la mitad de veces. Orden ponderado (Efraimidis-Spirakis).
-  const rarity = c => c.pw >= 950 ? 3 : c.pw >= 900 ? 2 : 1; // los rotos (God, Zeno…) salen 3 veces más que uno normal; los de 900+ el doble
-  const wshuffle = (rng, a, w) => a.map(c => ({ c, k: Math.pow(rng(), 1 / w(c)) })).sort((x, y) => y.k - x.k).map(x => x.c);
   const shuffle = (rng, a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  /* Rareza (solo anime): los rotos (poder ≥ 900: God, Zeno, La Verdad, Gran Sacerdote, Whis, Saitama, Goku, Beerus) salen en 1 de cada 7,5 partidas.
+     Con probabilidad ROTO_P uno de ellos (al azar) entra entre los 6 primeros lotes, que toda partida llega a ver; los demás van al fondo del mazo. */
+  const ROTO_PW = 900, ROTO_P = 2 / 15;
+  function animeDeck(rng, pool) {
+    const roto = c => c.pw >= ROTO_PW, deck = shuffle(rng, pool.filter(c => !roto(c))), top = shuffle(rng, pool.filter(roto));
+    if (top.length && rng() < ROTO_P) deck.splice(rndi(rng, 0, Math.min(5, deck.length)), 0, top.shift());
+    return deck.concat(top);
+  }
 
   /* ---------- estado ---------- */
   function create({ cat, pool, divs = [], rng = Math.random }) {
@@ -34,7 +39,7 @@
     if (cat === 'futbol' && !(divs && divs.length)) divs = FUT_DIVS;
     const deck = cat !== 'anime'
       ? divs.flatMap(d => shuffle(rng, pool.filter(x => x.cls === d.k)))
-      : wshuffle(rng, [...pool], rarity);
+      : animeDeck(rng, pool);
     return {
       cat, rng, divs, deck, idx: -1, dv: '', cur: null, bid: 0, leader: -1, left: SECS, free: -1,
       passed: [false, false], skips: [2, 2], locked: false,
@@ -156,6 +161,7 @@
   const ex = d => d / AN.K1 + Math.sign(d) * Math.pow(Math.abs(d) / AN.K3, 3); // exponente: lineal suave + cúbico (castiga las diferencias enormes)
   const mul = d => Math.pow(10, ex(d));
   /* ---------- RASGOS (anime): habilidades propias de algunos personajes. La clave está en data-anime.js (TRAITS) y llega como c.tr ----------
+     COMPARTIDOS
        touch   God: actúa primero y borra al rival de un solo toque
        inf     Infinito: los 2 primeros ataques que recibe no le llegan
        time    Tiempo detenido: 1 vez por duelo, 2 golpes seguidos imposibles de esquivar
@@ -169,107 +175,272 @@
        gen     Genjutsu: en su primer turno deja al rival 2 turnos sin actuar
        rage    Furia: por debajo del 40 % de vida pega un 30 % más
        sun     The One: sus 4 primeros turnos pega un 50 % más
-     Todo sale en el guion como golpes { k:'tr', tr:<clave> } para animarlo. */
-  const TR = { INF: 2, TS: 2, UI: .18, TOLLE: .4, TOLLH: .1, DOMC: .5, DOMN: 4, DOMX: 1.4, RGHP: .6, RG: .07, RGN: 4, AD: .1, ADN: 4, GEN: 2, RAGEHP: .4, RAGEX: 1.3, SUNN: 4, SUNX: 1.5, SER: 3, SERX: .55 };
+     ÚNICAS (una por personaje icónico)
+       ultra     Goku: el rival falla un 22 % más y cada esquiva es un contraataque a plena potencia
+       ego       Vegeta: cada golpe recibido le sube 22 a todo (hasta 6 veces)
+       hakai     Beerus: 1 vez, si el rival baja del 35 %, lo destruye
+       erase     Zeno: al empezar el duelo, 50 % de borrar al rival
+       rewind    Whis: 1 vez, deshace el primer golpe de 15 %+ y el rival pierde un turno
+       copy      Garou: cuando le alcanza una técnica la copia y la devuelve (2 veces)
+       clones    Naruto: en sus 3 primeros ataques un clon también golpea (60 %)
+       amaterasu Sasuke: su primer golpe prende llamas negras: el rival pierde un 4 % en cada turno (8 turnos)
+       meteor    Madara: empieza el duelo con 2 meteoritos (esquivables si el rival es más rápido)
+       tsukuyomi Itachi: en su primer turno el rival pierde 2 turnos, un 12 % de vida y un 30 % de ki
+       kamui     Kakashi: la primera técnica del rival se va a otra dimensión
+       gates     Might Guy: 1 vez por debajo del 35 %: Night Guy (60 %+) a cambio de quemarse el cuerpo
+       gear5     Luffy: 1 vez por debajo del 50 %: +25 % de vida, +70 a todo y acierta más
+       asura     Zoro: +15 % de críticos y sus críticos pegan ×2,4
+       quake     Barbablanca: sus técnicas tienen un 50 % de dejar al rival sin turno
+       haki      Shanks: el rival con 200 de poder menos se desmaya; el resto pierde su primer turno
+       mugetsu   Ichigo: 1 vez por debajo del 30 %: golpe de 65 %+, y después pierde sus poderes
+       kyoka     Aizen: los 2 primeros ataques del rival golpean una ilusión
+       shrine    Sukuna: dominio (como domain) y además los cortes hieren al rival un 5 % cada turno mientras dura
+       bflash    Yuji: 15 % de Destello Negro en sus golpes (×2,5, recupera ki); +10 % tras cada uno
+       jackpot   Hakari: cada turno 12 % de premio: se cura entero y los 4 golpes siguientes se regeneran al instante
+       rumbling  Eren: 1 vez por debajo del 40 %: 3 pisotones de Colosales imposibles de esquivar
+       ackerman  Levi y Mikasa: +1 % de daño por cada 8 de poder que el rival tenga de más (hasta +80 %)
+       adult     Gon: 1 vez por debajo del 30 %: +220 a todo 3 turnos; después se consume (−150)
+       rose      Netero: al caer, la Rosa del Pobre le hace un 50 % al rival
+       steal     Chrollo: roba la habilidad del rival al empezar el duelo (menos el Toque de Dios)
+       chain     Kurapika: mata al instante a la Brigada Fantasma; contra el resto, Emperor Time (+90, −3 % de vida por turno)
+       hinokami  Tanjiro: tras su primera técnica encadena 3 más sin gastar ki
+       anti      Asta: anula la habilidad del rival (menos el Death Note) y las técnicas le hacen un 40 % menos
+       zawarudo  Dio: 1 vez: detiene el tiempo, un golpe y remata con una apisonadora
+       heaven    Pucci: el tiempo se acelera: tiene al menos el 60 % de los turnos
+       counter   Meliodas: devuelve la primera técnica del rival con el doble de fuerza
+       arise     Sung Jin-Woo: al empezar el duelo atacan sus sombras: 2 + 1 por rival derrotado (hasta 5)
+       geass     Lelouch: una orden por persona: el primer ataque del rival se vuelve contra él
+       eclipse   Griffith: 1 vez, en vez de caer, sacrifica al siguiente de su equipo y renace al 60 %
+       dnote     Light Yagami: escribe el nombre del rival al empezar. Light es un simple humano (no pelea, se esconde) y cae de un golpe,
+                 pero cuando cae (o pasan 40 s) al rival se le para el corazón: caen los dos. Nada lo para (solo God, que actúa antes).
+     Todo sale en el guion como golpes { k:'tr', tr:<clave>, a:<dueño> } para animarlo. */
+  const TR = { INF: 2, TS: 2, UI: .18, TOLLE: .4, TOLLH: .1, DOMC: .5, DOMN: 4, DOMX: 1.4, RGHP: .6, RG: .07, RGN: 4, AD: .1, ADN: 4, GEN: 2, RAGEHP: .4, RAGEX: 1.3, SUNN: 4, SUNX: 1.5, SER: 3, SERX: .55,
+    ULTRA: .22, EGO: 22, EGON: 6, HAKAI: .35, ERASE: .5, RWD: .15, CPN: 2, CLN: 3, CLX: .6, BURN: .04, BURNN: 8, MET: 2, GATEHP: .35, G5HP: .5, G5B: 70, G5H: .25, G5A: .12,
+    ASC: .15, ASX: 2.4, QK: .5, HAKI: 200, MUGHP: .3, MUGB: 90, KYO: 2, SLASH: .05, BF: .15, BFU: .1, BFX: 2.5, JP: .12, JPN: 4, RBHP: .4, RBN: 3, ACK: 800, ACKX: .8,
+    GONHP: .3, GONB: 220, GONN: 3, GONP: 150, ROSE: .5, EMB: 90, EMH: .03, HKN: 3, ANTI: .6, ZWN: 1, MIH: .6, ECL: .6, GS: 1, DN: 6, HUMAN: 100, SHAD: 2, SHADN: 5, FC: .4 };
+  const TROUPE = ['Chrollo Lucilfer', 'Uvogin', 'Feitan', 'Phinks', 'Nobunaga', 'Franklin', 'Machi', 'Shalnark', 'Pakunoda', 'Shizuku', 'Bonolenov', 'Kortopi', 'Kalluto']; // Brigada Fantasma (Kurapika)
   function duel(rng, A, B) {
     const fm = [0, 1].map(() => (rng() - .5) * 2 * AN.FORM), F = [A, B];
     const base = F.map((c, i) => { const s = c.st || stats(c); return { STR: s.STR + fm[i], SPD: s.SPD + fm[i], DUR: s.DUR + fm[i], TEC: s.TEC + fm[i], ENE: s.ENE + fm[i] }; });
     const hp = F.map(c => c.f == null ? 1 : c.f), en = F.map(c => c.e == null ? 1 : c.e), aw = F.map(c => !!c.aw), bo = [0, 0], dmg = [0, 0], hits = [];
-    const tr = F.map(c => c.tr || ''), has = (i, k) => tr[i] === k;
-    const inf = tr.map(t => t === 'inf' ? TR.INF : 0), used = [{}, {}], dom = [0, 0], stun = [0, 0], acts = [0, 0], taken = [0, 0], ad = [0, 0], rg = [0, 0];
+    const tr = F.map(c => c.tr || ''), has = (i, k) => tr[i] === k, pwOf = i => F[i].pw || 0;
+    const X = [{}, {}], used = [{}, {}], dom = [0, 0], stun = [0, 0], acts = [0, 0], taken = [0, 0], inf = [0, 0];
+    let dn = null; // Death Note: { o: quien escribe, v: víctima, t: acciones que faltan para los 40 segundos }
     const S = (i, k) => base[i][k] + bo[i];
-    const rec = o => hits.push(Object.assign(o, { hp: hp.map(x => +x.toFixed(4)), en: en.map(x => +x.toFixed(3)) }, dom[0] || dom[1] ? { dz: [...dom] } : null));
-    const pA = () => clamp(1 / (1 + Math.pow(10, -ex(S(0, 'SPD') - S(1, 'SPD')) * AN.K1 / AN.KS)), .2, .8);
+    const rec = o => { hits.push(Object.assign(o, { hp: hp.map(x => +x.toFixed(4)), en: en.map(x => +x.toFixed(3)) }, dom[0] || dom[1] ? { dz: [...dom] } : null)); return o; };
+    const pA = () => {
+      let p = clamp(1 / (1 + Math.pow(10, -ex(S(0, 'SPD') - S(1, 'SPD')) * AN.K1 / AN.KS)), .2, .8);
+      if (has(0, 'heaven')) p = Math.max(p, TR.MIH); if (has(1, 'heaven')) p = Math.min(p, 1 - TR.MIH); // Made in Heaven
+      return p;
+    };
     const skill = i => .6 * S(i, 'SPD') + .4 * S(i, 'TEC');
+    const fx = (a, d, k, P = 'ENE') => AN.BASE * mul(S(a, P) - S(d, 'DUR')) * k; // daño "de fórmula" de las técnicas de los rasgos
     const hurt = (d, x) => { const v = Math.min(hp[d], x); hp[d] = Math.max(0, hp[d] - x); dmg[1 - d] += v; return v; };
-    const saves = (d, x) => has(d, 'req') && !used[d].req && x >= hp[d]; // Requiem: ¿este golpe se anula?
-    const save = d => { used[d].req = 1; rec({ a: d, k: 'tr', tr: 'req' }); };
-    const boost = (a, d) => (dom[a] > 0 ? TR.DOMX : 1) * (has(a, 'sun') && acts[a] <= TR.SUNN ? TR.SUNX : 1) * (has(a, 'rage') && hp[a] < TR.RAGEHP ? TR.RAGEX : 1) * (has(d, 'adapt') ? 1 - TR.AD * ad[d] : 1);
-    const took = (d, v) => { if (!(v > 0)) return; taken[d]++; if (has(d, 'adapt') && ad[d] < TR.ADN && hp[d] > 0) { ad[d]++; rec({ a: d, k: 'tr', tr: 'adapt', lv: ad[d] }); } };
+    // ¿Algo anula este golpe? Devuelve la clave del rasgo que lo para (y lo gasta), o ''
+    const guard = (d, x) => {
+      if (X[d].jp > 0) { X[d].jp--; return 'jpheal'; }                                                                                 // Jackpot: regeneración instantánea
+      if (has(d, 'req') && !used[d].req && x >= hp[d]) { used[d].req = 1; return 'req'; }                                              // Requiem
+      if (has(d, 'rewind') && !used[d].rw && x >= TR.RWD) { used[d].rw = 1; stun[1 - d] = Math.max(stun[1 - d], 1); return 'rewind'; } // Whis
+      if (has(d, 'eclipse') && !used[d].ecl && x >= hp[d] && F[d].mate) { used[d].ecl = 1; hp[d] = TR.ECL; X[d].sac = 1; return 'eclipse'; } // Griffith
+      return '';
+    };
+    const block = (d, g, a) => rec(Object.assign({ a: d, k: 'tr', tr: g, by: a }, g === 'eclipse' ? { s: F[d].mate } : null));
+    const boost = (a, d) => (dom[a] > 0 ? TR.DOMX : 1) * (has(a, 'sun') && acts[a] <= TR.SUNN ? TR.SUNX : 1) * (has(a, 'rage') && hp[a] < TR.RAGEHP ? TR.RAGEX : 1)
+      * (has(d, 'adapt') ? 1 - TR.AD * (X[d].ad || 0) : 1) * (has(a, 'ackerman') ? 1 + clamp((pwOf(d) - pwOf(a)) / TR.ACK, 0, TR.ACKX) : 1);
+    const took = (d, v) => {
+      if (!(v > 0)) return; taken[d]++;
+      if (hp[d] <= 0) return;
+      if (has(d, 'adapt') && (X[d].ad || 0) < TR.ADN) { X[d].ad = (X[d].ad || 0) + 1; rec({ a: d, k: 'tr', tr: 'adapt', lv: X[d].ad }); }
+      if (has(d, 'ego') && (X[d].eg || 0) < TR.EGON) { X[d].eg = (X[d].eg || 0) + 1; bo[d] += TR.EGO; rec({ a: d, k: 'tr', tr: 'ego', lv: X[d].eg }); }
+    };
     const awaken = d => { // despertar: solo si sigue en pie, aún no lo ha usado y el rival no tiene Requiem
       if (aw[d] || hp[d] <= 0 || hp[d] > AN.AWHP || has(1 - d, 'req')) return;
       aw[d] = true; if (rng() > AN.AWP) return; // solo lo intenta una vez por combate, y no siempre sale
       bo[d] += AN.AWK; hp[d] = Math.min(1, hp[d] + .06); en[d] = Math.min(1, en[d] + .5);
       rec({ a: d, k: 'awake' });
     };
-    const strike = (a, kind, extra) => { // kind: 'hit' | 'sp' | 'ctr'
-      const d = 1 - a, sp = kind === 'sp', ctr = kind === 'ctr';
-      if (inf[d] > 0) { inf[d]--; rec(Object.assign({ a: d, k: 'tr', tr: 'inf', by: a }, extra)); return; }
-      const crit = rng() < .06 + clamp(S(a, 'TEC'), 0, 1000) / 1000 * .1;
-      const P = sp ? S(a, 'ENE') : S(a, 'STR');
-      const x = Math.min(1, AN.BASE * mul(P - S(d, 'DUR')) * (.7 + .6 * rng()) * (crit ? 1.6 : 1) * (sp ? 1.55 : 1) * (ctr ? .6 : 1) * boost(a, d));
-      if (saves(d, x)) return save(d);
-      const v = hurt(d, x);
-      rec(Object.assign({ a, k: ctr ? 'ctr' : sp ? (crit ? 'spc' : 'sp') : crit ? 'crit' : 'hit', crit, dmg: +v.toFixed(4), v: rndi(rng, 0, 5) }, extra));
-      took(d, v); awaken(d);
+    const chip = (a, d, x, key, tag, pierce) => { // daño directo de un rasgo (meteoritos, sombras, llamas, cortes…)
+      if (!pierce && inf[d] > 0) { inf[d]--; rec({ a: d, k: 'tr', tr: 'inf', by: a }); return 0; }
+      const g = guard(d, x); if (g) { block(d, g, a); return 0; }
+      const v = hurt(d, x); rec(Object.assign({ a, k: 'tr', tr: key, dmg: +v.toFixed(4) }, tag)); took(d, v); awaken(d); return v;
     };
+    const ult = (a, x, tag) => { // golpe definitivo de un rasgo: no se puede esquivar y atraviesa el Infinito
+      const d = 1 - a; x = Math.min(1, x);
+      const g = guard(d, x); if (g) { block(d, g, a); return 0; }
+      const v = hurt(d, x); rec(Object.assign({ a, k: 'spc', crit: true, dmg: +v.toFixed(4), v: 0 }, tag)); took(d, v); awaken(d); return v;
+    };
+    const strike = (a, kind, tag, mlt = 1, P) => { // kind: 'hit' | 'sp' | 'ctr' · P: poder a usar si no es el de siempre
+      const d = 1 - a, sp = kind === 'sp', ctr = kind === 'ctr';
+      if (inf[d] > 0) { inf[d]--; rec(Object.assign({ a: d, k: 'tr', tr: 'inf', by: a }, tag)); return null; }
+      const crit = rng() < .06 + clamp(S(a, 'TEC'), 0, 1000) / 1000 * .1 + (has(a, 'asura') ? TR.ASC : 0);
+      const bf = !sp && has(a, 'bflash') && rng() < TR.BF + TR.BFU * (X[a].bf || 0); // Destello Negro
+      if (bf) { X[a].bf = (X[a].bf || 0) + 1; en[a] = Math.min(1, en[a] + .25); }
+      const pw = P != null ? P : sp ? S(a, 'ENE') : S(a, 'STR');
+      const x = Math.min(1, AN.BASE * mul(pw - S(d, 'DUR')) * (.7 + .6 * rng()) * (crit ? (has(a, 'asura') ? TR.ASX : 1.6) : 1) * (sp ? 1.55 : 1)
+        * (ctr && !(tag && tag.ui) ? .6 : 1) * (bf ? TR.BFX : 1) * (sp && has(d, 'anti') ? TR.ANTI : 1) * mlt * boost(a, d));
+      const g = guard(d, x); if (g) { block(d, g, a); return null; }
+      const v = hurt(d, x);
+      const r = rec(Object.assign({ a, k: ctr ? 'ctr' : sp ? (crit ? 'spc' : 'sp') : crit ? 'crit' : 'hit', crit, dmg: +v.toFixed(4), v: rndi(rng, 0, 5) }, bf ? { bf: 1 } : null, crit && has(a, 'asura') ? { as: 1 } : null, tag));
+      took(d, v); awaken(d);
+      if (hp[d] > 0 && hp[a] > 0) {
+        if (has(a, 'amaterasu') && !used[a].am) { used[a].am = 1; X[d].burn = TR.BURNN; rec({ a, k: 'tr', tr: 'amaterasu' }); }
+        if (sp && has(a, 'quake') && rng() < TR.QK) { stun[d] = Math.max(stun[d], 1); rec({ a, k: 'tr', tr: 'quake' }); }
+        if (sp && has(d, 'copy') && (X[d].cp || 0) < TR.CPN && !(tag && tag.cp != null)) { // Garou copia la técnica y la devuelve
+          X[d].cp = (X[d].cp || 0) + 1; rec({ a: d, k: 'tr', tr: 'copy', m: r.v, by: a });
+          strike(d, 'sp', { cp: r.v }, 1.15, Math.max(S(d, 'STR'), S(d, 'ENE')));
+        }
+      }
+      return r;
+    };
+    const clone = a => { if (X[a].cl > 0 && hp[0] > 0 && hp[1] > 0) { X[a].cl--; strike(a, 'hit', { cl: 1 }, TR.CLX); } }; // Naruto: el clon también golpea
     const turn = a => {
       const d = 1 - a;
+      // daño al empezar su turno (aunque esté atrapado): llamas negras y cortes del Santuario
+      if (X[a].burn > 0) { X[a].burn--; chip(d, a, TR.BURN, 'burn', null, 1); if (hp[a] <= 0) return; }
+      if (dom[d] > 0 && has(d, 'shrine')) { chip(d, a, TR.SLASH, 'slash', null, 1); if (hp[a] <= 0) return; }
       if (stun[a] > 0) { stun[a]--; rec({ a, k: 'tr', tr: 'stun' }); return; }
       acts[a]++;
       en[a] = Math.min(1, en[a] + AN.REGEN);
+      if (X[a].emp) hp[a] = Math.max(.01, hp[a] - TR.EMH); // Emperor Time: cada turno le cuesta vida
+      if (X[a].gon > 0 && --X[a].gon === 0) { bo[a] -= TR.GONB + TR.GONP; rec({ a, k: 'tr', tr: 'spent' }); } // Gon adulto: se consume
       // rasgos que se activan al empezar su turno
-      if (has(a, 'regen') && hp[a] < TR.RGHP && rg[a] < TR.RGN) { rg[a]++; hp[a] = Math.min(1, hp[a] + TR.RG); rec({ a, k: 'tr', tr: 'regen', heal: TR.RG }); }
+      if (has(a, 'regen') && hp[a] < TR.RGHP && (X[a].rg || 0) < TR.RGN) { X[a].rg = (X[a].rg || 0) + 1; hp[a] = Math.min(1, hp[a] + TR.RG); rec({ a, k: 'tr', tr: 'regen', heal: TR.RG }); }
       if (has(a, 'rage') && hp[a] < TR.RAGEHP && !used[a].rage) { used[a].rage = 1; rec({ a, k: 'tr', tr: 'rage' }); }
+      if (has(a, 'jackpot') && !used[a].jp && rng() < TR.JP) { used[a].jp = 1; const h0 = hp[a]; hp[a] = 1; X[a].jp = TR.JPN; rec({ a, k: 'tr', tr: 'jackpot', heal: +(1 - h0).toFixed(4) }); }
+      if (has(a, 'clones') && !used[a].cl) { used[a].cl = 1; X[a].cl = TR.CLN; rec({ a, k: 'tr', tr: 'clones' }); }
       if (has(a, 'gen') && !used[a].gen) { used[a].gen = 1; stun[d] = TR.GEN; rec({ a, k: 'tr', tr: 'gen' }); return; }
-      if (has(a, 'serious') && !used[a].ser && taken[a] >= TR.SER) { // atraviesa el Infinito; solo el Requiem lo para
-        used[a].ser = 1; rec({ a, k: 'tr', tr: 'serious' });
-        const x = Math.max(TR.SERX, Math.min(1, AN.BASE * mul(S(a, 'STR') - S(d, 'DUR')) * 2.5));
-        if (saves(d, x)) return save(d);
-        const v = hurt(d, x); rec({ a, k: 'spc', crit: true, dmg: +v.toFixed(4), v: 0 }); took(d, v); awaken(d); return;
+      if (has(a, 'tsukuyomi') && !used[a].tk) {
+        used[a].tk = 1; stun[d] = TR.GEN; en[d] = Math.max(0, en[d] - .3);
+        const v = hurt(d, Math.max(0, Math.min(hp[d] - .02, .12))); rec({ a, k: 'tr', tr: 'tsukuyomi', dmg: +v.toFixed(4) }); return;
       }
+      if (has(a, 'hakai') && !used[a].hk && hp[d] < TR.HAKAI) { used[a].hk = 1; rec({ a, k: 'tr', tr: 'hakai' }); if (ult(a, hp[d], { u: 'hakai' }) && hp[d] <= 0) X[d].gone = 1; return; }
+      if (has(a, 'gates') && !used[a].gt && hp[a] < TR.GATEHP) { used[a].gt = 1; hp[a] = Math.max(.01, hp[a] * .4); rec({ a, k: 'tr', tr: 'gates' }); ult(a, Math.max(.6, fx(a, d, 3, 'STR')), { u: 'gates' }); return; }
+      if (has(a, 'mugetsu') && !used[a].mg && hp[a] < TR.MUGHP) { used[a].mg = 1; rec({ a, k: 'tr', tr: 'mugetsu' }); ult(a, Math.max(.65, fx(a, d, 3)), { u: 'mugetsu' }); en[a] = 0; bo[a] -= TR.MUGB; return; }
+      if (has(a, 'rumbling') && !used[a].rb && hp[a] < TR.RBHP) { used[a].rb = 1; rec({ a, k: 'tr', tr: 'rumbling' }); for (let j = 0; j < TR.RBN && hp[d] > 0; j++) ult(a, Math.max(.08, fx(a, d, .6, 'STR')), { u: 'rumbling', j }); return; }
+      if (has(a, 'gear5') && !used[a].g5 && hp[a] < TR.G5HP) { used[a].g5 = 1; X[a].g5 = 1; bo[a] += TR.G5B; const h0 = hp[a]; hp[a] = Math.min(1, hp[a] + TR.G5H); rec({ a, k: 'tr', tr: 'gear5', heal: +(hp[a] - h0).toFixed(4) }); return; }
+      if (has(a, 'adult') && !used[a].gon && hp[a] < TR.GONHP) { used[a].gon = 1; X[a].gon = TR.GONN + 1; bo[a] += TR.GONB; rec({ a, k: 'tr', tr: 'adult' }); return; }
+      if (has(a, 'serious') && !used[a].ser && taken[a] >= TR.SER) { used[a].ser = 1; rec({ a, k: 'tr', tr: 'serious' }); ult(a, Math.max(TR.SERX, fx(a, d, 2.5, 'STR'))); return; } // atraviesa el Infinito
       if (has(a, 'time') && !used[a].ts && (hp[a] < .75 || rng() < .25)) {
         used[a].ts = 1; rec({ a, k: 'tr', tr: 'time' });
         for (let j = 0; j < TR.TS && hp[d] > 0; j++) strike(a, 'hit', { ts: 1 });
         return;
       }
-      if (has(a, 'domain') && !used[a].dom && en[a] >= TR.DOMC && (hp[a] < .8 || rng() < .25)) { used[a].dom = 1; en[a] -= TR.DOMC; dom[a] = TR.DOMN; rec({ a, k: 'tr', tr: 'domain' }); return; }
-      const sure = dom[a] > 0;
-      const wantSp = en[a] >= AN.SPC && rng() < .2 + (S(a, 'ENE') >= S(a, 'STR') ? .14 : 0) + (hp[a] < .4 ? .12 : 0);
+      if (has(a, 'zawarudo') && !used[a].ts && (hp[a] < .75 || rng() < .25)) {
+        used[a].ts = 1; rec({ a, k: 'tr', tr: 'zawarudo' });
+        for (let j = 0; j < TR.ZWN && hp[d] > 0; j++) strike(a, 'hit', { ts: 1 });
+        if (hp[d] > 0) { rec({ a, k: 'tr', tr: 'roller' }); strike(a, 'hit', { ts: 1, rr: 1 }, 1.3); }
+        return;
+      }
+      if ((has(a, 'domain') || has(a, 'shrine')) && !used[a].dom && en[a] >= TR.DOMC && (hp[a] < .8 || rng() < .25)) { used[a].dom = 1; en[a] -= TR.DOMC; dom[a] = TR.DOMN; rec({ a, k: 'tr', tr: tr[a] }); return; }
+      if (X[a].ill > 0) { X[a].ill--; rec({ a: d, k: 'tr', tr: 'mirage', by: a }); return; } // Kyōka Suigetsu: ataca a una ilusión
+      if (X[a].gs > 0) { X[a].gs--; const v = hurt(a, Math.min(.2, AN.BASE * (.6 + .4 * rng()))); rec({ a, k: 'tr', tr: 'self', dmg: +v.toFixed(4) }); awaken(a); return; } // Geass: se golpea a sí mismo
+      const sure = dom[a] > 0, free = X[a].hk > 0; // Hinokami Kagura: la danza encadena técnicas sin gastar ki
+      const wantSp = free || en[a] >= AN.SPC && rng() < .2 + (S(a, 'ENE') >= S(a, 'STR') ? .14 : 0) + (hp[a] < .4 ? .12 : 0);
       if (wantSp) {
-        en[a] -= AN.SPC;
+        if (free) X[a].hk--; else en[a] -= AN.SPC;
+        if (has(d, 'kamui') && !used[d].km) { used[d].km = 1; rec({ a: d, k: 'tr', tr: 'kamui', by: a, m: rndi(rng, 0, 5) }); return; }
+        if (has(d, 'counter') && !used[d].fc) { // Full Counter: le devuelve su propia técnica con el doble de fuerza
+          used[d].fc = 1; const m = rndi(rng, 0, 5); rec({ a: d, k: 'tr', tr: 'counter', by: a, m });
+          const x = Math.min(TR.FC, 2 * AN.BASE * mul(S(a, 'ENE') - S(d, 'DUR')) * 1.55 * (.7 + .6 * rng())), g = guard(a, x);
+          if (g) { block(a, g, d); return; }
+          const v = hurt(a, x); rec({ a: d, k: 'spc', crit: true, dmg: +v.toFixed(4), v: 0, fc: m }); took(a, v); awaken(a); return;
+        }
         if (en[d] >= AN.SPC && rng() < .3) { // CHOQUE DE TÉCNICAS
           en[d] -= AN.SPC;
           const q = clamp(1 / (1 + Math.pow(10, -ex(S(a, 'ENE') - S(d, 'ENE')) * AN.K1 / AN.KS)), .1, .9), w = rng() < q ? a : 1 - a, l = 1 - w;
           let x = .5; const fr = []; // punto de choque (0 = lado del jugador 0, 1 = lado del jugador 1); empuja hacia el perdedor
           for (let i = 0; i < 4; i++) { x = clamp(x + (rng() - .5) * .34 + (l === 1 ? .05 : -.05), .2, .8); fr.push(+x.toFixed(2)); }
           fr.push(l === 1 ? 1 : 0);
-          const crit = rng() < .1, dx = Math.min(1, AN.BASE * mul(S(w, 'ENE') - S(l, 'DUR')) * (.8 + .4 * rng()) * 1.7 * (crit ? 1.4 : 1) * boost(w, l));
-          const neg = saves(l, dx), v = neg ? 0 : hurt(l, dx);
+          const crit = rng() < .1, dx = Math.min(1, AN.BASE * mul(S(w, 'ENE') - S(l, 'DUR')) * (.8 + .4 * rng()) * 1.7 * (crit ? 1.4 : 1) * (has(l, 'anti') ? TR.ANTI : 1) * boost(w, l));
+          const g = guard(l, dx), v = g ? 0 : hurt(l, dx);
           rec({ a, k: 'clash', w, crit, fr, dmg: +v.toFixed(4), v: rndi(rng, 0, 5), vw: rndi(rng, 0, 5) });
-          if (neg) save(l); else { took(l, v); awaken(l); }
+          if (g) block(l, g, w); else { took(l, v); awaken(l); }
           return;
         }
       }
-      const acc = sure ? 1 : clamp(.8 + (skill(a) - skill(d)) / AN.KA + (wantSp ? .05 : 0) - (has(d, 'ui') ? TR.UI : 0), .35, .95);
+      const acc = sure ? 1 : clamp(.8 + (skill(a) - skill(d)) / AN.KA + (wantSp ? .05 : 0) + (X[a].g5 ? TR.G5A : 0) - (has(d, 'ui') ? TR.UI : has(d, 'ultra') ? TR.ULTRA : 0), .35, .95);
       if (rng() > acc) {
         rec({ a, k: 'miss', crit: false, sp: wantSp, v: rndi(rng, 0, 5) });
-        if (rng() < .22 + Math.max(0, S(d, 'TEC') - S(a, 'TEC')) / 1500) strike(d, 'ctr');
-        return;
+        if (has(d, 'ultra')) strike(d, 'ctr', { ui: 1 }); // Ultra Instinto: cada esquiva es un contraataque a plena potencia
+        else if (rng() < .22 + Math.max(0, S(d, 'TEC') - S(a, 'TEC')) / 1500) strike(d, 'ctr');
+        clone(a); return;
       }
       strike(a, wantSp ? 'sp' : 'hit');
+      if (wantSp && has(a, 'hinokami') && !used[a].hn && hp[0] > 0 && hp[1] > 0) { used[a].hn = 1; X[a].hk = TR.HKN; rec({ a, k: 'tr', tr: 'hinokami' }); }
+      clone(a);
     };
     const act = a => { const inDom = dom[a] > 0; turn(a); if (inDom) dom[a] = Math.max(0, dom[a] - 1); };
+    const end = () => {
+      // Death Note: el nombre ya está escrito. Si cae quien lo escribió (o pasan los 40 s), a la víctima se le para el corazón. Nada lo para.
+      if (dn && hp[dn.v] > 0 && (hp[dn.o] <= 0 || dn.t <= 0)) { const v = hurt(dn.v, hp[dn.v]); rec({ a: dn.o, k: 'tr', tr: 'heart', dmg: +v.toFixed(4) }); }
+      for (const i of [0, 1]) if (hp[i] <= 0 && has(i, 'rose') && !X[i].gone && hp[1 - i] > 0) { // Rosa del Pobre: cuando Netero cae, la bomba explota
+        const g = guard(1 - i, TR.ROSE);
+        if (g) { rec({ a: i, k: 'tr', tr: 'rose', dmg: 0 }); block(1 - i, g, i); }
+        else { const v = hurt(1 - i, TR.ROSE); rec({ a: i, k: 'tr', tr: 'rose', dmg: +v.toFixed(4) }); }
+      }
+      return { w: hp[0] > 0 ? 0 : hp[1] > 0 ? 1 : -1, hp, hits, en, aw, dmg, sac: X.map(x => !!x.sac) }; // w = -1: caen los dos
+    };
+    const KO = () => hp[0] <= 0 || hp[1] <= 0;
     // GOD: actúa primero y borra al rival de un solo toque (si los dos lo fueran, combate normal)
     const gd = tr.map(t => t === 'touch');
     if (gd[0] !== gd[1]) {
-      const a = gd[0] ? 0 : 1;
+      const a = gd[0] ? 0 : 1; X[1 - a].gone = 1;
       rec({ a, k: 'tr', tr: 'touch' });
       const v = hurt(1 - a, hp[1 - a]);
       rec({ a, k: 'spc', crit: true, dmg: +v.toFixed(4), v: 0 });
-      return { w: a, hp, hits, en, aw, dmg };
+      return end();
     }
-    for (const i of [0, 1]) { // rasgos que se activan al empezar el duelo
-      const o = 1 - i;
+    // al empezar el duelo, por este orden: anti-magia → Cadena del Juicio → Skill Hunter → Death Note → Haki / Borrar → el resto
+    for (const i of [0, 1]) { const o = 1 - i; if (has(i, 'anti') && tr[o] && tr[o] !== 'dnote') { rec({ a: i, k: 'tr', tr: 'anti', s: tr[o] }); tr[o] = ''; } }
+    for (const i of [0, 1]) {
+      const o = 1 - i; if (!has(i, 'chain') || KO()) continue;
+      if (TROUPE.includes(F[o].n)) { const v = hurt(o, hp[o]); rec({ a: i, k: 'tr', tr: 'chain', ko: 1, dmg: +v.toFixed(4) }); }
+      else { bo[i] += TR.EMB; X[i].emp = 1; rec({ a: i, k: 'tr', tr: 'chain' }); }
+    }
+    if (KO()) return end();
+    for (const i of [0, 1]) { const o = 1 - i; if (has(i, 'steal') && tr[o] && tr[o] !== 'touch') { rec({ a: i, k: 'tr', tr: 'steal', s: tr[o] }); tr[i] = tr[o]; tr[o] = ''; } }
+    for (const i of [0, 1]) inf[i] = has(i, 'inf') ? TR.INF : 0;
+    for (const i of [0, 1]) if (has(i, 'dnote')) { dn = { o: i, v: 1 - i, t: TR.DN }; rec({ a: i, k: 'tr', tr: 'dnote' }); }
+    for (const i of [0, 1]) {
+      const o = 1 - i; if (KO()) break;
+      if (has(i, 'haki')) {
+        if (pwOf(i) - pwOf(o) >= TR.HAKI) { const v = hurt(o, hp[o]); rec({ a: i, k: 'tr', tr: 'haki', ko: 1, dmg: +v.toFixed(4) }); }
+        else { stun[o] = Math.max(stun[o], 1); rec({ a: i, k: 'tr', tr: 'haki' }); }
+      }
+      if (has(i, 'erase')) {
+        if (rng() < TR.ERASE) { X[o].gone = 1; const v = hurt(o, hp[o]); rec({ a: i, k: 'tr', tr: 'erase', dmg: +v.toFixed(4) }); }
+        else rec({ a: i, k: 'tr', tr: 'erase', no: 1 });
+      }
+    }
+    if (KO()) return end();
+    for (const i of [0, 1]) { // el resto de rasgos que se activan al empezar el duelo
+      const o = 1 - i; if (KO()) break;
       if (has(i, 'toll')) { en[o] = Math.max(0, en[o] - TR.TOLLE); const v = hurt(o, Math.max(0, Math.min(hp[o] - .02, TR.TOLLH))); rec({ a: i, k: 'tr', tr: 'toll', dmg: +v.toFixed(4) }); }
       if (has(i, 'sun')) rec({ a: i, k: 'tr', tr: 'sun' });
+      if (has(i, 'heaven')) rec({ a: i, k: 'tr', tr: 'heaven' });
+      if (has(i, 'kyoka')) { X[o].ill = TR.KYO; rec({ a: i, k: 'tr', tr: 'kyoka' }); }
+      if (has(i, 'geass')) { X[o].gs = TR.GS; rec({ a: i, k: 'tr', tr: 'geass' }); }
+      if (has(i, 'ackerman') && pwOf(o) - pwOf(i) >= 40) rec({ a: i, k: 'tr', tr: 'ackerman' });
+      if (has(i, 'meteor')) {
+        rec({ a: i, k: 'tr', tr: 'meteor' });
+        for (let j = 0; j < TR.MET && hp[o] > 0; j++) {
+          if (rng() < clamp(.15 + (S(o, 'SPD') - S(i, 'SPD')) / 1000, .05, .5)) rec({ a: i, k: 'tr', tr: 'rock', miss: 1, j });
+          else chip(i, o, clamp(fx(i, o, .8), .07, .4), 'rock', { j });
+        }
+      }
+      if (has(i, 'arise')) {
+        const n = Math.min(TR.SHADN, TR.SHAD + (F[i].ko || 0)); rec({ a: i, k: 'tr', tr: 'arise', n });
+        for (let j = 0; j < n && hp[o] > 0; j++) chip(i, o, clamp(fx(i, o, .3), .03, .12), 'shadow', { j });
+      }
     }
-    while (hp[0] > 0 && hp[1] > 0 && hits.length < AN.CAP) act(rng() < pA() ? 0 : 1);
-    if (hp[0] > 0 && hp[1] > 0) { // tope de golpes: el que va peor cae con un último golpe
+    if (KO()) return end();
+    const who = () => dn && pwOf(dn.o) < TR.HUMAN ? dn.v : rng() < pA() ? 0 : 1; // un simple humano con el Death Note no pelea: se esconde y espera
+    while (hp[0] > 0 && hp[1] > 0 && hits.length < AN.CAP && !(dn && dn.t <= 0)) { act(who()); if (dn) dn.t--; }
+    if (hp[0] > 0 && hp[1] > 0 && !(dn && dn.t <= 0)) { // tope de golpes: el que va peor cae con un último golpe
       const l = hp[0] < hp[1] ? 0 : hp[1] < hp[0] ? 1 : +(rng() < .5), v = hurt(l, hp[l]);
       rec({ a: 1 - l, k: 'crit', crit: true, dmg: +v.toFixed(4), v: rndi(rng, 0, 5) });
     }
-    return { w: hp[0] > 0 ? 0 : 1, hp, hits, en, aw, dmg };
+    return end();
   }
 
   // Antes del combate de anime cada jugador puede ordenar a sus luchadores. perm = nuevo orden con los índices actuales (p. ej. [2,0,1]).
@@ -284,18 +455,32 @@
   function resolveAnime(g) {
     const rng = g.rng, T = g.P.map(p => p.c.map(c => ({ n: c.n, pw: c.pw, tr: c.tr || '', st: stats(c), f: 1, e: 1, aw: false, dead: false, ko: 0, dmg: 0 }))), i = [0, 0];
     const alive = p => i[p] < T[p].length, ev = [{ t: 'start', teams: T.map(t => t.map(c => c.n)) }];
+    const adv = p => { do i[p]++; while (i[p] < T[p].length && T[p][i[p]].dead); }; // el siguiente que siga vivo (el Eclipse puede llevarse a uno)
+    const mate = p => { for (let j = i[p] + 1; j < T[p].length; j++) if (!T[p][j].dead) return j; return -1; };
     const send = p => { const c = T[p][i[p]]; ev.push({ t: 'send', p, k: i[p], n: c.n, f: +c.f.toFixed(4), e: +c.e.toFixed(3), aw: c.aw, st: c.st }); };
     if (alive(0)) send(0);
     if (alive(1)) send(1);
     let k = 0;
     while (alive(0) && alive(1)) {
-      const A = T[0][i[0]], B = T[1][i[1]], sim = duel(rng, A, B), wp = sim.w, lp = 1 - wp, W = T[wp][i[wp]], L = T[lp][i[lp]];
+      const A = T[0][i[0]], B = T[1][i[1]];
+      [A, B].forEach((c, p) => { const j = mate(p); c.mate = j < 0 ? '' : T[p][j].n; });
+      const sim = duel(rng, A, B);
       ev.push({ t: 'duel', k: k++, a: A.n, b: B.n, hits: sim.hits });
       A.dmg += sim.dmg[0]; B.dmg += sim.dmg[1]; A.aw = sim.aw[0]; B.aw = sim.aw[1];
+      [0, 1].forEach(p => { const j = sim.sac[p] ? mate(p) : -1; if (j >= 0) { const s = T[p][j]; s.dead = true; s.f = 0; ev.push({ t: 'sac', p, k: j, n: s.n }); } }); // Eclipse
+      if (sim.w < 0) { // doble K.O.: caen los dos a la vez (Death Note, Rosa del Pobre…)
+        [A, B].forEach((c, p) => { c.f = 0; c.dead = true; c.ko++; ev.push({ t: 'down', p, k: i[p], n: c.n }); });
+        ev.push({ t: 'dko', a: A.n, b: B.n });
+        adv(0); adv(1);
+        if (alive(0)) send(0);
+        if (alive(1)) send(1);
+        continue;
+      }
+      const wp = sim.w, lp = 1 - wp, W = T[wp][i[wp]], L = T[lp][i[lp]];
       const rem = Math.max(.03, sim.hp[wp]);
       W.f = rem; W.e = Math.min(1, sim.en[wp] + .3); W.ko++; L.f = 0; L.dead = true;
       ev.push({ t: 'down', p: lp, k: i[lp], n: L.n }, { t: 'stands', p: wp, n: W.n, pct: Math.round(rem * 100), e: +W.e.toFixed(3) });
-      i[lp]++; if (alive(lp)) send(lp);
+      adv(lp); if (alive(lp)) send(lp);
     }
     const w = alive(0) ? 0 : alive(1) ? 1 : -1;
     const all = T.flatMap((t, p) => t.map(c => ({ p, n: c.n, ko: c.ko, dmg: c.dmg })));
@@ -442,5 +627,5 @@
     return { kind: 'anime', script: resolveAnime(g) };
   }
 
-  return { VERSION, CFG, MAXC, SECS, AN, TR, order, FT, FUT_DIVS, futXI, resolveFutbol, resolve, create, can, out, next, tick, place, skip, close, duel, stats, decide, resolveAnime, resolveUfc, mulberry32 };
+  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, ROTO_PW, ROTO_P, order, FT, FUT_DIVS, futXI, resolveFutbol, resolve, create, can, out, next, tick, place, skip, close, duel, stats, decide, resolveAnime, resolveUfc, mulberry32 };
 });
