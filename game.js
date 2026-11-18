@@ -705,10 +705,8 @@ async function run(tk,script){
 }
 
 /* ---------- NOCHE DE COMBATES (UFC): el motor devuelve los combates ya resueltos con la coreografía golpe a golpe ---------- */
-let FAST=0;
-async function night(tk,script){
-  FAST=0;
-  const z=async ms=>{await sleep(FAST?Math.min(ms,50):ms);if(tk!==bt)throw 0};
+async function night(tk,script){ // sin saltar ni acelerar: la velada se ve entera, como el combate anime
+  const z=async ms=>{await sleep(ms);if(tk!==bt)throw 0};
   const F=script||BidEngine.resolveUfc(G),bs=F.bouts;
   wantImg(bs.flatMap(b=>[C(b.a),C(b.b)]),true);
   const E=await arenaIn(z,`<div class="arena fn"><h2 class="fnh">${u('fnTitle')}</h2><div class="fsc" id="fsc"></div><div id="fst"></div><div class="dlg" id="dlg"></div><div class="flg" id="flg"></div></div>`);
@@ -739,13 +737,12 @@ async function night(tk,script){
   }
   const r=F.result,msg=r.w<0?u('fnDrawCard',r.sc[0],r.sc[1]):u('fnWinsCard',r.w+1,r.sc[r.w],r.sc[1-r.w])+(r.tb?' · '+u('fnTieBreak'):'');
   $('dlg').innerHTML=r.w<0?u('tie'):u('wins',r.w+1);
-  document.querySelector('.fskip')?.remove();
   E.insertAdjacentHTML('beforeend',`<div class="res"><h2>${r.w<0?u('tie'):u('winsH',r.w+1)}</h2><p>${msg}</p><button onclick="again()">${u('again')}</button></div>`);
 }
 
 /* ---------- PARTIDO DE FÚTBOL: el motor devuelve el partido ya jugado (guion minuto a minuto); aquí se anima sobre un campo ----------
    Campo visto desde arriba, 22 fichas en 4-3-3 (Jugador 1 ataca hacia la derecha), balón que viaja por la jugada, marcador con reloj,
-   goles con celebración, paradas, palos, VAR, tarjetas, descanso, tanda de penaltis y estadísticas finales. Velocidad x1 / x2 / saltar. */
+   goles con celebración, paradas, palos, VAR, tarjetas, descanso, tanda de penaltis y estadísticas finales. Velocidad fija (no se puede acelerar ni saltar). */
 const FM_T={
  es:{half1:'1ª parte',half2:'2ª parte',ht:'Descanso',ft:'Final',pens:'Penaltis',kick:'¡Empieza el partido!',kick2:'¡Arranca la segunda parte!',
   lineups:'Saltan al campo los dos onces',goal:'¡GOOOL!',assist:'Asist.',save:['¡Paradón de <b>{g}</b>!','<b>{g}</b> atrapa el disparo de {s}','Mano salvadora de <b>{g}</b>'],
@@ -770,7 +767,7 @@ const PART=new Set(['van','de','di','da','dos','du','der','den','Van','De','Di',
 const shortN=n=>{if(!n)return'';const c=C(n),w=(c?dn(c):n).split(' ');if(w.length<2)return w[0];if(/^(Júnior|Junior|Jr\.?)$/.test(w[w.length-1]))return w[w.length-2];let k=w.length-1;while(k>0&&PART.has(w[k-1]))k--;return w.slice(k).join(' ')};
 const FM_NUM=[1,3,4,5,2,8,6,10,11,9,7];
 const FM_BASE=[[5,50],[23,15],[19,37],[19,63],[23,85],[37,27],[32,50],[37,73],[47,17],[48,50],[47,83]];
-let FMS=1;try{FMS=+localStorage.getItem('bvfms')===2?2:1}catch(e){}
+const FMS=1; // velocidad fija: el partido no se puede acelerar ni saltar (igual que el combate anime)
 async function match(tk,script){
   const S0=script||BidEngine.resolveFutbol(G),ev=S0.ev,L=ev.find(e=>e.t==='lineups')||{L:[[],[]],T:[{},{}]};
   const z=async ms=>{await sleep(ms/FMS);if(tk!==bt)throw 0};
@@ -790,12 +787,11 @@ async function match(tk,script){
 <i class="fm-net l" id="fmn0"></i><i class="fm-net r" id="fmn1"></i>
 ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
 <i class="fm-ball" id="fmb"></i><div class="fm-fx" id="fmfx"></div></div>
-<div class="fm-bot"><div class="ab-dlg" id="fmdl"></div><div class="ab-spd" id="fmspd"><button data-s="1">x1</button><button data-s="2">x2</button><button data-s="40" aria-label="»">»</button></div></div>
+<div class="fm-bot"><div class="ab-dlg" id="fmdl"></div></div>
 <div class="fm-log"><div class="a0" id="fml0"></div><div class="a1" id="fml1"></div></div></div>`;
   const E=await arenaIn(async ms=>{await sleep(ms);if(tk!==bt)throw 0},html);
   const FM=$('fm'),FX=$('fmfx'),B=$('fmb');
-  const setSpd=s=>{FMS=s;FM.style.setProperty('--k',1/s);FM.classList.toggle('fast',s>2);$('fmspd').querySelectorAll('button').forEach(b=>b.classList.toggle('on',+b.dataset.s===s));if(s<=2)try{localStorage.setItem('bvfms',s)}catch(e){}};
-  setSpd(FMS);$('fmspd').onclick=e=>{const b=e.target.closest('button');if(b)setSpd(+b.dataset.s)};
+  try{localStorage.removeItem('bvfms')}catch(e){} // limpia la velocidad que se guardaba antes
   const say=h=>{$('fmdl').innerHTML='<span>'+h+'</span>'};
   const sfx=k=>{if(FMS<=2)SND.fx(k)};
   const nm=(p,i)=>{const c=XI[p][i];return c?dn(c):'—'};
@@ -930,7 +926,7 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
         await z(900);el(o,0).classList.remove('dive');put(el(p,k.s),p?55:45,22+k.s*5.5,500);await ball(89.5,50,300);
       }
     }else if(e.t==='end'){
-      $('fmspd').style.visibility='hidden';hold(null);sfx('whistle');
+      hold(null);sfx('whistle');
       const w=e.w,st=e.st||{},rows=[['poss','%'],['sh',''],['sot',''],['xg',''],['yc','']];
       say(w<0?t('tie'):t('wins',w+1));
       const bar=(k,suf,i)=>{const v=st[k]||[0,0],a=+v[0],b=+v[1],tot=a+b||1;return `<div class="fm-st"><span>${a}${suf}</span><div><small>${fmT('stats',i)}</small><i><u style="width:${a/tot*100}%"></u></i></div><span>${b}${suf}</span></div>`};
