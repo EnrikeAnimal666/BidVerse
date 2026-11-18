@@ -55,8 +55,10 @@
 <div id="olWait" style="display:none"><p data-i="olWaitText">Pasa este código…</p><div class="olcode" id="olCodeBig"></div><div class="olrow"><button class="go" onclick="olCopy()" data-i="olCopy">Copiar enlace</button><button class="skip" onclick="olCancel()" data-i="olCancel">Cancelar</button></div><p class="olok" id="olCopyOk"></p></div>
 <div id="olConn" style="display:none"><p data-m="connecting"></p><div class="olrow"><button class="skip" onclick="olCancel()" data-i="olCancel">Cancelar</button></div></div>
 <p class="olerr" id="olErr"></p></div></div>
-<div class="modal" id="login" onclick="if(event.target===this)closeLogin()"><div class="mbox ol"><div class="mh"><h3 data-m="loginTitle"></h3><button onclick="closeLogin()">✕</button></div>
-<label class="olf"><span data-m="user"></span><input id="lgName" maxlength="16" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></label>
+<div class="modal" id="login" onclick="if(event.target===this)closeLogin()"><div class="mbox ol prof"><div class="mh"><h3 data-m="loginTitle"></h3><button onclick="closeLogin()">✕</button></div>
+<label class="olf"><span data-m="user"></span><input id="lgName" maxlength="16" autocomplete="nickname" spellcheck="false" onkeydown="if(event.key==='Enter')doLogin()"></label>
+<div class="olf avf"><span data-m="avatar"></span><input id="avQ" type="search" autocomplete="off" spellcheck="false" data-mph="avSearch"><div class="avgrid" id="avGrid"></div><small class="avcur" id="avCur" aria-live="polite"></small></div>
+<p class="olerr" id="lgErr"></p>
 <div class="olrow"><button class="go" onclick="doLogin()" data-m="loginBtn"></button></div></div></div>
 <div id="netbar"></div>
 <div class="wipe" id="wipe"><span data-i="fightWipe">¡Combate!</span></div>

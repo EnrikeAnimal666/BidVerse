@@ -27,14 +27,15 @@ class Room {
   }
   idx(s) { return this.players.indexOf(s); }
   names() { return this.players.map(s => (s ? s.name : null)); }
+  avs() { return this.players.map(s => (s && s.av) || null); } // avatar = nombre de un personaje de anime (nunca una foto subida)
   send(i, msg) { const s = this.players[i]; if (s && s.conn) s.conn.send(msg); }
   all(msg) { this.send(0, msg); this.send(1, msg); }
-  info() { return { t: 'room', code: this.code, cat: this.cat, names: this.names(), phase: this.phase, connected: this.players.map(s => !!(s && s.conn)) }; }
+  info() { return { t: 'room', code: this.code, cat: this.cat, names: this.names(), avs: this.avs(), phase: this.phase, connected: this.players.map(s => !!(s && s.conn)) }; }
 
   startGame() {
     this.g = BE.create({ cat: this.cat, pool: this.hub.pools[this.cat], divs: this.cat === 'futbol' ? (this.hub.futDivs || BE.FUT_DIVS) : this.hub.divs, rng: this.hub.rng });
     Object.assign(this, { phase: 'auction', time: 0, sched: null, ticking: false, pausedMs: 0, wantAgain: [false, false], fight: null });
-    [0, 1].forEach(i => this.send(i, { t: 'start', cat: this.cat, names: this.names(), you: i }));
+    [0, 1].forEach(i => this.send(i, { t: 'start', cat: this.cat, names: this.names(), avs: this.avs(), you: i }));
     this.apply(BE.next(this.g), null);
   }
 
@@ -105,7 +106,7 @@ class Room {
   rejoin(s) {
     const i = this.idx(s);
     if (this.phase === 'lobby') return s.conn.send(this.info());
-    s.conn.send({ t: 'start', cat: this.cat, names: this.names(), you: i, resume: true });
+    s.conn.send({ t: 'start', cat: this.cat, names: this.names(), avs: this.avs(), you: i, resume: true });
     s.conn.send({ t: 'state', s: snap(this.g), ev: this.g.cur ? [{ t: 'lot' }] : [] });
     if (this.phase === 'order') s.conn.send({ t: 'order', ms: Math.max(0, this.ordAt - this.time), done: this.ord.map(Boolean) });
     if (this.phase === 'fight' && this.fight) s.conn.send(this.fight);
@@ -133,7 +134,9 @@ class Room {
 class Hub {
   constructor({ pools, divs, futDivs, rng, speed = 1, maxRooms = 300, abandonMs = 90000, orderMs = 25000 }) {
     Object.assign(this, { pools, divs, futDivs, rng, speed, maxRooms, abandonMs, orderMs, rooms: new Map(), sessions: new Map(), real: 0, sweep: 0 });
+    this.avNames = new Set(((pools && pools.anime) || []).map(c => c.n)); // solo se aceptan avatares de esta lista
   }
+  cleanAv(v) { return typeof v === 'string' && this.avNames.has(v) ? v : null; }
   newCode() {
     for (let k = 0; k < 50; k++) {
       let c = ''; for (let i = 0; i < 5; i++) c += CODE_ALPHA[crypto.randomInt(CODE_ALPHA.length)];
@@ -146,9 +149,12 @@ class Hub {
     if (!s) {
       if (this.sessions.size >= 5000) return conn.send({ t: 'err', code: 'busy' });
       const name = cleanName(msg.name) || 'Invitado' + (100 + crypto.randomInt(900));
-      s = { token: crypto.randomBytes(16).toString('hex'), name, room: null, idx: -1, conn: null, last: this.real };
+      s = { token: crypto.randomBytes(16).toString('hex'), name, av: this.cleanAv(msg.av), room: null, idx: -1, conn: null, last: this.real };
       this.sessions.set(s.token, s);
-    } else if (!s.room && msg.name != null) { const n = cleanName(msg.name); if (n) s.name = n; }
+    } else if (!s.room) {
+      if (msg.name != null) { const n = cleanName(msg.name); if (n) s.name = n; }
+      if (msg.av !== undefined) s.av = this.cleanAv(msg.av);
+    }
     if (s.conn && s.conn !== conn) { const old = s.conn; s.conn = null; old.send({ t: 'kicked' }); old.close(1000, 'other tab'); } // una sola pestaña por sesión
     s.conn = conn; conn.sess = s; s.last = this.real;
     conn.send({ t: 'welcome', token: s.token, name: s.name });

@@ -1139,3 +1139,120 @@ body.inlobby .wordmark{font-size:clamp(2.2rem,6vw,3.4rem)}
 .lu-go{padding:10px;font:900 .95rem var(--mono);text-transform:uppercase;border:2px solid #000;background:var(--c);color:var(--on);cursor:pointer;border-radius:2px;box-shadow:3px 3px 0 #000}
 .lu-go:disabled{opacity:.6;cursor:default;box-shadow:none}
 .lu-st{margin:0;padding:10px;text-align:center;font:800 .85rem var(--mono);color:var(--mut)}.lu-st.ok{color:var(--c)}
+/* ---------- PERFIL: la foto de perfil es un personaje del juego ---------- */
+.pav{overflow:hidden;padding:0}
+.pav img{width:100%;height:100%;object-fit:cover;object-position:50% 20%;display:block}
+.pad.pav{font-size:1.6rem}
+.lb-n.pav{font-size:1.5rem}
+.hub .acct{display:flex;align-items:center;gap:12px;cursor:pointer}
+.hub .acct .hav{flex:none;width:46px;height:46px;display:grid;place-items:center;font-size:1.5rem;border:2px solid var(--ink);border-radius:2px;background:var(--card)}
+.mbox.prof{max-width:580px}
+.avf #avQ{font:700 .95rem var(--mono);padding:9px 12px;text-transform:none}
+.avgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));grid-auto-rows:64px;gap:8px;max-height:min(300px,40vh);overflow-y:auto;overscroll-behavior:contain;padding:3px;text-transform:none}
+.avo{height:100%;min-width:0;padding:0;border:2px solid transparent;background:var(--card);color:var(--ink);cursor:pointer;border-radius:2px;overflow:hidden;font-size:1.6rem}
+.avo span{width:100%;height:100%;display:grid;place-items:center}
+.avo img{width:100%;height:100%;object-fit:cover;object-position:50% 20%;display:block}
+.avo:hover{border-color:var(--mut)}
+.avo.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc)}
+.avo:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.avo.none span{font:800 .62rem/1.15 var(--mono);text-transform:uppercase;color:var(--mut);text-align:center;padding:4px}
+.avno{grid-column:1/-1;margin:8px 0;font:700 .85rem var(--mono);color:var(--mut)}
+.avcur{font:700 .8rem var(--mono);color:var(--mut);text-transform:none;letter-spacing:0;min-height:1.2em}
+
+/* =====================================================================
+   MENÚ · REDISEÑO "ARENA": sin marcos ni cajas. Cabecera libre, paneles en diagonal que se
+   abren al pasar el ratón (como una pantalla de selección), botones en píldora y luces de color.
+   Solo afecta al menú y a sus ventanas; la partida no cambia.
+   ===================================================================== */
+body:not(.ingame){background:
+  radial-gradient(55% 45% at 6% -8%,rgba(214,40,57,.30),transparent 70%),
+  radial-gradient(45% 40% at 96% -4%,rgba(122,60,240,.24),transparent 70%),
+  radial-gradient(70% 55% at 50% 118%,rgba(74,163,255,.14),transparent 70%),
+  #09090b;background-attachment:fixed}
+body:not(.ingame) .tick{background:linear-gradient(90deg,#d62839,#7a3cf0 50%,#d62839);background-size:200% 100%;animation:mnTick 12s linear infinite}
+@keyframes mnTick{to{background-position:-200% 0}}
+body:not(.ingame) .tick div{padding:7px 0;opacity:.92}
+
+/* cabecera: logo suelto a la izquierda, perfil y botones en píldora a la derecha */
+body:not(.ingame) .brand{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px 32px;margin:0 0 28px;padding:4px 0 0;background:none;border:0;border-radius:0;box-shadow:none}
+body:not(.ingame) .logoimg{height:clamp(80px,10.5vw,138px);filter:drop-shadow(0 12px 34px rgba(122,60,240,.38))}
+.hub{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:10px}
+.hub .acct{display:flex;align-items:center;gap:10px;margin:0;padding:5px 18px 5px 5px;border:0;border-radius:999px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);font:800 1rem var(--serif);color:var(--ink);cursor:pointer;transition:background .15s}
+.hub .acct:hover{background:rgba(255,255,255,.11)}
+.hub .acct .hav{width:42px;height:42px;border:0;border-radius:50%;background:#1b1b20;box-shadow:0 0 0 2px #09090b,0 0 0 4px #ffb02e}
+.hub .cta{min-height:46px;padding:10px 22px;border:0;border-radius:999px;font:800 .95rem/1.1 var(--serif);transition:transform .15s,box-shadow .15s,background .15s}
+.hub .cta.p{background:#f3e6c8;color:#0a0a0b;box-shadow:0 10px 26px -12px rgba(243,230,200,.7)}
+.hub .cta.p:hover{transform:translateY(-2px);box-shadow:0 14px 30px -12px rgba(243,230,200,.8)}
+.hub .cta.p:active{transform:translateY(1px);box-shadow:none}
+.hub .cta.s{background:rgba(255,255,255,.06);color:var(--ink);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.hub .cta.s:hover{background:rgba(255,255,255,.13);color:var(--ink)}
+.hub .cta.s:active{transform:translateY(1px)}
+
+/* modos: tres paneles en diagonal; el que señalas se abre */
+.modes{--sl:70px;--gp:10px;counter-reset:mode;display:flex;gap:0;margin:0;height:clamp(420px,64vh,600px);border-radius:30px;overflow:hidden;box-shadow:0 40px 90px -40px rgba(0,0,0,.9)}
+.modes>li{counter-increment:mode;display:flex;flex:1 1 0;min-width:0;margin-left:calc(var(--gp) - var(--sl));clip-path:polygon(var(--sl) 0,100% 0,calc(100% - var(--sl)) 100%,0 100%);transition:flex-grow .5s cubic-bezier(.2,.8,.2,1)}
+.modes>li:first-child{margin-left:0;clip-path:polygon(0 0,100% 0,calc(100% - var(--sl)) 100%,0 100%)}
+.modes>li:last-child{clip-path:polygon(var(--sl) 0,100% 0,100% 100%,0 100%)}
+.modes>li:hover,.modes>li:focus-within{flex-grow:1.7}
+.modes>li{container-type:inline-size}
+.mode .cn{white-space:nowrap}
+@container (max-width:400px){.mode .cn{display:none}}
+.mode{min-height:0;height:100%;gap:10px;padding:28px calc(var(--sl) + 22px) 30px 30px;border:0;border-radius:0;box-shadow:none;background:#111114;transition:none}
+.modes>li:first-child .mode{padding-left:34px}
+.modes>li:last-child .mode{padding-right:34px}
+.mode:not([disabled]):hover,.mode:not([disabled]):active{transform:none;box-shadow:none}
+.mode:focus-visible{outline:0}
+.mode::before{content:"0" counter(mode);position:absolute;top:24px;right:30px;z-index:1;font:800 .78rem var(--serif);letter-spacing:.2em;color:rgba(255,255,255,.75);padding:6px 12px;border-radius:999px;background:rgba(0,0,0,.35);backdrop-filter:blur(6px)}
+.modes>li:not(:last-child) .mode::before{right:calc(var(--sl) * .25 + 24px)}
+.mode .fx .media{transition:transform .8s cubic-bezier(.2,.8,.2,1),filter .5s}
+.mode .fx.custom .media{filter:saturate(.75) brightness(.8)}
+.mode:hover .fx .media,.mode:focus-visible .fx .media{transform:scale(1.07);filter:saturate(1.05) brightness(.95)}
+.mode .fx.custom::after{background:linear-gradient(180deg,rgba(0,0,0,0) 25%,rgba(0,0,0,.55) 60%,rgba(0,0,0,.9))}
+.m-anime{--mc:#ff4f8b}.m-ufc{--mc:#ff3b30}.m-foot{--mc:#2fd36b}
+.mode .tt{position:relative;font-size:clamp(2.6rem,5vw,4.9rem);line-height:.9;letter-spacing:.01em;white-space:nowrap;overflow-wrap:normal;text-shadow:0 6px 30px rgba(0,0,0,.5)}
+.mode .tt::after{content:"";display:block;width:54px;height:5px;margin-top:14px;border-radius:9px;background:var(--mc);transition:width .4s cubic-bezier(.2,.8,.2,1)}
+.mode:hover .tt::after,.mode:focus-visible .tt::after{width:120px}
+.mode .ds{max-width:34ch;font:600 .95rem/1.5 var(--serif);color:rgba(255,255,255,.78)}
+.mode .ft{margin-top:6px;padding-top:0;border-top:0;gap:12px}
+.mode .cn{font:700 .78rem var(--serif);color:rgba(255,255,255,.85);padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.1);backdrop-filter:blur(6px)}
+.mode .ft strong{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:999px;background:#fff;color:#0a0a0b;font:900 .95rem var(--serif);white-space:nowrap;transition:background .2s,color .2s,transform .2s}
+.mode .ft strong::after{content:"→";transition:transform .2s}
+.mode:not([disabled]):hover .ft strong,.mode:focus-visible .ft strong{background:var(--mc);color:#fff;transform:translateY(-1px)}
+.mode:hover .ft strong::after,.mode:focus-visible .ft strong::after{transform:translateX(4px)}
+.mode:focus-visible .ft strong{outline:3px solid #ffb02e;outline-offset:3px}
+
+/* barra para unirse: una píldora flotante */
+.joinbar{max-width:660px;margin:28px auto 0;padding:8px 8px 8px 26px;gap:10px;flex-wrap:nowrap;border:0;border-radius:999px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);backdrop-filter:blur(8px)}
+.joinbar span{flex:1 1 auto;margin:0;font:700 .98rem var(--serif);color:rgba(243,230,200,.82)}
+.joinbar input{flex:none;width:150px;padding:12px 16px;border:0;border-radius:999px;background:rgba(0,0,0,.45);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.joinbar input:focus{outline:0;box-shadow:inset 0 0 0 2px #ffb02e}
+.joinbar .cta{min-height:46px;padding:10px 26px;border:0;border-radius:999px;background:#d62839;color:#fff;box-shadow:none}
+.joinbar .cta:hover{transform:translateY(-1px);box-shadow:0 10px 24px -10px rgba(214,40,57,.9)}
+
+/* ventanas del menú (perfil, escala, online): esquinas suaves */
+#login .mbox,#scale .mbox,#online .mbox{border-radius:24px}
+#login .mbox input,#online .mbox input{border-radius:12px}
+#login .mbox .go,#online .mbox .go,#online .mbox .skip{border-radius:999px}
+#login .mh button,#scale .mh button,#online .mh button{border-radius:50%}
+#login .avo{border-radius:50%}
+body.inlobby .brand{justify-content:center!important}
+
+@media(max-width:860px){
+  body:not(.ingame) .brand{justify-content:center;text-align:center}
+  body:not(.ingame) .bl{justify-self:auto}
+  .hub{justify-content:center}
+  .modes{flex-direction:column;height:auto;gap:14px;border-radius:0;overflow:visible;box-shadow:none}
+  .modes>li,.modes>li:first-child,.modes>li:last-child{flex:none;margin:0;clip-path:none;border-radius:24px;overflow:hidden;box-shadow:0 24px 50px -30px rgba(0,0,0,.9)}
+  .mode,.modes>li:first-child .mode,.modes>li:last-child .mode{min-height:250px;padding:24px 24px 26px}
+  .modes>li:not(:last-child) .mode::before,.mode::before{top:20px;right:20px}
+  .joinbar span{flex:1 1 auto}.joinbar input{flex:none}
+}
+@media(max-width:600px){
+  .joinbar{flex-wrap:wrap;border-radius:24px;padding:16px}
+  .joinbar span{flex:1 0 100%;text-align:center}
+  .joinbar input{flex:1;min-width:0;width:auto}
+}
+@media(prefers-reduced-motion:reduce){
+  body:not(.ingame) .tick{animation:none}
+  .modes>li,.mode .fx .media,.mode .tt::after,.mode .ft strong,.mode .ft strong::after{transition:none}
+}

@@ -8,6 +8,7 @@
   const bar=txt=>{const b=$('netbar');if(!b)return;b.style.display=txt?'block':'none';b.textContent=txt||''};
   const show=v=>{['olForm','olWait','olConn'].forEach(x=>{const e=$(x);if(e)e.style.display=x===v?'block':'none'})};
   const send=o=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))};
+  const myAv=()=>window.bvAv?bvAv():null; // personaje elegido como foto de perfil (lo pone el menú)
   const errText=c=>{const k='ol_'+c;const s=u(k);return s===k?u('ol_server'):s};
 
   window.openOnline=function(view){
@@ -26,14 +27,14 @@
   window.olCopy=function(){const url=location.origin+location.pathname+'?sala='+room.code;
     (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(()=>say('olCopyOk',u('olCopied')),()=>{prompt(u('olCopy'),url)})};
   function flush(){if(connected&&pending){const p=pending;pending=null;
-    send({t:'hello',name:name()||undefined,token}); // refresca el nombre antes de crear/entrar
+    send({t:'hello',name:name()||undefined,av:myAv(),token}); // refresca el nombre y el avatar antes de crear/entrar
     send(p)}else if(!connected)connect()}
 
   function connect(){
     if(ws&&(ws.readyState===0||ws.readyState===1))return;
     wantOpen=true;bar(retry?u('olReconnecting'):'');
     ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
-    ws.onopen=()=>{retry=0;send({t:'hello',name:name()||undefined,token})};
+    ws.onopen=()=>{retry=0;send({t:'hello',name:name()||undefined,av:myAv(),token})};
     ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(x){return}on(m)};
     ws.onclose=()=>{connected=false;ws=null;if(!wantOpen)return;if(inGame||room)bar(u('olReconnecting'));clearTimeout(rcTimer);rcTimer=setTimeout(connect,Math.min(8000,500*2**retry++))};
     ws.onerror=()=>{};
@@ -47,7 +48,7 @@
     case 'start': // empieza (o se reanuda / revancha) una partida
       clearTimeout(lbShow);hideLobby(false);
       room=Object.assign(room||{},{code:room&&room.code,cat:m.cat,names:m.names,you:m.you});inGame=true;closeOnline();bar('');peerOff=false;
-      startOnline(m.cat,m.names,m.you,send);break;
+      startOnline(m.cat,m.names,m.you,send,m.avs);break;
     case 'state':if(inGame&&net)netState(m.s,m.ev);break;
     case 'tick':if(inGame&&net){left=G.left=m.left;timer();tickSnd()}break;
     case 'fight':if(inGame&&net)netFight(m);break;
@@ -84,7 +85,7 @@
 <small class="lb-lbl">${lt('code')}</small><div class="lb-code" aria-label="${m.code}">${String(m.code).split('').map(c=>`<b>${c}</b>`).join('')}</div>
 <div class="lb-acts"><button class="lb-btn p" id="lbLink">${lt('link')}</button><button class="lb-btn" id="lbCopy">${lt('copy')}</button>${navigator.share?`<button class="lb-btn" id="lbShare">${lt('share')}</button>`:''}</div>
 <p class="lb-ok" id="lbOk" aria-live="polite"></p>
-<div class="lb-vs"><div class="lb-pl me"><span class="lb-n">1</span><div><b>${nm.replace(/[<>&]/g,'')}</b><small>${lt('you')} · ${lt('ready')}</small></div></div>
+<div class="lb-vs"><div class="lb-pl me">${myAv()&&window.bvAvTag?bvAvTag(myAv(),'lb-n'):'<span class="lb-n">1</span>'}<div><b>${nm.replace(/[<>&]/g,'')}</b><small>${lt('you')} · ${lt('ready')}</small></div></div>
 <i class="lb-x">VS</i>
 <div class="lb-pl wait"><span class="lb-n">2</span><div><b>${lt('wait')}<em class="lb-dots"><i></i><i></i><i></i></em></b><small>${lt('notYet')} · <span id="lbTime">0:00</span></small></div></div></div>
 <ul class="lb-rules">${lt(cat==='ufc'||cat==='futbol'?cat:'anime').map(r=>`<li>${r}</li>`).join('')}</ul>
@@ -116,26 +117,56 @@
 })();
 
 /* ===== menu.js (fusionado) ===== */
-/* BidVerse · menú de inicio: inicio de sesión (perfil local), crear sala desde la pancarta, unirse con código. Textos ES/EN propios. */
+/* BidVerse · menú de inicio: perfil local (nombre + avatar), crear sala desde la pancarta, unirse con código. Textos ES/EN propios.
+   El avatar es SIEMPRE un personaje del juego (no se suben fotos): así nadie puede poner nada ofensivo y no hay nada que moderar.
+   El servidor también comprueba que el avatar sea un personaje que existe. */
 (function(){
   const $=id=>document.getElementById(id);
-  const M={es:{have:'¿Te han pasado un código de sala?',codePh:'CÓDIGO',join:'Unirse',create:'Crear sala',login:'Iniciar sesión',logout:'Cerrar sesión',loginTitle:'Iniciar sesión',user:'Nombre de usuario',loginBtn:'Entrar',hi:'Hola, ',connecting:'Conectando con la sala…'},
-           en:{have:'Got a room code?',codePh:'CODE',join:'Join',create:'Create room',login:'Log in',logout:'Log out',loginTitle:'Log in',user:'Username',loginBtn:'Enter',hi:'Hi, ',connecting:'Connecting to the room…'}};
+  const M={es:{have:'¿Te han pasado un código de sala?',codePh:'CÓDIGO',join:'Unirse',create:'Crear sala',login:'Crear perfil',edit:'Editar perfil',loginTitle:'Tu perfil',user:'Tu nombre',
+              avatar:'Foto de perfil',avSearch:'Busca un personaje o un anime…',avNone:'Sin foto',avEmpty:'Ningún personaje coincide',avPick:'Elegido: ',loginBtn:'Guardar',hi:'Hola, ',
+              nameBad:'El nombre debe tener de 2 a 16 letras o números (también vale espacio . _ -)',connecting:'Conectando con la sala…'},
+           en:{have:'Got a room code?',codePh:'CODE',join:'Join',create:'Create room',login:'Create profile',edit:'Edit profile',loginTitle:'Your profile',user:'Your name',
+              avatar:'Profile picture',avSearch:'Search a character or an anime…',avNone:'No picture',avEmpty:'No character matches',avPick:'Picked: ',loginBtn:'Save',hi:'Hi, ',
+              nameBad:'Your name needs 2 to 16 letters or numbers (space . _ - also allowed)',connecting:'Connecting to the room…'}};
+  const NAME_RE=/^[\p{L}\p{N}][\p{L}\p{N} ._-]{1,15}$/u; // la misma regla que el servidor (server/rooms.js)
   const dict=()=>M[typeof lang!=='undefined'&&M[lang]?lang:'es'];
-  const get=()=>{try{return localStorage.getItem('bvuser')||''}catch(e){return ''}};
-  const put=v=>{try{v?localStorage.setItem('bvuser',v):localStorage.removeItem('bvuser');localStorage.setItem('bvname',v)}catch(e){}};
-  let user=get(),pend=null;
+  const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k)||'';v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch(e){return ''}};
+  const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+  const ANIME=POOLS.anime,isAv=n=>!!n&&ANIME.some(c=>c.n===n);
+  const shown=c=>(LANGS[lang]&&LANGS[lang].names&&LANGS[lang].names[c.n])||c.n; // Frieza -> Freezer en español
+  let user=ls('bvuser'),av=ls('bvav'),sel='',pend=null;
+  if(!isAv(av))av=''; // personaje que ya no está en el juego
+  window.bvAv=()=>av||null;
+  const avTag=(n,cls)=>`<span class="${cls} pav" data-n="${esc(n)}">${avInner(n)}</span>`;
+  window.bvAvTag=avTag;
   function paint(){const x=dict();
     document.querySelectorAll('[data-m]').forEach(e=>e.textContent=x[e.dataset.m]);
     document.querySelectorAll('[data-mph]').forEach(e=>e.placeholder=x[e.dataset.mph]);
-    $('hLogin').textContent=user?x.logout:x.login;$('acct').textContent=user?x.hi+user:'';$('acct').style.display=user?'':'none'}
+    $('hLogin').textContent=user?x.edit:x.login;$('hLogin').className='cta '+(user?'s':'p'); // con perfil, el botón pasa a segundo plano
+    const a=$('acct');a.innerHTML=user?(av?avTag(av,'hav'):'')+`<span>${esc(x.hi+user)}</span>`:'';a.style.display=user?'':'none';
+    if($('login').classList.contains('open'))grid()}
+  // ---- selector de avatar ----
+  function pick(){const x=dict(),c=ANIME.find(c=>c.n===sel);$('avCur').textContent=c?x.avPick+shown(c)+' · '+c.a:x.avPick+x.avNone}
+  function grid(){
+    const x=dict(),q=$('avQ').value.trim().toLowerCase();
+    const list=ANIME.filter(c=>!q||[c.n,shown(c),c.a].some(s=>s.toLowerCase().includes(q)));
+    $('avGrid').innerHTML=(q?'':`<button type="button" class="avo none${sel?'':' on'}" data-av=""><span>${x.avNone}</span></button>`)+
+      list.map(c=>`<button type="button" class="avo${sel===c.n?' on':''}" data-av="${esc(c.n)}" title="${esc(shown(c)+' · '+c.a)}" aria-label="${esc(shown(c))}"><span data-n="${esc(c.n)}">${avInner(c.n)}</span></button>`).join('')+
+      (list.length?'':`<p class="avno">${x.avEmpty}</p>`);
+    pick();if(typeof wantImg==='function')wantImg(list);
+  }
+  $('avGrid').onclick=e=>{const b=e.target.closest('.avo');if(!b)return;sel=b.dataset.av;$('avGrid').querySelectorAll('.avo').forEach(o=>o.classList.toggle('on',o===b));pick()};
+  $('avQ').oninput=grid;
   const sw=window.setLang;window.setLang=function(l){sw(l);paint()};paint();
-  window.openLogin=()=>{$('lgName').value='';$('login').classList.add('open');setTimeout(()=>$('lgName').focus(),50)};
+  window.openLogin=()=>{$('lgName').value=user;sel=av;$('avQ').value='';$('lgErr').textContent='';grid();$('login').classList.add('open');setTimeout(()=>$('lgName').focus(),50)};
   window.closeLogin=()=>{$('login').classList.remove('open');pend=null};
-  window.doLogin=()=>{const n=$('lgName').value.trim();if(!n){$('lgName').focus();return}
-    user=n;put(n);const f=pend;$('login').classList.remove('open');pend=null;paint();if(f)f()};
-  window.loginBtn=()=>{if(user){user='';put('');paint()}else openLogin()};
-  const need=fn=>{if(user)fn();else{openLogin();pend=fn}}; // sin sesión: pide el nombre y luego sigue con lo que querías hacer
+  window.doLogin=()=>{const n=$('lgName').value.normalize('NFC').trim().replace(/\s+/g,' ');
+    if(!NAME_RE.test(n)){$('lgErr').textContent=dict().nameBad;$('lgName').focus();return}
+    user=n;av=isAv(sel)?sel:'';ls('bvuser',n);ls('bvname',n);ls('bvav',av);
+    const f=pend;$('login').classList.remove('open');pend=null;paint();if(f)f()};
+  window.loginBtn=()=>openLogin();
+  $('acct').onclick=()=>openLogin();
+  const need=fn=>{if(user)fn();else{openLogin();pend=fn}}; // sin perfil: pide nombre (y avatar) y luego sigue con lo que querías hacer
   const go=fn=>{openOnline('olConn');if(location.protocol==='file:')return;$('olName').value=user;fn()};
   window.mkRoom=cat=>{if(window.bvPreload)bvPreload(cat);need(()=>go(()=>olCreate(cat)))};
   const join=()=>{const c=$('hCode').value.trim();if(!c){$('hCode').focus();return}need(()=>go(()=>{$('olCode').value=c.toUpperCase();olJoin()}))};

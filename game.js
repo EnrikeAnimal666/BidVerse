@@ -105,7 +105,7 @@ function setLang(l){
 }
 applyLang();
 function panel(p){const n=p+1;return `<section class="side" style="--c:var(--p${n});--on:var(--on${n})">
-<header><div class="pad">${n}</div><div><h2>${t('player',n)}</h2></div><div class="money" id="m${p}"></div></header>
+<header>${padAv(p)||`<div class="pad">${n}</div>`}<div><h2>${t('player',n)}</h2></div><div class="money" id="m${p}"></div></header>
 <div id="s${p}"></div>
 <div class="ctl"><label class="inp"><span>${cat==='futbol'?'€':'$'}</span><input id="i${p}" type="number" min="1" step="1" inputmode="numeric" placeholder="${t('bidPh')}" onkeydown="if(event.key==='Enter')place(${p})"></label>
 <button class="go" id="g${p}" onclick="place(${p})">${t('bidBtn')}</button><button class="go plus" id="u${p}" onclick="plus(${p})" title="${cat==='futbol'?'+1M':'+$1'}">${cat==='futbol'?'+1M':'+$1'}</button></div>
@@ -121,10 +121,10 @@ function start(c){
   apply(BidEngine.next(G));
 }
 /* ---------- ONLINE: el servidor manda; aquí solo se prepara la pantalla y se pinta lo que llega ---------- */
-function startOnline(cat_,names,me,send){
+function startOnline(cat_,names,me,send,avs){
   closeLineup();gameBg(cat_);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
   $('end').className='end';$('end').innerHTML='';$('end').style.display='none';
-  cat=cat_;net={names,me,send};$('game').classList.toggle('ufc',cat==='ufc');$('game').classList.toggle('fut',cat==='futbol');
+  cat=cat_;net={names,me,send,avs:avs||[]};$('game').classList.toggle('ufc',cat==='ufc');$('game').classList.toggle('fut',cat==='futbol');
   G={cat,P:[{m:0,c:[]},{m:0,c:[]}],dv:'',phase:'idle',cur:null,bid:0,leader:-1,left:SECS,free:-1,passed:[false,false],skips:[2,2],locked:true};mirror();
   wantImg(POOLS[cat]);
   $('P1').innerHTML=panel(0);$('P2').innerHTML=panel(1);
@@ -1038,6 +1038,9 @@ function wantImg(list,front){
   if(imgQA.length&&!busyA)pumpA();
   if(wkPend.length&&!busyB)pumpB();
 }
+// FOTO DE PERFIL: siempre un personaje del juego (su foto o, mientras no hay, su emoji). Nunca fotos subidas por usuarios.
+function avInner(n){const c=n&&byN.get(n);return c?(c.img?`<img src="${c.img}" alt="${c.n}" loading="lazy">`:c.e):''}
+function padAv(p){const n=net&&net.avs&&net.avs[p];return n&&byN.has(n)?`<div class="pad pav" data-n="${n}">${avInner(n)}</div>`:''}
 function imgShown(c){
   if(cur&&cur.n===c.n){const e=$('pic').querySelector('.e');if(e)e.outerHTML=`<img src="${c.img}" alt="${c.n}">`}
   if(P&&P.some(p=>p.c.some(x=>x.n===c.n)))render();
