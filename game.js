@@ -356,7 +356,7 @@ const TR_T={
   geass:['Geass','One order per person: the rival’s first attack turns against them','<b>{a}</b>: “Lelouch vi Britannia commands you!”'],
   self:['','','<b>{a}</b> obeys the Geass and strikes themselves'],
   eclipse:['Eclipse','Once, instead of falling, sacrifices the next teammate and is reborn at 60%','<b>{a}</b> offers up {s}… the Eclipse begins'],
-  dnote:['Death Note','Writes the rival’s name: when Light falls (or 40 s pass) the rival dies of a heart attack','<b>{a}</b> writes {d}’s name in the Death Note…','','Heart attack · 40 s'],
+  dnote:['Death Note','Writes the rival’s name before anyone moves: the rival kills Light with one blow and dies of a heart attack 40 s later. Both always fall','<b>{a}</b> writes {d}’s name in the Death Note…','','Heart attack · 40 s'],
   heart:['','','40 seconds later… {d}’s heart stops.'],
   pops:{stun:'Trapped!',adapt:'Adapted',regen:'Regen'}},
  es:{touch:['Toque de Dios','Actúa primero y borra a cualquiera de un solo toque','<b>{a}</b> extiende la mano… basta un toque.'],
@@ -417,7 +417,7 @@ const TR_T={
   geass:['Geass','Una orden por persona: el primer ataque del rival se vuelve contra él','<b>{a}</b>: «¡Lelouch vi Britannia te lo ordena!»'],
   self:['','','<b>{a}</b> obedece el Geass y se golpea'],
   eclipse:['Eclipse','1 vez, en vez de caer, sacrifica al siguiente de su equipo y renace al 60 %','<b>{a}</b> ofrece a {s}… comienza el Eclipse'],
-  dnote:['Death Note','Escribe el nombre del rival: cuando Light cae (o pasan 40 s), el rival muere de un ataque al corazón','<b>{a}</b> escribe el nombre de {d} en el Death Note…','','Ataque al corazón · 40 s'],
+  dnote:['Death Note','Escribe el nombre del rival antes que nadie: el rival mata a Light de un golpe y 40 s después muere de un ataque al corazón. Caen los dos siempre','<b>{a}</b> escribe el nombre de {d} en el Death Note…','','Ataque al corazón · 40 s'],
   heart:['','','40 segundos después… el corazón de {d} se para.'],
   pops:{stun:'¡Atrapado!',adapt:'Adaptado',regen:'Regenera'}}};
 const trT=(k,i)=>{const d=TR_T[lang]||TR_T.en,v=d[k];return v?v[i]||'':''};
@@ -454,7 +454,7 @@ const ELEM={fire:['Mereoleona','Deidara','Ace','Tanjiro','Feitan','Rengoku','Roy
  bolt:['Fourth Raikage','Sasuke','Minato','Hajime Kashimo','Zeus','Killua','Zenitsu','Thor','Killer B'],
  water:['Dagon','Uraume','Whitebeard','Giyu','Kisame','Noelle','Tobirama Senju'],
  dark:['Light Yagami','Lucifero','Dante Zogratis','Shisui Uchiha','Kabuto','Sung Jin-Woo','Yami','Pride','Muzan','Madara','Itachi','Obito','Sukuna','Mahito','Kenjaku','Geto','Dio Brando','Zeldris','Aizen','Choso','Father','Griffith','Meruem','Kaneki','Chrollo Lucilfer','Orochimaru','Pain'],
- light:['Lucius Zogratis','Hana Kurusu','Nanika','Giorno Giovanna','God','Grand Priest','Whis','Hagoromo Otsutsuki','Netero','Saitama','Van Hohenheim','Yuki Tsukumo'],
+ light:['Nanika','Giorno Giovanna','God','Grand Priest','Whis','Hagoromo Otsutsuki','Netero','Saitama','Van Hohenheim','Yuki Tsukumo'],
  void:['Kaguya Otsutsuki','Gojo','Frieza','Beerus','Zeno','Truth','Rick Sanchez','Boros'],
  wind:['Danzo','Takako Uro','Naruto','Zoro','Yuno','Asta'],
  psy:['Tatsumaki','Mob','Broly','Hashirama']};
@@ -947,6 +947,8 @@ ${mc?`<div class="ab-mvp" style="--c:var(--p${m.p+1})"><em>${fmT('motm')}</em><i
 
 /* ---------- ESCALA DE PODER (pestañas Anime / UFC) ---------- */
 function scaleTab(k){scTab=k;openScale()}
+// Los tres de 1000 empatan en poder: en la escala va primero God, luego Zeno y luego La Verdad
+const TOP3=['God','Zeno','Truth'],topRank=c=>{const i=TOP3.indexOf(c.n);return i<0?9:i};
 function openScale(){
   wantImg(POOLS[scTab]);
   const row=(c,k,m)=>`<div class="sr"><span class="rk">${k}</span><div class="av" data-n="${c.n}" style="--h:${c.h}">${c.img?`<img src="${c.img}" alt="">`:c.e}</div><div><b>${dnh(c)}</b>${c.kind==='anime'?trBadge(c):''}<small>${m}</small><div class="bar2"><i style="width:${c.kind==='futbol'?Math.max(0,(c.ovr-40)/59*100):c.pw/10}%"></i></div>${c.kind==='anime'?stT(c):''}</div><span class="pv">${c.kind==='futbol'?c.ovr:c.pw}</span></div>`;
@@ -956,7 +958,7 @@ function openScale(){
     ?FDIVS.map(d=>`<h4 class="dh">${u('div_'+d.k)}</h4>`+FUTP.filter(c=>c.cls===d.k).sort((a,b)=>b.ovr-a.ovr||b.leg-a.leg).map((c,k)=>row(c,k+1,`${c.e} ${roleT(c.role)} · ${c.club}${c.leg?` ${c.yr} · ★ ${u('legend')}`:''}`)).join('')).join('')
     :scTab==='ufc'
     ?UFC_DIVS.map(d=>`<h4 class="dh">${u('div_'+d.k)}</h4>`+UFC.filter(c=>c.cls===d.k).sort((a,b)=>b.pw-a.pw).map((c,k)=>row(c,k+1,`${c.e} ${c.nick?c.nick+' · ':''}${u('sty_'+c.sty)}`)).join('')).join('')
-    :[...POOLS.anime].sort((a,b)=>b.pw-a.pw).map((c,k)=>row(c,k+1,`${an(c.a)} · ${fe(c)}`)).join('');
+    :[...POOLS.anime].sort((a,b)=>b.pw-a.pw||topRank(a)-topRank(b)).map((c,k)=>row(c,k+1,`${an(c.a)} · ${fe(c)}`)).join('');
   $('scale').classList.add('open');
 }
 function closeScale(){$('scale').classList.remove('open')}

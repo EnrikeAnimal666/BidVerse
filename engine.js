@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '2026-11-18b';
+  const VERSION = '2026-11-18c';
   const CFG = { anime: { start: 20 }, ufc: { start: 40 }, futbol: { start: 100 } }, MAXC = 3, SECS = 10;
   // Fútbol: 4-3-3 (1 portero, 4 defensas, 3 medios, 3 delanteros). Se subasta por posiciones, igual que la UFC por categorías.
   const FUT_DIVS = [{ k: 'GK', n: 1 }, { k: 'DEF', n: 4 }, { k: 'MID', n: 3 }, { k: 'FWD', n: 3 }];
@@ -24,9 +24,9 @@
   const pick = (rng, a) => a[rndi(rng, 0, a.length - 1)];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const shuffle = (rng, a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  /* Rareza (solo anime): los rotos (poder ≥ 900: God, Zeno, La Verdad, Gran Sacerdote, Whis, Saitama, Goku, Beerus) salen en 1 de cada 7,5 partidas.
+  /* Rareza (solo anime): los rotos (poder ≥ 900: God, Zeno, La Verdad, Gran Sacerdote, Whis, Saitama, Goku, Beerus) salen en 1 de cada 10 partidas.
      Con probabilidad ROTO_P uno de ellos (al azar) entra entre los 6 primeros lotes, que toda partida llega a ver; los demás van al fondo del mazo. */
-  const ROTO_PW = 900, ROTO_P = 2 / 15;
+  const ROTO_PW = 900, ROTO_P = 1 / 10;
   function animeDeck(rng, pool) {
     const roto = c => c.pw >= ROTO_PW, deck = shuffle(rng, pool.filter(c => !roto(c))), top = shuffle(rng, pool.filter(roto));
     if (top.length && rng() < ROTO_P) deck.splice(rndi(rng, 0, Math.min(5, deck.length)), 0, top.shift());
@@ -211,13 +211,13 @@
        arise     Sung Jin-Woo: al empezar el duelo atacan sus sombras: 2 + 1 por rival derrotado (hasta 5)
        geass     Lelouch: una orden por persona: el primer ataque del rival se vuelve contra él
        eclipse   Griffith: 1 vez, en vez de caer, sacrifica al siguiente de su equipo y renace al 60 %
-       dnote     Light Yagami: escribe el nombre del rival al empezar. Light es un simple humano (no pelea, se esconde) y cae de un golpe,
-                 pero cuando cae (o pasan 40 s) al rival se le para el corazón: caen los dos. Nada lo para (solo God, que actúa antes).
+       dnote     Light Yagami: antes que nadie escribe el nombre del rival; el rival lo mata de un golpe (es un simple humano) y
+                 40 s después muere de un ataque al corazón. Caen los dos siempre: nada lo para, ni God, ni robarlo ni anularlo.
      Todo sale en el guion como golpes { k:'tr', tr:<clave>, a:<dueño> } para animarlo. */
   const TR = { INF: 2, TS: 2, UI: .18, TOLLE: .4, TOLLH: .1, DOMC: .5, DOMN: 4, DOMX: 1.4, RGHP: .6, RG: .07, RGN: 4, AD: .1, ADN: 4, GEN: 2, RAGEHP: .4, RAGEX: 1.3, SUNN: 4, SUNX: 1.5, SER: 3, SERX: .55,
     ULTRA: .22, EGO: 22, EGON: 6, HAKAI: .35, ERASE: .5, RWD: .15, CPN: 2, CLN: 3, CLX: .6, BURN: .04, BURNN: 8, MET: 2, GATEHP: .35, G5HP: .5, G5B: 70, G5H: .25, G5A: .12,
     ASC: .15, ASX: 2.4, QK: .5, HAKI: 200, MUGHP: .3, MUGB: 90, KYO: 2, SLASH: .05, BF: .15, BFU: .1, BFX: 2.5, JP: .12, JPN: 4, RBHP: .4, RBN: 3, ACK: 800, ACKX: .8,
-    GONHP: .3, GONB: 220, GONN: 3, GONP: 150, ROSE: .5, EMB: 90, EMH: .03, HKN: 3, ANTI: .6, ZWN: 1, MIH: .6, ECL: .6, GS: 1, DN: 6, HUMAN: 100, SHAD: 2, SHADN: 5, FC: .4 };
+    GONHP: .3, GONB: 220, GONN: 3, GONP: 150, ROSE: .5, EMB: 90, EMH: .03, HKN: 3, ANTI: .6, ZWN: 1, MIH: .6, ECL: .6, GS: 1, SHAD: 2, SHADN: 5, FC: .4 };
   const TROUPE = ['Chrollo Lucilfer', 'Uvogin', 'Feitan', 'Phinks', 'Nobunaga', 'Franklin', 'Machi', 'Shalnark', 'Pakunoda', 'Shizuku', 'Bonolenov', 'Kortopi', 'Kalluto']; // Brigada Fantasma (Kurapika)
   function duel(rng, A, B) {
     const fm = [0, 1].map(() => (rng() - .5) * 2 * AN.FORM), F = [A, B];
@@ -225,7 +225,6 @@
     const hp = F.map(c => c.f == null ? 1 : c.f), en = F.map(c => c.e == null ? 1 : c.e), aw = F.map(c => !!c.aw), bo = [0, 0], dmg = [0, 0], hits = [];
     const tr = F.map(c => c.tr || ''), has = (i, k) => tr[i] === k, pwOf = i => F[i].pw || 0;
     const X = [{}, {}], used = [{}, {}], dom = [0, 0], stun = [0, 0], acts = [0, 0], taken = [0, 0], inf = [0, 0];
-    let dn = null; // Death Note: { o: quien escribe, v: víctima, t: acciones que faltan para los 40 segundos }
     const S = (i, k) => base[i][k] + bo[i];
     const rec = o => { hits.push(Object.assign(o, { hp: hp.map(x => +x.toFixed(4)), en: en.map(x => +x.toFixed(3)) }, dom[0] || dom[1] ? { dz: [...dom] } : null)); return o; };
     const pA = () => {
@@ -371,8 +370,6 @@
     };
     const act = a => { const inDom = dom[a] > 0; turn(a); if (inDom) dom[a] = Math.max(0, dom[a] - 1); };
     const end = () => {
-      // Death Note: el nombre ya está escrito. Si cae quien lo escribió (o pasan los 40 s), a la víctima se le para el corazón. Nada lo para.
-      if (dn && hp[dn.v] > 0 && (hp[dn.o] <= 0 || dn.t <= 0)) { const v = hurt(dn.v, hp[dn.v]); rec({ a: dn.o, k: 'tr', tr: 'heart', dmg: +v.toFixed(4) }); }
       for (const i of [0, 1]) if (hp[i] <= 0 && has(i, 'rose') && !X[i].gone && hp[1 - i] > 0) { // Rosa del Pobre: cuando Netero cae, la bomba explota
         const g = guard(1 - i, TR.ROSE);
         if (g) { rec({ a: i, k: 'tr', tr: 'rose', dmg: 0 }); block(1 - i, g, i); }
@@ -381,6 +378,16 @@
       return { w: hp[0] > 0 ? 0 : hp[1] > 0 ? 1 : -1, hp, hits, en, aw, dmg, sac: X.map(x => !!x.sac) }; // w = -1: caen los dos
     };
     const KO = () => hp[0] <= 0 || hp[1] <= 0;
+    // DEATH NOTE: antes que nada (ni God llega a tiempo, y no se puede robar ni anular). Light escribe el nombre, el rival lo mata
+    // de un golpe porque es un simple humano y 40 segundos después al rival se le para el corazón. Siempre caen los dos.
+    const dw = tr.indexOf('dnote');
+    if (dw >= 0 && tr[1 - dw] !== 'dnote') {
+      const v = 1 - dw;
+      rec({ a: dw, k: 'tr', tr: 'dnote' });
+      const x = hurt(dw, hp[dw]); rec({ a: v, k: 'crit', crit: true, dmg: +x.toFixed(4), v: rndi(rng, 0, 5) });
+      const y = hurt(v, hp[v]); rec({ a: dw, k: 'tr', tr: 'heart', dmg: +y.toFixed(4) });
+      return end();
+    }
     // GOD: actúa primero y borra al rival de un solo toque (si los dos lo fueran, combate normal)
     const gd = tr.map(t => t === 'touch');
     if (gd[0] !== gd[1]) {
@@ -390,8 +397,8 @@
       rec({ a, k: 'spc', crit: true, dmg: +v.toFixed(4), v: 0 });
       return end();
     }
-    // al empezar el duelo, por este orden: anti-magia → Cadena del Juicio → Skill Hunter → Death Note → Haki / Borrar → el resto
-    for (const i of [0, 1]) { const o = 1 - i; if (has(i, 'anti') && tr[o] && tr[o] !== 'dnote') { rec({ a: i, k: 'tr', tr: 'anti', s: tr[o] }); tr[o] = ''; } }
+    // al empezar el duelo, por este orden: anti-magia → Cadena del Juicio → Skill Hunter → Haki / Borrar → el resto
+    for (const i of [0, 1]) { const o = 1 - i; if (has(i, 'anti') && tr[o]) { rec({ a: i, k: 'tr', tr: 'anti', s: tr[o] }); tr[o] = ''; } }
     for (const i of [0, 1]) {
       const o = 1 - i; if (!has(i, 'chain') || KO()) continue;
       if (TROUPE.includes(F[o].n)) { const v = hurt(o, hp[o]); rec({ a: i, k: 'tr', tr: 'chain', ko: 1, dmg: +v.toFixed(4) }); }
@@ -400,7 +407,6 @@
     if (KO()) return end();
     for (const i of [0, 1]) { const o = 1 - i; if (has(i, 'steal') && tr[o] && tr[o] !== 'touch') { rec({ a: i, k: 'tr', tr: 'steal', s: tr[o] }); tr[i] = tr[o]; tr[o] = ''; } }
     for (const i of [0, 1]) inf[i] = has(i, 'inf') ? TR.INF : 0;
-    for (const i of [0, 1]) if (has(i, 'dnote')) { dn = { o: i, v: 1 - i, t: TR.DN }; rec({ a: i, k: 'tr', tr: 'dnote' }); }
     for (const i of [0, 1]) {
       const o = 1 - i; if (KO()) break;
       if (has(i, 'haki')) {
@@ -434,9 +440,8 @@
       }
     }
     if (KO()) return end();
-    const who = () => dn && pwOf(dn.o) < TR.HUMAN ? dn.v : rng() < pA() ? 0 : 1; // un simple humano con el Death Note no pelea: se esconde y espera
-    while (hp[0] > 0 && hp[1] > 0 && hits.length < AN.CAP && !(dn && dn.t <= 0)) { act(who()); if (dn) dn.t--; }
-    if (hp[0] > 0 && hp[1] > 0 && !(dn && dn.t <= 0)) { // tope de golpes: el que va peor cae con un último golpe
+    while (hp[0] > 0 && hp[1] > 0 && hits.length < AN.CAP) act(rng() < pA() ? 0 : 1);
+    if (hp[0] > 0 && hp[1] > 0) { // tope de golpes: el que va peor cae con un último golpe
       const l = hp[0] < hp[1] ? 0 : hp[1] < hp[0] ? 1 : +(rng() < .5), v = hurt(l, hp[l]);
       rec({ a: 1 - l, k: 'crit', crit: true, dmg: +v.toFixed(4), v: rndi(rng, 0, 5) });
     }
