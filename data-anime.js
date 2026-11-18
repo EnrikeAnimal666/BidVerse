@@ -42,7 +42,6 @@ const R=[
 ["Jiraiya","🐸",430,140,"Naruto","Toad Sage Mode"],
 ["Ace","🌋",360,15,"One Piece","Fire Fist at Marineford","Portgas D. Ace|Portgas"],
 ["Yuji","🐯",450,340,"Jujutsu Kaisen","Chained Black Flashes","Itadori"],
-["Yusuke","👻",360,200,"Yu Yu Hakusho","Spirit Gun and demon blood","Yusuke Urameshi"],
 ["Yami","🌑",350,230,"Black Clover","Dark magic and ki","Yami Sukehiro"],
 ["Gaara","🏜️",420,40,"Naruto","Giant Sand Coffin and Burial"],
 ["Law","🩺",340,180,"One Piece","Room: combat surgery","Trafalgar"],
@@ -50,13 +49,11 @@ const R=[
 ["Megumi","🐕",410,220,"Jujutsu Kaisen","Mahoraga and Chimera Shadow Garden","Megumi Fushiguro"],
 ["Genos","🤖",330,200,"One Punch Man","Incineration Cannon"],
 ["Akaza","🥊",320,280,"Demon Slayer","Upper Moon 3: Compass Needle"],
-["Hiei","🖤",320,270,"Yu Yu Hakusho","Dragon of the Darkness Flame"],
 ["Armin","📘",300,200,"Attack on Titan","Colossal Titan: steam blast","Armin Arlert"],
 ["Gon","🎣",300,105,"Hunter x Hunter","Adult Jajanken","Gon Freecss"],
 ["Noelle","💦",300,210,"Black Clover","Water Valkyrie Armor","Noelle Silva"],
 ["Toji","🥷",430,150,"Jujutsu Kaisen","No cursed energy, killed sorcerers","Toji Fushiguro|Touji Fushiguro"],
 ["Giyu","💧",290,205,"Demon Slayer","Water Hashira","Giyuu Tomioka|Giyu Tomioka"],
-["Kurama","🌹",290,340,"Yu Yu Hakusho","Rose Whip","Youko Kurama|Kurama"],
 ["Hisoka","🃏",280,330,"Hunter x Hunter","Bungee Gum and Texture Surprise","Hisoka Morow"],
 ["Killua","🌠",280,215,"Hunter x Hunter","Electric Godspeed","Killua Zoldyck"],
 ["Rengoku","🦁",280,20,"Demon Slayer","Flame Hashira: Ninth Form","Kyoujurou Rengoku|Rengoku"],
@@ -143,12 +140,46 @@ const R=[
 ["C.C.","🍕",230,120,"Code Geass","Code bearer: immortal, survives anything and grants Geass","C.C.|CC"],
 ["Absolute Being","🌌",800,215,"Solo Leveling","God of Solo Leveling: creator of the Rulers and the Monarchs","Absolute Being"],
 ["Buddha","🪷",510,45,"Record of Ragnarok","Six Realms Staff and future sight: defeated Zerofuku and Hajun","Buddha|Shaka"],
+["Kinji Hakari","🎰",450,150,"Jujutsu Kaisen","Jackpot: 4 min 11 s of infinite cursed energy and instant regeneration","Kinji Hakari"],
+["Yorozu","🕷️",450,330,"Jujutsu Kaisen","Construction: the True Sphere and her domain against Sukuna","Yorozu"],
+["Uraume","🧊",420,200,"Jujutsu Kaisen","Ice Formation: Frost Calm freezes a whole battlefield","Uraume"],
+["Fumihiko Takaba","🎤",430,60,"Jujutsu Kaisen","Comedian: whatever he finds funny becomes real; held off Kenjaku","Fumihiko Takaba"],
+["Takako Uro","🌌",400,210,"Jujutsu Kaisen","Sky Manipulation: bends the sky itself like a sheet","Takako Uro"],
+["Dagon","🐙",400,190,"Jujutsu Kaisen","Horizon of the Captivating Skandha: endless shikigami inside his domain","Dagon"],
+["Hana Kurusu","😇",390,50,"Jujutsu Kaisen","Angel's Jacob's Ladder: erases any cursed technique","Hana Kurusu"],
+["Hanami","🌳",380,110,"Jujutsu Kaisen","Disaster curse: took Gojo's blows and kept fighting","Hanami"],
+["Naoya Zenin","🎞️",380,40,"Jujutsu Kaisen","Projection Sorcery: 24 frames per second, faster than sound","Naoya Zenin"],
+["Naobito Zenin","🍶",370,30,"Jujutsu Kaisen","Head of the Zenin clan: the fastest sorcerer in Jujutsu","Naobito Zenin"],
+["Mei Mei","🐦",340,260,"Jujutsu Kaisen","Bird Strike: a kamikaze crow at full power","Mei Mei"],
+["Toge Inumaki","🍙",300,230,"Jujutsu Kaisen","Cursed Speech: a single word can stop or kill","Toge Inumaki"],
+["Nobara Kugisaki","🔨",270,340,"Jujutsu Kaisen","Straw Doll Technique: Resonance strikes the soul","Nobara Kugisaki"],
+["Kaguya Otsutsuki","🌕",780,200,"Naruto","Rabbit Goddess: jumps between dimensions and cast the Infinite Tsukuyomi","Kaguya Ootsutsuki|Kaguya Otsutsuki"],
+["Might Guy","🥋",560,120,"Naruto","Eight Gates, Night Guy: nearly killed Ten-Tails Madara","Might Guy|Gai Maito"],
+["Shisui Uchiha","🪶",470,0,"Naruto","Kotoamatsukami: controls minds without the victim noticing","Shisui Uchiha"],
+["Kabuto","👓",470,280,"Naruto","Sage Mode and Edo Tensei: only Izanami could stop him","Kabuto Yakushi"],
+["Onoki","🪨",450,30,"Naruto","Dust Release: atomizes anything it touches","Oonoki|Onoki"],
+["Fourth Raikage","🌩️",450,45,"Naruto","Lightning Release Armor: fast enough to rival Minato","A|Raikage"],
+["Hiruzen Sarutobi","🐒",430,0,"Naruto","The Professor: mastered every Konoha jutsu, sealed Orochimaru's arms","Hiruzen Sarutobi"],
+["Danzo","🩹",400,0,"Naruto","Ten Sharingan arm: Izanagi to cheat death","Danzou Shimura|Danzo Shimura"],
+["Deidara","💥",390,50,"Naruto","Explosion Release: art is an explosion, C0","Deidara"],
+["Konan","📄",370,230,"Naruto","600 billion explosive tags against Obito","Konan"],
+["Nanika","🖤",620,0,"Hunter x Hunter","Grants any wish: can kill anyone with a single request","Nanika|Alluka Zoldyck"],
+["Menthuthuyoupi","😡",410,10,"Hunter x Hunter","Royal Guard: Rage Blast and a monstrous aura","Menthuthuyoupi"],
+["Neferpitou","🐱",400,0,"Hunter x Hunter","Royal Guard: Terpsichora and Doctor Blythe","Neferpitou"],
+["Zeno Zoldyck","🐉",380,210,"Hunter x Hunter","Dragon Dive: rains dragon heads over an entire area","Zeno Zoldyck"],
+["Silva Zoldyck","🐺",370,230,"Hunter x Hunter","Zoldyck patriarch: Nen orbs that shred the Phantom Troupe","Silva Zoldyck"],
+["Shaiapouf","🎻",350,300,"Hunter x Hunter","Royal Guard: Beelzebub and Spiritual Message","Shaiapouf"],
+["Illumi Zoldyck","📍",330,270,"Hunter x Hunter","Needles that control bodies and minds","Illumi Zoldyck"],
+["Lucius Zogratis","👼",720,45,"Black Clover","Soul and Time Magic: creates Paladins and planned the end of the world","Lucius Zogratis"],
+["Lucifero","👿",650,0,"Black Clover","Supreme devil: Gravity Magic that crushes kingdoms","Lucifero"],
+["Dante Zogratis","🫀",440,350,"Black Clover","Body Magic: regenerates from almost nothing","Dante Zogratis"],
+["Mereoleona","🦁",410,15,"Black Clover","Flame Magic: Calidos Brachium Purgatory","Mereoleona Vermillion"],
 ["God","✨",1000,48,"JoJo's Bizarre Adventure","Absolute being: erases anyone with a single touch","God"]
 ];
 // Perfil de combate (reparte las estadísticas alrededor del poder): B bruto, S veloz, T técnico, M energía, D resistente, U astuto; sin marcar = equilibrado.
-const PROF={"B": ["Yujiro Hanma", "Zeus", "Thor", "Saitama", "Eren", "Luffy", "Whitebeard", "Kaido", "Kenpachi", "Asta", "Yuji", "Akaza", "Gon", "Todo", "Maki", "Broly", "Tsunade", "Killer B", "Uvogin", "Phinks", "Escanor", "Yuki Tsukumo", "Jotaro Kujo"], "S": ["Netero", "Sanji", "Hiei", "Toji", "Killua", "Zenitsu", "Inosuke", "Levi", "Mikasa", "Whis", "Minato", "Feitan", "Enrico Pucci", "Dio Brando", "Diavolo"], "T": ["Buddha", "Suzaku", "Lu Bu", "Guts", "Garou", "Sung Jin-Woo", "Sasuke", "Ichigo", "Sukuna", "Shanks", "Mihawk", "Byakuya", "Zoro", "Renji", "Yami", "Giyu", "Rengoku", "Nanami", "Tanjiro", "Gintoki", "King Bradley"], "M": ["Absolute Being", "Griffith", "Frieza", "Madara", "Boros", "Gojo", "Tatsumaki", "Mob", "Yuno", "Jiraiya", "Ace", "Yusuke", "Genos", "Noelle", "Roy Mustang", "Zeno", "Grand Priest", "Beerus", "Pain", "Julius", "Jogo", "Father", "Van Hohenheim", "Demon King", "Zeldris", "Hajime Kashimo", "Ryu Ishigori", "Hagoromo Otsutsuki"], "D": ["C.C.", "Kaneki", "Cell", "Meruem", "Gaara", "Muzan", "Denji", "Reiner", "Nezuko", "Hashirama", "Kisame", "Mahoraga", "Kars", "Josuke Higashikata", "Ban"], "U": ["Lelouch", "Adam", "Rick Sanchez", "Aizen", "Itachi", "Kakashi", "Law", "Megumi", "Armin", "Kurama", "Hisoka", "Kurapika", "Nami", "Reigen", "Obito", "Orochimaru", "Yuta", "Geto", "Mahito", "Choso", "Truth", "Pride", "Giorno Giovanna", "Yoshikage Kira", "Joseph Joestar", "Jolyne Cujoh", "Chrollo Lucilfer", "Kenjaku", "Hiromi Higuruma", "Tobirama Senju"]};
+const PROF={"B": ["Mereoleona", "Lucifero", "Silva Zoldyck", "Menthuthuyoupi", "Might Guy", "Kinji Hakari", "Yujiro Hanma", "Zeus", "Thor", "Saitama", "Eren", "Luffy", "Whitebeard", "Kaido", "Kenpachi", "Asta", "Yuji", "Akaza", "Gon", "Todo", "Maki", "Broly", "Tsunade", "Killer B", "Uvogin", "Phinks", "Escanor", "Yuki Tsukumo", "Jotaro Kujo"], "S": ["Neferpitou", "Fourth Raikage", "Shisui Uchiha", "Naobito Zenin", "Naoya Zenin", "Netero", "Sanji", "Toji", "Killua", "Zenitsu", "Inosuke", "Levi", "Mikasa", "Whis", "Minato", "Feitan", "Enrico Pucci", "Dio Brando", "Diavolo"], "T": ["Zeno Zoldyck", "Konan", "Hiruzen Sarutobi", "Nobara Kugisaki", "Mei Mei", "Takako Uro", "Uraume", "Buddha", "Suzaku", "Lu Bu", "Guts", "Garou", "Sung Jin-Woo", "Sasuke", "Ichigo", "Sukuna", "Shanks", "Mihawk", "Byakuya", "Zoro", "Renji", "Yami", "Giyu", "Rengoku", "Nanami", "Tanjiro", "Gintoki", "King Bradley"], "M": ["Lucius Zogratis", "Nanika", "Deidara", "Onoki", "Kaguya Otsutsuki", "Dagon", "Yorozu", "Absolute Being", "Griffith", "Frieza", "Madara", "Boros", "Gojo", "Tatsumaki", "Mob", "Yuno", "Jiraiya", "Ace", "Genos", "Noelle", "Roy Mustang", "Zeno", "Grand Priest", "Beerus", "Pain", "Julius", "Jogo", "Father", "Van Hohenheim", "Demon King", "Zeldris", "Hajime Kashimo", "Ryu Ishigori", "Hagoromo Otsutsuki"], "D": ["Dante Zogratis", "Hanami", "C.C.", "Kaneki", "Cell", "Meruem", "Gaara", "Muzan", "Denji", "Reiner", "Nezuko", "Hashirama", "Kisame", "Mahoraga", "Kars", "Josuke Higashikata", "Ban"], "U": ["Illumi Zoldyck", "Shaiapouf", "Danzo", "Kabuto", "Toge Inumaki", "Hana Kurusu", "Fumihiko Takaba", "Lelouch", "Adam", "Rick Sanchez", "Aizen", "Itachi", "Kakashi", "Law", "Megumi", "Armin", "Hisoka", "Kurapika", "Nami", "Reigen", "Obito", "Orochimaru", "Yuta", "Geto", "Mahito", "Choso", "Truth", "Pride", "Giorno Giovanna", "Yoshikage Kira", "Joseph Joestar", "Jolyne Cujoh", "Chrollo Lucilfer", "Kenjaku", "Hiromi Higuruma", "Tobirama Senju"]};
 // Rasgos (habilidad propia en el combate; las reglas están en engine.js → RASGOS).
-const TRAITS={"touch":["God"],"inf":["Gojo"],"time":["Dio Brando","Jotaro Kujo","Enrico Pucci"],"ui":["Buddha", "Goku","Whis","Diavolo","Killua"],"req":["Giorno Giovanna"],"serious":["Saitama"],"toll":["Truth"],"domain":["Sukuna","Yuta","Mahito","Jogo","Hiromi Higuruma","Kenjaku","Megumi"],"regen":["C.C.", "Cell","Hashirama","Kars","Muzan","Kaneki","Piccolo","Ban","Father","Tsunade","Nezuko"],"adapt":["Mahoraga","Meruem"],"gen":["Lelouch", "Itachi","Aizen"],"rage":["Guts","Kenpachi","Broly","Yujiro Hanma"],"sun":["Escanor"]};
+const TRAITS={"touch":["God"],"inf":["Gojo"],"time":["Lucius Zogratis","Dio Brando","Jotaro Kujo","Enrico Pucci"],"ui":["Buddha", "Goku","Whis","Diavolo","Killua"],"req":["Danzo","Fumihiko Takaba","Giorno Giovanna"],"serious":["Saitama"],"toll":["Nanika","Truth"],"domain":["Dagon","Yorozu","Sukuna","Yuta","Mahito","Jogo","Hiromi Higuruma","Kenjaku","Megumi"],"regen":["Dante Zogratis","Neferpitou","Kabuto","Kinji Hakari","C.C.", "Cell","Hashirama","Kars","Muzan","Kaneki","Piccolo","Ban","Father","Tsunade","Nezuko"],"adapt":["Mahoraga","Meruem"],"gen":["Illumi Zoldyck","Shisui Uchiha","Kaguya Otsutsuki","Toge Inumaki","Lelouch", "Itachi","Aizen"],"rage":["Mereoleona","Menthuthuyoupi","Guts","Kenpachi","Broly","Yujiro Hanma"],"sun":["Might Guy","Escanor"]};
 const TRA={};for(const k in TRAITS)TRAITS[k].forEach(n=>TRA[n]=k);
 const PR={};for(const k in PROF)PROF[k].forEach(n=>PR[n]=k);
 const POOLS={anime:R.map(([n,e,pw,h,a,f,q])=>({n,e,pw,h,a,f,q:q||n,pr:PR[n]||'A',img:IMG0[n]||"",kind:'anime',tr:TRA[n]||''}))};// Técnicas especiales (se ven en el combate cuando el personaje gasta ki). "a|b" = varias; MOVES_ES solo donde el nombre cambia en español.
@@ -161,10 +192,10 @@ const MOVES={"Saitama":"Serious Punch|Consecutive Normal Punches","Goku":"Kameha
 "Kenpachi":"Nozarashi|Kendō Slash","Itachi":"Amaterasu|Totsuka Blade","Tatsumaki":"Psychic Tornado|Meteor Pull","Meruem":"Photon|Royal Tail Strike","Mob":"???%|Psychic Explosion",
 "Netero":"Hundred-Type Guanyin|Zero Hand","Sanji":"Ifrit Jambe|Diable Jambe","Renji":"Hihiō Zabimaru|Hikotsu Taihō","Yuno":"Spirit Storm|Star Magic",
 "Asta":"Black Divider|Demon Destroyer","Kakashi":"Raikiri|Kamui","Jiraiya":"Giant Rasengan|Toad Oil Flame Bomb","Ace":"Hiken|Entei","Yuji":"Black Flash|Divergent Fist",
-"Yusuke":"Spirit Gun|Spirit Shotgun","Yami":"Dimension Slash|Black Moon","Gaara":"Sand Burial|Sand Tsunami","Law":"Gamma Knife|Shambles","Muzan":"Whip Arms|Blood Demon Art",
+"Yami":"Dimension Slash|Black Moon","Gaara":"Sand Burial|Sand Tsunami","Law":"Gamma Knife|Shambles","Muzan":"Whip Arms|Blood Demon Art",
 "Megumi":"Divine Dog: Totality|Chimera Shadow Garden","Genos":"Incineration Cannon|Machine Gun Blow","Akaza":"Destructive Death: Compass Needle|Annihilation Type",
-"Hiei":"Dragon of the Darkness Flame|Black Dragon Wave","Armin":"Colossal Blast","Gon":"Jajanken: Rock","Noelle":"Sea Dragon's Roar|Valkyrie Armor",
-"Toji":"Inverted Spear of Heaven|Playful Cloud","Giyu":"Dead Calm|Constant Flux","Kurama":"Rose Whip|Death Tree","Hisoka":"Bungee Gum|Texture Surprise",
+"Armin":"Colossal Blast","Gon":"Jajanken: Rock","Noelle":"Sea Dragon's Roar|Valkyrie Armor",
+"Toji":"Inverted Spear of Heaven|Playful Cloud","Giyu":"Dead Calm|Constant Flux","Hisoka":"Bungee Gum|Texture Surprise",
 "Killua":"Godspeed|Thunderbolt","Rengoku":"Ninth Form: Rengoku|Flame Tiger","Denji":"Chainsaw Rampage|Rev Up","Nanami":"Ratio Technique 7:3|Collapse",
 "Kurapika":"Chain Jail|Emperor Time","Reiner":"Armored Charge","Tanjiro":"Hinokami Kagura|Water Surface Slash","Nezuko":"Exploding Blood|Demon Kick",
 "Zenitsu":"Thunderclap and Flash|Honoikazuchi no Kami","Inosuke":"Beast Breathing: Crazy Cutting","Levi":"Thunder Spear|Spinning Slash","Roy Mustang":"Flame Alchemy|Snap",
@@ -192,11 +223,11 @@ const MOVES_ES={"Saitama":"Puñetazo Serio|Golpes Normales Consecutivos","Goku":
 "Sukuna":"Santuario Malévolo|Fuga","Gojo":"Púrpura Hueco|Vacío Infinito","Whitebeard":"Gura Gura: Kaishin|Maremoto","Shanks":"Kamusari|Haki del Rey","Kaido":"Raimei Hakke|Aliento Boro",
 "Mihawk":"Yoru: Tajo en Cruz","Kenpachi":"Nozarashi|Tajo Kendō","Itachi":"Amaterasu|Espada de Totsuka","Tatsumaki":"Tornado Psíquico|Lluvia de Meteoros","Meruem":"Photon|Coletazo Real",
 "Mob":"???%|Explosión Psíquica","Netero":"Bodhisattva de Cien Formas|Mano Cero","Yuno":"Tormenta Espiritual|Magia Estelar","Asta":"Divisor Negro|Destructora Demoníaca",
-"Jiraiya":"Ōdama Rasengan|Bomba de Aceite de Sapo","Yuji":"Destello Negro|Puño Divergente","Yusuke":"Pistola Espiritual|Escopeta Espiritual","Yami":"Corte Dimensional|Luna Negra",
+"Jiraiya":"Ōdama Rasengan|Bomba de Aceite de Sapo","Yuji":"Destello Negro|Puño Divergente","Yami":"Corte Dimensional|Luna Negra",
 "Gaara":"Entierro de Arena|Tsunami de Arena","Muzan":"Brazos Látigo|Arte Demoníaco de Sangre","Megumi":"Perro Divino: Totalidad|Jardín de Sombras Quimera",
-"Genos":"Cañón Incinerador|Golpe Ametralladora","Akaza":"Muerte Destructiva: Aguja de Brújula|Tipo Aniquilación","Hiei":"Dragón de la Llama Oscura|Ola del Dragón Negro",
+"Genos":"Cañón Incinerador|Golpe Ametralladora","Akaza":"Muerte Destructiva: Aguja de Brújula|Tipo Aniquilación",
 "Armin":"Explosión Colosal","Gon":"Jajanken: Piedra","Noelle":"Rugido del Dragón Marino|Armadura Valquiria","Toji":"Lanza Celestial Invertida|Nube Juguetona",
-"Giyu":"Calma Absoluta|Flujo Constante","Kurama":"Látigo de Rosas|Árbol de la Muerte","Hisoka":"Goma Elástica|Texture Surprise","Killua":"Velocidad Divina|Relámpago",
+"Giyu":"Calma Absoluta|Flujo Constante","Hisoka":"Goma Elástica|Texture Surprise","Killua":"Velocidad Divina|Relámpago",
 "Rengoku":"Novena Postura: Rengoku|Tigre de Fuego","Denji":"Furia Motosierra|A Todo Gas","Nanami":"Técnica de Proporción 7:3|Derrumbe","Kurapika":"Cadena Prisión|Tiempo del Emperador",
 "Reiner":"Carga Acorazada","Tanjiro":"Hinokami Kagura|Corte de la Superficie del Agua","Nezuko":"Sangre Explosiva|Patada Demoníaca","Zenitsu":"Trueno y Destello|Honoikazuchi no Kami",
 "Inosuke":"Respiración de la Bestia: Corte Loco","Levi":"Lanza Relámpago|Corte Giratorio","Roy Mustang":"Alquimia de Fuego|Chasquido","Gintoki":"Golpe de Bokken","Mikasa":"Corte Ackerman",
@@ -217,4 +248,6 @@ const MOVES_ES={"Saitama":"Puñetazo Serio|Golpes Normales Consecutivos","Goku":
 "Killer B":"Bijūdama|Lariat"};
 Object.assign(MOVES,{"Lelouch":"Geass: Absolute Obedience|Shinkirō: Absolute Defense Territory","Suzaku":"Energy Wings|VARIS Rifle","C.C.":"Code of Immortality|Shock Image","Absolute Being":"Creation|Fragments of Light","Buddha":"Six Realms Staff|Great Nirvana Sword Zero"});
 Object.assign(MOVES_ES,{"Lelouch":"Geass: Obediencia Absoluta|Shinkirō: Territorio de Defensa Absoluta","Suzaku":"Alas de Energía|Rifle VARIS","C.C.":"Código de la Inmortalidad|Imagen de Choque","Absolute Being":"Creación|Fragmentos de Luz","Buddha":"Bastón de los Seis Reinos|Gran Espada Nirvana Cero"});
+Object.assign(MOVES,{"Kinji Hakari":"Idle Death Gamble|Rough Energy","Yorozu":"True Sphere|Threefold Affliction","Uraume":"Frost Calm|Ice Fall","Fumihiko Takaba":"Comedian|Tsukkomi","Takako Uro":"Thin Ice Breaker|Sky Manipulation","Dagon":"Horizon of the Captivating Skandha|Death Swarm","Hana Kurusu":"Jacob's Ladder|Light of Extinction","Hanami":"Cursed Buds|Flower Field","Naoya Zenin":"Projection Sorcery|Time Cell Moon Palace","Naobito Zenin":"Projection Sorcery|Rapid Strikes","Mei Mei":"Bird Strike|Battle Axe","Toge Inumaki":"Don't Move!|Blast Away!","Nobara Kugisaki":"Resonance|Hairpin","Kaguya Otsutsuki":"All-Killing Ash Bones|Expansive Truth-Seeking Ball","Might Guy":"Night Guy|Evening Elephant","Shisui Uchiha":"Kotoamatsukami|Body Flicker","Kabuto":"Edo Tensei|White Rage","Onoki":"Detachment of the Primitive World|Weighted Boulder","Fourth Raikage":"Lariat|Liger Bomb","Hiruzen Sarutobi":"Reaper Death Seal|Monkey King Enma","Danzo":"Izanagi|Vacuum Blade","Deidara":"C4 Karura|C0","Konan":"Paper Person of God|Paper Shuriken","Nanika":"Wish|Ai","Menthuthuyoupi":"Rage Blast|Metamorphosis","Neferpitou":"Terpsichora|Doctor Blythe","Zeno Zoldyck":"Dragon Dive|Dragon Head","Silva Zoldyck":"Nen Orbs|Assassin Strike","Shaiapouf":"Beelzebub|Spiritual Message","Illumi Zoldyck":"Needle Manipulation|Needle People","Lucius Zogratis":"Paladin Creation|Chronostasis","Lucifero":"Gravity Magic|Gravity Singularity","Dante Zogratis":"Body Magic: Regeneration|Black Hole","Mereoleona":"Calidos Brachium Purgatory|Leo Rugiens"});
+Object.assign(MOVES_ES,{"Kinji Hakari":"Apuesta Mortal Ociosa|Energía Áspera","Yorozu":"Esfera Verdadera|Aflicción Triple","Uraume":"Calma Gélida|Caída de Hielo","Fumihiko Takaba":"Comediante|Tsukkomi","Takako Uro":"Rompehielo Fino|Manipulación del Cielo","Dagon":"Horizonte del Skandha Cautivador|Enjambre Mortal","Hana Kurusu":"Escalera de Jacob|Luz de Extinción","Hanami":"Brotes Malditos|Campo de Flores","Naoya Zenin":"Hechicería de Proyección|Palacio Lunar de Celdas Temporales","Naobito Zenin":"Hechicería de Proyección|Golpes Veloces","Mei Mei":"Ataque de Pájaro|Hacha de Batalla","Toge Inumaki":"¡No te muevas!|¡Revienta!","Nobara Kugisaki":"Resonancia|Horquilla","Kaguya Otsutsuki":"Huesos de Ceniza Asesinos|Gran Esfera Buscadora de la Verdad","Might Guy":"Night Guy|Elefante del Atardecer","Shisui Uchiha":"Kotoamatsukami|Shunshin","Kabuto":"Edo Tensei|Furia Blanca","Onoki":"Separación del Mundo Primitivo|Roca Pesada","Fourth Raikage":"Lariat|Liger Bomb","Hiruzen Sarutobi":"Sello del Dios de la Muerte|Rey Mono Enma","Danzo":"Izanagi|Hoja de Vacío","Deidara":"C4 Karura|C0","Konan":"Papel Divino|Shuriken de Papel","Nanika":"Deseo|Ai","Menthuthuyoupi":"Explosión de Ira|Metamorfosis","Neferpitou":"Terpsichora|Doctor Blythe","Zeno Zoldyck":"Inmersión del Dragón|Cabeza de Dragón","Silva Zoldyck":"Orbes de Nen|Golpe Asesino","Shaiapouf":"Belcebú|Mensaje Espiritual","Illumi Zoldyck":"Agujas Controladoras|Gente Aguja","Lucius Zogratis":"Creación de Paladines|Cronostasis","Lucifero":"Magia de Gravedad|Singularidad Gravitatoria","Dante Zogratis":"Magia Corporal: Regeneración|Agujero Negro","Mereoleona":"Calidos Brachium Purgatorio|Leo Rugiens"});
 POOLS.anime.forEach(c=>{c.mv=(MOVES[c.n]||'').split('|').filter(Boolean);c.mvEs=(MOVES_ES[c.n]||MOVES[c.n]||'').split('|').filter(Boolean)});

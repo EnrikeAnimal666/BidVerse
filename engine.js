@@ -24,7 +24,7 @@
   const pick = (rng, a) => a[rndi(rng, 0, a.length - 1)];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   // Rareza (solo anime): los dioses casi no salen y los más fuertes salen la mitad de veces. Orden ponderado (Efraimidis-Spirakis).
-  const rarity = c => c.pw >= 950 ? .12 : c.pw >= 900 ? .5 : 1;
+  const rarity = c => c.pw >= 950 ? 3 : c.pw >= 900 ? 2 : 1; // los rotos (God, Zeno…) salen 3 veces más que uno normal; los de 900+ el doble
   const wshuffle = (rng, a, w) => a.map(c => ({ c, k: Math.pow(rng(), 1 / w(c)) })).sort((x, y) => y.k - x.k).map(x => x.c);
   const shuffle = (rng, a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 

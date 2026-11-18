@@ -225,7 +225,7 @@ function lineup(o){ // o: { me: null (local) | 0 | 1, ms?, done?, send? } → en
     const el=document.createElement('div');el.className='modal open lu';document.body.appendChild(el);
     const end=o.ms?Date.now()+o.ms:0;
     LU={el,ready,paint:null,clock:0};
-    const card=(p,i,k,ctl)=>{const c=P[p].c[i];return `<li class="lu-c" style="--h:${c.h}"><span class="lu-n">${ctl||o.me==null?k+1:'?'}</span><span class="lu-av">${spr(c)}</span><span class="lu-t"><b>${dnh(c)}</b>${trBadge(c)}<small>${an(c.a)} · ${c.pw}</small></span>${ctl?`<span class="lu-mv"><button data-p="${p}" data-k="${k}" data-d="-1" ${k?'':'disabled'} aria-label="${luT('up')}">▲</button><button data-p="${p}" data-k="${k}" data-d="1" ${k<ord[p].length-1?'':'disabled'} aria-label="${luT('down')}">▼</button></span>`:''}</li>`};
+    const card=(p,i,k,ctl)=>{const c=P[p].c[i];return `<li class="lu-c" style="--h:${c.h}"><span class="lu-n">${ctl||o.me==null?k+1:'?'}</span><span class="lu-av">${spr(c)}</span><span class="lu-t"><b>${dnh(c)}</b>${trBadge(c)}<small>${an(c.a)}</small></span>${ctl?`<span class="lu-mv"><button data-p="${p}" data-k="${k}" data-d="-1" ${k?'':'disabled'} aria-label="${luT('up')}">▲</button><button data-p="${p}" data-k="${k}" data-d="1" ${k<ord[p].length-1?'':'disabled'} aria-label="${luT('down')}">▼</button></span>`:''}</li>`};
     const col=p=>{const ctl=mine(p)&&!ready[p];return `<section class="lu-col" style="--c:var(--p${p+1});--on:var(--on${p+1})"><h4>${t('player',p+1)}</h4><ol>${ord[p].map((i,k)=>card(p,i,k,ctl)).join('')||'<li class="lu-c e">—</li>'}</ol>${mine(p)?`<button class="lu-go" data-go="${p}" ${ready[p]?'disabled':''}>${luT(ready[p]?'done':'ready')}</button>`:`<p class="lu-st${ready[p]?' ok':''}">${luT(ready[p]?'done':'waiting')}</p>`}</section>`};
     const paint=()=>{el.innerHTML=`<div class="mbox lu-box"><div class="mh"><h3>${luT('title')}</h3>${end?'<b class="lu-tm" id="lutm"></b>':''}</div><p class="lu-sub">${luT('sub')}</p><div class="lu-cols">${col(0)}${col(1)}</div></div>`;tm()};
     const tm=()=>{const e=el.querySelector('#lutm');if(e)e.textContent=Math.max(0,Math.ceil((end-Date.now())/1000))+'s'};
@@ -329,13 +329,13 @@ function abArena(){
 <div class="ab-log" id="ablog"></div></div>`;
 }
 // Elemento de las técnicas (solo cambia el color y el estilo del rayo). Sin elemento = color del jugador.
-const ELEM={fire:['Ace','Tanjiro','Feitan','Rengoku','Roy Mustang','Jogo','Escanor','Demon King'],
- bolt:['Sasuke','Minato','Hajime Kashimo','Zeus','Killua','Zenitsu','Thor','Killer B'],
- water:['Whitebeard','Giyu','Kisame','Noelle','Tobirama Senju'],
- dark:['Sung Jin-Woo','Yami','Pride','Muzan','Madara','Itachi','Obito','Sukuna','Mahito','Kenjaku','Geto','Dio Brando','Zeldris','Aizen','Choso','Father','Griffith','Meruem','Kaneki','Chrollo Lucilfer','Orochimaru','Pain'],
- light:['Giorno Giovanna','God','Grand Priest','Whis','Hagoromo Otsutsuki','Netero','Saitama','Van Hohenheim','Yuki Tsukumo'],
- void:['Gojo','Frieza','Beerus','Zeno','Truth','Rick Sanchez','Boros'],
- wind:['Naruto','Zoro','Yuno','Asta'],
+const ELEM={fire:['Mereoleona','Deidara','Ace','Tanjiro','Feitan','Rengoku','Roy Mustang','Jogo','Escanor','Demon King'],
+ bolt:['Fourth Raikage','Sasuke','Minato','Hajime Kashimo','Zeus','Killua','Zenitsu','Thor','Killer B'],
+ water:['Dagon','Uraume','Whitebeard','Giyu','Kisame','Noelle','Tobirama Senju'],
+ dark:['Lucifero','Dante Zogratis','Shisui Uchiha','Kabuto','Sung Jin-Woo','Yami','Pride','Muzan','Madara','Itachi','Obito','Sukuna','Mahito','Kenjaku','Geto','Dio Brando','Zeldris','Aizen','Choso','Father','Griffith','Meruem','Kaneki','Chrollo Lucilfer','Orochimaru','Pain'],
+ light:['Lucius Zogratis','Hana Kurusu','Nanika','Giorno Giovanna','God','Grand Priest','Whis','Hagoromo Otsutsuki','Netero','Saitama','Van Hohenheim','Yuki Tsukumo'],
+ void:['Kaguya Otsutsuki','Gojo','Frieza','Beerus','Zeno','Truth','Rick Sanchez','Boros'],
+ wind:['Danzo','Takako Uro','Naruto','Zoro','Yuno','Asta'],
  psy:['Tatsumaki','Mob','Broly','Hashirama']};
 const ELC={fire:['#ff6a00','#ffe08a'],bolt:['#5fd0ff','#ffffff'],water:['#1f7bff','#bfe9ff'],dark:['#8a2be2','#14021f'],light:['#ffc400','#fffbe6'],void:['#b13cff','#ffd1ff'],wind:['#39e6a0','#f0fff8'],psy:['#2bff6e','#e6ffe9']};
 const ELN={};for(const k in ELEM)ELEM[k].forEach(n=>ELN[n]=k);
