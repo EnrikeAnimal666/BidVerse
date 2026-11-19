@@ -1267,3 +1267,25 @@ body.inlobby .brand{justify-content:center!important}
 .ab-stage.tsk .ab-cv{filter:saturate(0) contrast(1.3) sepia(1) hue-rotate(-50deg) saturate(5)}
 .ab-stage.mug .ab-cv{filter:grayscale(1)}
 .ab-f.dust .ab-card,.ab-f.dust .ab-aura,.ab-f.dust .ab-shd{opacity:0!important;transition:opacity .12s}
+
+/* ================= CUENTAS Y RANKING ================= */
+.lgme{margin:4px 0 14px;font:700 .9rem/1.4 var(--mono);color:var(--ink)}
+.lgsw{margin:14px 0 0;text-align:center;font:600 .8rem var(--mono);color:var(--mut)}
+.lnk{all:unset;cursor:pointer;color:#ffb02e;font-weight:800;text-decoration:underline;text-underline-offset:3px}
+.lnk:focus-visible{outline:2px solid #ffb02e;outline-offset:2px}
+.mbox.rk{max-width:560px}
+.rkl{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.rkl li{display:grid;grid-template-columns:30px 40px minmax(0,1fr) auto;align-items:center;gap:10px;padding:7px 14px 7px 8px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.rkl li.me{background:rgba(255,176,46,.1);box-shadow:inset 0 0 0 1.5px #ffb02e}
+.rk-pos{font:900 1.25rem/1 var(--disp);text-align:center;color:var(--mut)}
+.rkl li.t1 .rk-pos{color:#ffd23f}.rkl li.t2 .rk-pos{color:#d5dbe6}.rkl li.t3 .rk-pos{color:#e0955a}
+.rkl li.t1 .rk-av{box-shadow:0 0 0 2px #ffd23f}.rkl li.t2 .rk-av{box-shadow:0 0 0 2px #d5dbe6}.rkl li.t3 .rk-av{box-shadow:0 0 0 2px #e0955a}
+.rk-av{width:40px;height:40px;display:grid;place-items:center;overflow:hidden;border-radius:50%;background:#1b1b20;font:800 1.1rem var(--serif);color:var(--ink)}
+.rk-nm{display:grid;gap:2px;min-width:0}
+.rk-nm b{font:800 1rem/1.15 var(--serif);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk-nm em{font:800 .58rem var(--mono);font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:#ffb02e}
+.rk-nm small{font:600 .68rem var(--mono);color:var(--mut)}
+.rk-pt{font:900 1.35rem/1 var(--disp);font-variant-numeric:tabular-nums;color:var(--ink)}
+.rk-me{margin-top:10px;padding-top:10px;border-top:1px dashed rgba(255,255,255,.2)}
+.rkmsg{margin:0;padding:22px 0;text-align:center;font:600 .85rem var(--mono);color:var(--mut)}
+.rkpts{margin:4px 0 14px;font:800 .95rem var(--mono);color:var(--ink)}.rkpts.up{color:#3ddc84}.rkpts.down{color:#ff6b5a}

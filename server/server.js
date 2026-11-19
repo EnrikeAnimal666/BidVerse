@@ -1,10 +1,11 @@
 'use strict';
-/* BidVerse · SERVIDOR (sin dependencias). Sirve la web y las partidas online.
+/* BidVerse · SERVIDOR. Sirve la web, las partidas online y la API de cuentas/ranking.
+   Base de datos: PostgreSQL si existe la variable DATABASE_URL (Render + Neon); si no, SQLite en server/data/bidverse.db.
    Uso:  node server/server.js            -> solo en tu ordenador: http://localhost:3000
          node server/server.js --lan      -> también visible para otros dispositivos de tu red local
          node server/server.js --port 8080 */
 const http = require('http'), fs = require('fs'), path = require('path'), os = require('os'), crypto = require('crypto');
-const ws = require('./ws.js'), { Hub } = require('./rooms.js');
+const ws = require('./ws.js'), { Hub } = require('./rooms.js'), DB = require('./db.js'), { makeApi } = require('./api.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.mp4': 'video/mp4', '.webm': 'video/webm', '.ico': 'image/x-icon' };
@@ -40,14 +41,16 @@ function staticHandler(req, res) {
   });
 }
 
-function create({ port = 3000, host = '127.0.0.1', speed = 1, maxPerIp = 12, allowedOrigins = [], trustProxy = false, maxRooms = 300 } = {}) {
+async function create({ port = 3000, host = '127.0.0.1', speed = 1, maxPerIp = 12, allowedOrigins = [], trustProxy = false, maxRooms = 300, dbFile } = {}) {
   const { pools, divs, futDivs } = loadPools();
   const rng = () => crypto.randomInt(0x100000000) / 0x100000000;
-  const hub = new Hub({ pools, divs, futDivs, rng, speed, maxRooms });
-  const server = http.createServer(staticHandler);
+  const store = await DB.open(dbFile ? { file: dbFile } : undefined); // cuentas, sesiones y partidas
+  const hub = new Hub({ pools, divs, futDivs, rng, speed, maxRooms, users: store });
+  const api = makeApi(store, { avOk: v => !!hub.cleanAv(v) });
+  const ipOf = req => (trustProxy && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress || '?';
+  const server = http.createServer((req, res) => req.url.startsWith('/api/') ? api(req, res, ipOf(req)) : staticHandler(req, res));
   server.requestTimeout = 15000; server.headersTimeout = 10000; server.maxHeadersCount = 40;
   const perIp = new Map();
-  const ipOf = req => (trustProxy && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress || '?';
 
   // Solo la propia web puede abrir el websocket desde un navegador (evita que otra página use la sesión de un jugador)
   const allowOrigin = (origin, hostHeader) => { try { return new URL(origin).host === hostHeader || allowedOrigins.includes(origin); } catch (e) { return false; } };
@@ -71,7 +74,7 @@ function create({ port = 3000, host = '127.0.0.1', speed = 1, maxPerIp = 12, all
     conn.on('close', () => { clearTimeout(hello); const n = (perIp.get(ip) || 1) - 1; n ? perIp.set(ip, n) : perIp.delete(ip); hub.disconnect(conn); });
   });
   const timer = setInterval(() => hub.step(100), 100);
-  return new Promise(resolve => server.listen(port, host, () => resolve({ server, hub, port: server.address().port, close: () => { clearInterval(timer); server.closeAllConnections?.(); server.close(); } })));
+  return new Promise(resolve => server.listen(port, host, () => resolve({ server, hub, db: store, port: server.address().port, close: () => { clearInterval(timer); server.closeAllConnections?.(); server.close(); store.close(); } })));
 }
 module.exports = { create };
 
@@ -85,6 +88,13 @@ if (require.main === module) {
     console.log('  En este ordenador:  http://localhost:' + s.port + (host === '0.0.0.0' && !lan ? '  (escuchando en 0.0.0.0)' : ''));
     if (lan) { for (const l of Object.values(os.networkInterfaces()).flat()) if (l && l.family === 'IPv4' && !l.internal) console.log('  En tu red local:    http://' + l.address + ':' + s.port); }
     else console.log('  (para que otros dispositivos de tu red entren, arráncalo con --lan)');
+    console.log('  Base de datos:      ' + s.db.kind + ' (' + s.db.where + ')');
     console.log('\n  Para pararlo: Ctrl+C\n');
-  }).catch(e => { console.error(e.code === 'EADDRINUSE' ? 'El puerto ' + port + ' ya está en uso. Prueba: node server/server.js --port 3001' : e); process.exit(1); });
+  }).catch(e => {
+    if (e.code === 'EADDRINUSE') console.error('El puerto ' + port + ' ya está en uso. Prueba: node server/server.js --port 3001');
+    else if (/^(Para la base|Falta el paquete)/.test(e.message || '')) console.error('\n  ' + e.message + '\n');
+    else if (process.env.DATABASE_URL && /ECONNREFUSED|ENOTFOUND|password|SSL|timeout/i.test(e.message || '')) console.error('\n  No se puede conectar con la base de datos PostgreSQL (revisa DATABASE_URL): ' + e.message + '\n');
+    else console.error(e);
+    process.exit(1);
+  });
 }

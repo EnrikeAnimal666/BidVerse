@@ -15,6 +15,7 @@
 <div class="hub">
 <p class="acct" id="acct"></p>
 <button class="cta p" id="hLogin" onclick="loginBtn()"></button>
+<button class="cta s" onclick="openRank()" data-m="rank">Ranking</button>
 <button class="cta s" onclick="openScale()" data-i="scaleBtn">Consultar escala de poder</button>
 </div>
 </div>
@@ -55,11 +56,19 @@
 <div id="olWait" style="display:none"><p data-i="olWaitText">Pasa este código…</p><div class="olcode" id="olCodeBig"></div><div class="olrow"><button class="go" onclick="olCopy()" data-i="olCopy">Copiar enlace</button><button class="skip" onclick="olCancel()" data-i="olCancel">Cancelar</button></div><p class="olok" id="olCopyOk"></p></div>
 <div id="olConn" style="display:none"><p data-m="connecting"></p><div class="olrow"><button class="skip" onclick="olCancel()" data-i="olCancel">Cancelar</button></div></div>
 <p class="olerr" id="olErr"></p></div></div>
-<div class="modal" id="login" onclick="if(event.target===this)closeLogin()"><div class="mbox ol prof"><div class="mh"><h3 data-m="loginTitle"></h3><button onclick="closeLogin()">✕</button></div>
-<label class="olf"><span data-m="user"></span><input id="lgName" maxlength="16" autocomplete="nickname" spellcheck="false" onkeydown="if(event.key==='Enter')doLogin()"></label>
-<div class="olf avf"><span data-m="avatar"></span><input id="avQ" type="search" autocomplete="off" spellcheck="false" data-mph="avSearch"><div class="avgrid" id="avGrid"></div><small class="avcur" id="avCur" aria-live="polite"></small></div>
-<p class="olerr" id="lgErr"></p>
-<div class="olrow"><button class="go" onclick="doLogin()" data-m="loginBtn"></button></div></div></div>
+<div class="modal" id="login" onclick="if(event.target===this)closeLogin()"><div class="mbox ol prof"><div class="mh"><h3 id="lgTitle"></h3><button type="button" onclick="closeLogin()">✕</button></div>
+<form id="lgForm" onsubmit="event.preventDefault();doLogin()">
+<p class="lgme" id="lgMe"></p>
+<label class="olf" id="lgUserF"><span data-m="user"></span><input id="lgName" name="username" maxlength="16" autocomplete="username" autocapitalize="off" spellcheck="false"></label>
+<label class="olf" id="lgPassF"><span data-m="pass"></span><input id="lgPass" name="password" type="password" maxlength="72" autocomplete="current-password"></label>
+<div class="olf avf" id="lgAvF"><span data-m="avatar"></span><input id="avQ" type="search" autocomplete="off" spellcheck="false" data-mph="avSearch" onkeydown="if(event.key==='Enter')event.preventDefault()"><div class="avgrid" id="avGrid"></div><small class="avcur" id="avCur" aria-live="polite"></small></div>
+<p class="olerr" id="lgErr" aria-live="polite"></p>
+<div class="olrow"><button class="go" id="lgGo" type="submit"></button><button class="skip" id="lgOut" type="button" onclick="doLogout()" data-m="logout"></button></div>
+<p class="lgsw" id="lgSwP"><span id="lgSwT"></span> <button type="button" class="lnk" id="lgSw" onclick="lgSwitch()"></button></p>
+</form></div></div>
+<div class="modal" id="rank" onclick="if(event.target===this)closeRank()"><div class="mbox rk"><div class="mh"><h3 data-m="rankTitle"></h3><button onclick="closeRank()">✕</button></div>
+<div class="tabs"><button data-rk="week" onclick="rankTab('week')" data-m="rkWeek"></button><button data-rk="all" onclick="rankTab('all')" data-m="rkAll"></button></div>
+<p class="mnote" id="rkNote"></p><div id="rkList"></div></div></div>
 <div id="netbar"></div>
 <div class="wipe" id="wipe"><span data-i="fightWipe">¡Combate!</span></div>
 <script src="data-anime.js"></script>

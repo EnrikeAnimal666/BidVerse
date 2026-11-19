@@ -34,7 +34,7 @@ class Room {
 
   startGame() {
     this.g = BE.create({ cat: this.cat, pool: this.hub.pools[this.cat], divs: this.cat === 'futbol' ? (this.hub.futDivs || BE.FUT_DIVS) : this.hub.divs, rng: this.hub.rng });
-    Object.assign(this, { phase: 'auction', time: 0, sched: null, ticking: false, pausedMs: 0, wantAgain: [false, false], fight: null });
+    Object.assign(this, { phase: 'auction', time: 0, sched: null, ticking: false, pausedMs: 0, wantAgain: [false, false], fight: null, scored: false });
     [0, 1].forEach(i => this.send(i, { t: 'start', cat: this.cat, names: this.names(), avs: this.avs(), you: i }));
     this.apply(BE.next(this.g), null);
   }
@@ -67,8 +67,21 @@ class Room {
   }
   fightNow() {
     this.phase = 'fight'; this.sched = null; this.ticking = false;
-    this.fight = Object.assign({ t: 'fight' }, BE.resolve(this.g)); // { kind: 'anime' | 'ufc' | 'futbol', script }
-    this.all(this.fight);
+    const f = Object.assign({ t: 'fight' }, BE.resolve(this.g)), g = this.g; // { kind: 'anime' | 'ufc' | 'futbol', script }
+    const w = f.kind === 'ufc' ? f.script.result.w : f.script.winner;        // 0 | 1 | -1 (empate)
+    this.fight = null; // se envía cuando la partida ya está guardada (la base de datos puede tardar un poco)
+    Promise.resolve(this.score(w, 'fight')).then(pts => {
+      if (this.g !== g || !this.hub.rooms.has(this.code)) return; // la sala ya no existe
+      f.pts = pts; this.fight = f; this.all(f); // pts = puntos del ranking: { d: [Δ jugador 1, Δ jugador 2], r: [puntos nuevos…] } o null
+    });
+  }
+  // Guarda la partida en la base de datos y reparte los puntos. Solo cuenta entre dos cuentas distintas y una vez por partida.
+  // Devuelve una promesa con los puntos, o null si la partida no cuenta.
+  score(w, reason) {
+    const users = this.hub.users, uids = this.players.map(s => s && s.uid);
+    if (!users || this.scored || !uids[0] || !uids[1] || uids[0] === uids[1]) return null;
+    this.scored = true;
+    return Promise.resolve().then(() => users.record({ cat: this.cat, uids, w, reason })).catch(e => { console.error('no se pudo guardar la partida:', e); return null; });
   }
 
   bid(s, amount) {
@@ -121,19 +134,24 @@ class Room {
   leave(s) {
     const i = this.idx(s); if (i < 0) return;
     const other = this.players[1 - i];
-    if (other) { this.send(1 - i, { t: 'peerleft' }); other.room = null; other.idx = -1; }
+    const p = other && (this.phase === 'auction' || this.phase === 'order') ? this.score(1 - i, 'leave') : null; // abandonar a mitad = derrota
+    if (other) { other.room = null; other.idx = -1; }
     s.room = null; s.idx = -1; this.hub.rooms.delete(this.code);
+    if (other) Promise.resolve(p).then(pts => { if (!other.room) this.send(1 - i, { t: 'peerleft', pts, you: 1 - i }); });
   }
-  abandon() {
-    this.all({ t: 'peerleft', timeout: true });
+  abandon() { // alguien no ha vuelto a tiempo: si solo falta uno, pierde él
+    const off = [0, 1].filter(i => !this.players[i] || !this.players[i].conn);
+    const p = off.length === 1 ? this.score(1 - off[0], 'timeout') : null;
+    Promise.resolve(p).then(pts => [0, 1].forEach(i => { const s = this.players[i]; if (s && !s.room) this.send(i, { t: 'peerleft', timeout: true, pts, you: i }); }));
     this.players.forEach(s => { if (s) { s.room = null; s.idx = -1; } });
     this.hub.rooms.delete(this.code);
   }
 }
 
 class Hub {
-  constructor({ pools, divs, futDivs, rng, speed = 1, maxRooms = 300, abandonMs = 90000, orderMs = 25000 }) {
-    Object.assign(this, { pools, divs, futDivs, rng, speed, maxRooms, abandonMs, orderMs, rooms: new Map(), sessions: new Map(), real: 0, sweep: 0 });
+  // users = base de datos de cuentas (server/db.js). Con ella, para crear o entrar en una sala hay que haber iniciado sesión.
+  constructor({ pools, divs, futDivs, rng, speed = 1, maxRooms = 300, abandonMs = 90000, orderMs = 25000, users = null }) {
+    Object.assign(this, { pools, divs, futDivs, rng, speed, maxRooms, abandonMs, orderMs, users, rooms: new Map(), sessions: new Map(), real: 0, sweep: 0 });
     this.avNames = new Set(((pools && pools.anime) || []).map(c => c.n)); // solo se aceptan avatares de esta lista
   }
   cleanAv(v) { return typeof v === 'string' && this.avNames.has(v) ? v : null; }
@@ -144,23 +162,35 @@ class Hub {
     }
     return null;
   }
-  hello(conn, msg) {
+  async hello(conn, msg) {
+    // cuenta con la sesión iniciada (o null). Se consulta antes que nada: la base de datos puede tardar y mientras tanto la conexión puede cerrarse
+    const acc = this.users && typeof msg.auth === 'string' ? await this.users.byToken(msg.auth).catch(e => { console.error('sesión:', e.message); return null; }) : null;
+    if (conn.open === false) return;
     let s = typeof msg.token === 'string' && /^[0-9a-f]{32}$/.test(msg.token) ? this.sessions.get(msg.token) : null;
     if (!s) {
       if (this.sessions.size >= 5000) return conn.send({ t: 'err', code: 'busy' });
       const name = cleanName(msg.name) || 'Invitado' + (100 + crypto.randomInt(900));
-      s = { token: crypto.randomBytes(16).toString('hex'), name, av: this.cleanAv(msg.av), room: null, idx: -1, conn: null, last: this.real };
+      s = { token: crypto.randomBytes(16).toString('hex'), name, av: this.cleanAv(msg.av), uid: null, room: null, idx: -1, conn: null, last: this.real };
       this.sessions.set(s.token, s);
     } else if (!s.room) {
       if (msg.name != null) { const n = cleanName(msg.name); if (n) s.name = n; }
       if (msg.av !== undefined) s.av = this.cleanAv(msg.av);
     }
+    if (!s.room) { // fuera de una partida, la cuenta manda: su nombre y su foto salen de la base de datos
+      s.uid = acc ? acc.id : null;
+      if (acc) { s.name = acc.name; s.av = this.cleanAv(acc.av); }
+    }
     if (s.conn && s.conn !== conn) { const old = s.conn; s.conn = null; old.send({ t: 'kicked' }); old.close(1000, 'other tab'); } // una sola pestaña por sesión
     s.conn = conn; conn.sess = s; s.last = this.real;
-    conn.send({ t: 'welcome', token: s.token, name: s.name });
+    conn.send({ t: 'welcome', token: s.token, name: s.name, user: s.uid ? s.name : null });
     if (s.room) s.room.rejoin(s);
   }
+  // Los mensajes de cada conexión se atienden en orden: el 'hello' (que consulta la base de datos) termina antes de mirar el siguiente
   handle(conn, msg) {
+    conn.q = (conn.q || Promise.resolve()).then(() => this.handleNow(conn, msg)).catch(e => { console.error('error en mensaje:', e); conn.send({ t: 'err', code: 'server' }); });
+    return conn.q;
+  }
+  handleNow(conn, msg) {
     if (!msg || typeof msg !== 'object' || typeof msg.t !== 'string') return;
     if (msg.t === 'hello') return this.hello(conn, msg);
     const s = conn.sess; if (!s) return conn.send({ t: 'err', code: 'noHello' });
@@ -168,6 +198,7 @@ class Hub {
     switch (msg.t) {
       case 'create': {
         if (s.room) return conn.send({ t: 'err', code: 'inRoom' });
+        if (this.users && !s.uid) return conn.send({ t: 'err', code: 'needLogin' });
         if (!CATS.includes(msg.cat)) return conn.send({ t: 'err', code: 'badCat' });
         if (this.rooms.size >= this.maxRooms) return conn.send({ t: 'err', code: 'busy' });
         const code = this.newCode(); if (!code) return conn.send({ t: 'err', code: 'busy' });
@@ -177,10 +208,12 @@ class Hub {
       case 'join': {
         const code = typeof msg.code === 'string' ? msg.code.trim().toUpperCase() : '';
         if (s.room) return conn.send({ t: 'err', code: 'inRoom' });
+        if (this.users && !s.uid) return conn.send({ t: 'err', code: 'needLogin' });
         if (!CODE_RE.test(code)) return conn.send({ t: 'err', code: 'noRoom' });
         const r = this.rooms.get(code);
         if (!r) return conn.send({ t: 'err', code: 'noRoom' });
         if (r.players[1]) return conn.send({ t: 'err', code: 'full' });
+        if (s.uid && r.players[0] && r.players[0].uid === s.uid) return conn.send({ t: 'err', code: 'self' }); // la misma cuenta en dos pestañas
         r.players[1] = s; s.room = r; s.idx = 1; r.startGame(); return;
       }
       case 'bid': if (s.room) s.room.bid(s, msg.amount); return;

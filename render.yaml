@@ -1,14 +1,21 @@
 # Despliegue en Render (https://render.com): New + > Blueprint > elige este repo
+# Base de datos: en el plan gratis el disco de Render se borra cada vez que el servicio se reinicia o se duerme (15 min sin visitas).
+# Por eso las cuentas y el ranking se guardan en PostgreSQL fuera de Render (Neon, gratis y sin caducidad):
+#   1. Crea un proyecto en https://neon.tech y copia su "connection string" (postgresql://usuario:clave@...neon.tech/neondb?sslmode=require)
+#   2. En Render > tu servicio > Environment, pon esa cadena en la variable DATABASE_URL y guarda (se vuelve a desplegar solo)
+# Sin DATABASE_URL el servidor usa SQLite (server/data/bidverse.db), que en Render se pierde al reiniciarse.
 services:
   - type: web
     name: bidverse
     runtime: node
     plan: free
-    buildCommand: "true"
+    buildCommand: cd server && npm install --omit=dev
     startCommand: node server/server.js
     healthCheckPath: /
     envVars:
       - key: TRUST_PROXY
         value: "1"
       - key: NODE_VERSION
-        value: "20"
+        value: "22"
+      - key: DATABASE_URL
+        sync: false
