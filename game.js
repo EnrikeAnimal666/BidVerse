@@ -1,7 +1,7 @@
 // BidVerse · lógica del juego. Datos: data-anime.js (POOLS.anime) y data-ufc.js (UFC) · idiomas: lang/*.js (LANGS)
 POOLS.ufc=UFC;if(typeof FUT!=='undefined')POOLS.futbol=FUT;const FUTP=POOLS.futbol||[],FDIVS=typeof FUT_DIVS!=='undefined'?FUT_DIVS:[];
 const {MAXC,SECS}=BidEngine; // las reglas viven en engine.js; aquí solo se pinta
-let lastBid=0,G,net=null,cur,bid,leader,left,tick=0,P,skips,locked,cat,passed,free=-1,bt=0,scTab='anime'; // net = datos de la partida online (null = partida local) // G = estado del motor; el resto es un espejo para pintar
+let lastBid=0,G,net=null,cur,bid,leader,left,tick=0,P,skips,locked,cat,passed,free=-1,fp=false,bt=0,scTab='anime'; // net = datos de la partida online (null = partida local) // G = estado del motor; el resto es un espejo para pintar
 const $=id=>document.getElementById(id),pad2=n=>String(n).padStart(2,'0');
 const byN=new Map([...POOLS.anime,...UFC,...FUTP].map(c=>[c.n,c])),imgOf=n=>(byN.get(n)||{}).img;
 /* ---------- IDIOMAS: u() = plantilla {0},{1}… de lang/xx.js · X = mensajes compuestos · t() = ambos ---------- */
@@ -28,7 +28,7 @@ hintFree:(o,f,n)=>n?u('hintFree',o,f,n):u('hintFreeForced',o,f),
 sends:(p,nm)=>u('sends',p,`<b>${nm}</b>`),
 giftInfo:(w,nm)=>lang==='es'?`${u('player',2-w)} pasa de ${nm}: se lo queda ${u('player',w+1)} gratis.`:`${u('player',2-w)} passes on ${nm}: ${u('player',w+1)} gets it for free.`,
 infoSold:(p,nm,pr,m)=>cat==='futbol'?(lang==='es'?`${u('player',p)} ficha a ${nm} por ${pr}M. Le quedan ${m}M.`:`${u('player',p)} signs ${nm} for ${pr}M. ${m}M left.`):u('infoSold',p,nm,pr,m),
-passGift:()=>lang==='es'?'Saltar · se lo queda el rival gratis':'Skip · your rival gets it free',
+passGift:()=>lang==='es'?'Pasar · se lo queda el rival (no gasta saltos)':'Pass · your rival gets it (no skip cost)',
 stampRand:(p,nm,broke)=>`<small>${u(broke?'noMoney':'nobodyBids')}</small><strong>${u('player',p)}</strong><u>${u('takes','<b>'+nm+'</b>')}</u><em>${lang==='es'?'Al azar':'Random'}</em>`,
 randInfo:(p,nm,broke)=>lang==='es'?`${broke?'Nadie tiene dinero':'Nadie ha pujado'} por ${nm}: se lo lleva ${u('player',p)} al azar. La subasta sigue.`:`${broke?'Nobody has money':'Nobody bid'} for ${nm}: ${u('player',p)} gets it at random. The auction goes on.`};
 const t=(k,...a)=>X[k]?X[k](...a):u(k,...a);
@@ -108,8 +108,8 @@ function panel(p){const n=p+1;return `<section class="side" style="--c:var(--p${
 <header>${padAv(p)||`<div class="pad">${n}</div>`}<div><h2>${t('player',n)}</h2></div><div class="money" id="m${p}"></div></header>
 <div id="s${p}"></div>
 <div class="ctl"><label class="inp"><span>${cat==='futbol'?'€':'$'}</span><input id="i${p}" type="number" min="1" step="1" inputmode="numeric" placeholder="${t('bidPh')}" onkeydown="if(event.key==='Enter')place(${p})"></label>
-<button class="go" id="g${p}" onclick="place(${p})">${t('bidBtn')}</button><button class="go plus" id="u${p}" onclick="plus(${p})" title="${cat==='futbol'?'+1M':'+$1'}">${cat==='futbol'?'+1M':'+$1'}</button></div>
-<button class="skip" id="k${p}" onclick="skip(${p})"><span class="sl" id="kl${p}">${t('skipLbl')}</span><span class="pips" id="kp${p}"></span></button>
+<button class="go" id="g${p}" onmousedown="event.preventDefault()" onclick="place(${p})">${t('bidBtn')}</button><button class="go plus" id="u${p}" onmousedown="event.preventDefault()" onclick="plus(${p})" title="${cat==='futbol'?'+1M':'+$1'}">${cat==='futbol'?'+1M':'+$1'}</button></div>
+<button class="skip" id="k${p}" onmousedown="event.preventDefault()" onclick="skip(${p})"><span class="sl" id="kl${p}">${t('skipLbl')}</span><span class="pips" id="kp${p}"></span></button>
 <div class="msg" id="e${p}"></div></section>`}
 function start(c){
   closeLineup();gameBg(c);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
@@ -125,7 +125,7 @@ function startOnline(cat_,names,me,send,avs){
   closeLineup();gameBg(cat_);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
   $('end').className='end';$('end').innerHTML='';$('end').style.display='none';
   cat=cat_;net={names,me,send,avs:avs||[]};$('game').classList.toggle('ufc',cat==='ufc');$('game').classList.toggle('fut',cat==='futbol');
-  G={cat,P:[{m:0,c:[]},{m:0,c:[]}],dv:'',phase:'idle',cur:null,bid:0,leader:-1,left:SECS,free:-1,passed:[false,false],skips:[2,2],locked:true};mirror();
+  G={cat,divs:cat==='futbol'?FDIVS:[],P:[{m:0,c:[]},{m:0,c:[]}],dv:'',phase:'idle',cur:null,bid:0,leader:-1,left:SECS,free:-1,fp:false,passed:[false,false],skips:[2,2],locked:true};mirror();
   wantImg(POOLS[cat]);
   $('P1').innerHTML=panel(0);$('P2').innerHTML=panel(1);
   $('menu').style.display='none';$('game').style.display='block';
@@ -134,7 +134,7 @@ function startOnline(cat_,names,me,send,avs){
 function mismatch(){const b=$('netbar');if(!b)return;b.style.display='block';b.textContent=lang==='en'?'The server runs a different game version than this page. Restart the server with the updated files and reload with Ctrl+F5.':'El servidor tiene una versión distinta del juego que esta página. Reinicia el servidor con los archivos actualizados y recarga con Ctrl+F5.'}
 const unk=l=>{const m=l.some(n=>n&&!byN.has(n));if(m)mismatch();return m}; // nombres que el servidor manda y esta página no conoce = versiones mezcladas
 function netState(s,ev){if(unk([s.cur,...s.P.flatMap(p=>p.c.map(c=>c.n))]))return; // estado completo del servidor + eventos que lo han provocado
-  G={cat:s.cat,dv:s.dv,phase:s.phase,cur:s.cur?byN.get(s.cur):null,bid:s.bid,leader:s.leader,left:s.left,free:s.free,passed:s.passed,skips:s.skips,locked:s.locked,
+  G={cat:s.cat,divs:s.cat==='futbol'?FDIVS:[],dv:s.dv,phase:s.phase,cur:s.cur?byN.get(s.cur):null,bid:s.bid,leader:s.leader,left:s.left,free:s.free,fp:!!s.fp,passed:s.passed,skips:s.skips,locked:s.locked,
      P:s.P.map(p=>({m:p.m,c:p.c.map(c=>({...byN.get(c.n),paid:c.paid,free:c.free}))}))};
   mirror();
   for(const e of ev)onEv(e);
@@ -142,9 +142,10 @@ function netState(s,ev){if(unk([s.cur,...s.P.flatMap(p=>p.c.map(c=>c.n))]))retur
 function netFight(f){closeLineup();const ns=[];JSON.stringify(f.script,(k,v)=>{if((k==='n'||k==='a'||k==='b')&&typeof v==='string')ns.push(v);return v});if(unk(ns))return;const tk=++bt;(f.kind==='ufc'?night:f.kind==='futbol'?match:run)(tk,f.script).catch(er=>{if(er!==0)throw er})}
 function toMenu(){closeLineup();if(net){net.send({t:'leave'});net=null;if(window.olReset)olReset()}$('gbg').style.display='none';document.body.classList.remove('night','ingame');bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';$('game').style.display='none';$('menu').style.display='block'}
 const out=p=>BidEngine.out(G,p);
-function hint(){if(free>=0){$('info').textContent=t('hintFree',2-free,free+1,skips[free]);return}const a=[0,1].filter(p=>passed[p]);$('info').textContent=a.length?t('hintPass',a[0]+1,2-a[0]):t('hintBase')}
+function hint(){$('info').textContent=free<0?t('hintBase'):fp?t('hintPass',2-free,free+1):gives(free)?t('hintGift',2-free,free+1):t('hintFree',2-free,free+1,skips[free])}
+const gives=p=>BidEngine.gives(G,p); // pasar ahora le regala el lote al rival sin gastar saltos
 /* ---------- PUENTE CON EL MOTOR: cada acción devuelve {ev, wait}; aquí se pintan los eventos y se programan las esperas ---------- */
-function mirror(){cur=G.cur;bid=G.bid;leader=G.leader;left=G.left;locked=G.locked;free=G.free;P=G.P;skips=G.skips;passed=G.passed}
+function mirror(){cur=G.cur;bid=G.bid;leader=G.leader;left=G.left;locked=G.locked;free=G.free;fp=!!G.fp;P=G.P;skips=G.skips;passed=G.passed}
 function apply(res){
   mirror();const tk=bt;
   for(const e of res.ev)onEv(e);
@@ -161,7 +162,7 @@ function onEv(e){switch(e.t){
   case 'forced':render();break;
   case 'tick':timer();tickSnd();break;
   case 'bid':
-    timer();$('i0').value=$('i1').value='';SND.bid(e.p,e.amount);gavel(e.p);
+    timer();$('i'+e.p).value='';SND.bid(e.p,e.amount);gavel(e.p);
     if(!e.closing){const prev=lastBid;render();popBid(e,prev)}
     lastBid=e.amount;break;
   case 'err':err(e.p,t(e.code,e.arg));break;
@@ -206,7 +207,7 @@ function render(){
     $('u'+p).disabled=locked||passed[p]||free===p||bid+1>P[p].m;
     $('i'+p).disabled=$('i'+p).disabled||free===p;$('g'+p).textContent=t(free===p?'takeBtn':'bidBtn');$('i'+p).placeholder=t(free===p?'free':'bidPh');
     $('k'+p).disabled=locked||leader===p||!(leader>=0)&&(passed[p]||skipLocked(p));
-    $('kl'+p).textContent=leader>=0&&leader!==p?t('concede',leader+1):passed[p]?t(out(p)?'autoPass':'passed'):skipLocked(p)?t('noSkips'):t(free===p?(BidEngine.can(G,1-p)?'passGift':'passFree'):'skipLbl');
+    $('kl'+p).textContent=leader>=0&&leader!==p?t('concede',leader+1):passed[p]?t(out(p)?'autoPass':'passed'):skipLocked(p)?t('noSkips'):t(free!==p?'skipLbl':fp?'passBoth':gives(p)?'passGift':'passFree');
     $('kp'+p).innerHTML=[0,1].map(i=>`<i class="${i<skips[p]?'on':''}"></i>`).join('');
     $('k'+p).classList.toggle('conc',leader>=0&&leader!==p&&!locked);
     if(net&&p!==net.me)$('g'+p).disabled=$('u'+p).disabled=$('i'+p).disabled=$('k'+p).disabled=true; // el panel del rival no se toca
@@ -216,7 +217,7 @@ function err(p,t){$('e'+p).textContent=t;setTimeout(()=>{if($('e'+p).textContent
 function place(p){if(net){if(p===net.me)net.send({t:'bid',amount:$('i'+p).value});return}apply(BidEngine.place(G,p,$('i'+p).value))}
 function plus(p){const v=bid+1;if(net){if(p===net.me)net.send({t:'bid',amount:v});return}apply(BidEngine.place(G,p,v))} // puja la última +1 ($1 o 1M)
 function stamp(t,c){const s=$('stamp');$('st').className=c||'';$('st').innerHTML=t;s.style.display='grid'}
-const skipLocked=p=>skips[p]<=0;
+const skipLocked=p=>skips[p]<=0&&!gives(p);
 function skip(p){if(net){if(p===net.me)net.send({t:'skip'});return}apply(BidEngine.skip(G,p))}
 function again(){if(net){net.send({t:'rematch'});const b=document.querySelector('.res button');if(b){b.disabled=true;b.textContent=u('olAgainWait')}}else start(cat)}
 
@@ -252,6 +253,7 @@ function netOrderReady(i){if(LU){LU.ready[i]=true;LU.paint()}}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // Escala logarítmica: cada POWER_BASE puntos = 10 veces más poder (250 -> 100 puntos de diferencia = x2,5).
 const POWER_BASE=250,S=c=>Math.pow(10,c.pw/POWER_BASE);
+const hpF=n=>Math.round(n).toLocaleString(lang==='es'?'es-ES':'en-US');
 const spr=c=>imgOf(c.n)?`<img src="${imgOf(c.n)}" alt="${c.n}">`:`<div class="e">${c.e}</div>`;
 
 async function arenaIn(z,html){ // transición común
@@ -277,7 +279,7 @@ const AB_T={
   miss:['<b>{d}</b> esquiva a {a}','<b>{d}</b> bloquea el golpe de {a}','{a} falla: <b>{d}</b> es más rápido'],missSp:'<b>{d}</b> esquiva «{m}»',
   ctr:'¡<b>{a}</b> contraataca!',clash:'¡Choque de técnicas! «{m1}» contra «{m2}»',clashWin:'¡<b>{w}</b> se impone en el choque!',
   awake:'¡<b>{a}</b> despierta su verdadero poder!',critPop:'¡Crítico!',dodgePop:'¡Esquiva!',awakePop:'¡Despertar!',clashPop:'¡Choque!',
-  log:'<b>{0}</b> derrota a {1} · le queda un {2} %',kos:'{0} K.O.',kos1:'1 K.O.',mvp:'MVP',
+  log:'<b>{0}</b> derrota a {1} · le quedan {2} PS',kos:'{0} K.O.',kos1:'1 K.O.',mvp:'MVP',
   uctr:'¡El cuerpo de <b>{a}</b> esquiva y contraataca solo!',uiPop:'Ultra Instinto',bfPop:'¡Destello Negro!',asPop:'¡Asura!',
   clone:'¡Un clon de <b>{a}</b> golpea a {d}!',roller:'¡<b>{a}</b> aplasta a {d} con una apisonadora!',copied:'<b>{a}</b> devuelve «{m}»',
   fc:'«{m}» vuelve contra {d} con el doble de fuerza',dko:'¡Doble K.O.!',dkoLog:'<b>{0}</b> y <b>{1}</b> caen a la vez',
@@ -290,7 +292,7 @@ const AB_T={
   miss:['<b>{d}</b> dodges {a}','<b>{d}</b> blocks {a}’s strike','{a} misses: <b>{d}</b> is faster'],missSp:'<b>{d}</b> dodges “{m}”',
   ctr:'<b>{a}</b> counterattacks!',clash:'Technique clash! “{m1}” vs “{m2}”',clashWin:'<b>{w}</b> wins the clash!',
   awake:'<b>{a}</b> awakens their true power!',critPop:'Critical!',dodgePop:'Dodge!',awakePop:'Awakening!',clashPop:'Clash!',
-  log:'<b>{0}</b> defeats {1} · {2}% left',kos:'{0} K.O.s',kos1:'1 K.O.',mvp:'MVP',
+  log:'<b>{0}</b> defeats {1} · {2} HP left',kos:'{0} K.O.s',kos1:'1 K.O.',mvp:'MVP',
   uctr:'<b>{a}</b>’s body dodges and counters on its own!',uiPop:'Ultra Instinct',bfPop:'Black Flash!',asPop:'Asura!',
   clone:'A clone of <b>{a}</b> hits {d}!',roller:'<b>{a}</b> crushes {d} with a road roller!',copied:'<b>{a}</b> fires back “{m}”',
   fc:'“{m}” hits {d} back at double power',dko:'Double K.O.!',dkoLog:'<b>{0}</b> and <b>{1}</b> fall together',
@@ -438,8 +440,9 @@ function abArena(){
   const plate=p=>`<div class="ab-pl a${p}" style="--c:var(--p${p+1});--on:var(--on${p+1})">
 <div class="ab-face" id="abfc${p}"></div>
 <div class="ab-pm"><div class="ab-who"><span>${t('player',p+1)}</span><b id="abn${p}">—</b></div><div class="ab-trn" id="abtr${p}"></div>
-<div class="ab-bar ab-hp"><i class="g" id="abg${p}"></i><i class="v" id="abh${p}"></i><em id="abhp${p}">100%</em></div>
-<div class="ab-bar ab-ki"><i id="abk${p}"></i></div>
+<div class="ab-life"><div class="ab-hpn"><span class="lb">${u('ps')}</span><b id="abhp${p}">—</b><small id="abhm${p}"></small></div>
+<div class="ab-bar ab-hp"><i class="g" id="abg${p}"></i><i class="v" id="abh${p}"></i></div>
+<div class="ab-bar ab-ki"><i id="abk${p}"></i></div></div>
 <div class="ab-tm" id="abt${p}"></div></div><div class="ab-stw" id="abs${p}"></div></div>`;
   const emb=Array.from({length:18},(_,i)=>`<s style="left:${rnd(2,98)}%;--s:${rnd(3,7)}px;--d:${rnd(6,13)}s;--dl:-${rnd(0,13)}s;--x:${rnd(-70,70)}px;--ec:var(--p${i%2+1})"></s>`).join('');
   const fighter=p=>`<div class="ab-f a${p}" id="abf${p}" style="--c:var(--p${p+1})"><i class="ab-aura"></i><div class="ab-card" id="abc${p}"></div><i class="ab-shd"></i></div>`;
@@ -529,15 +532,18 @@ const VFX=(()=>{
   function chips(x,y,n,fl){for(let i=0;i<n*q;i++)add({k:'d',x,y,vx:rr(-320,320),vy:-rr(150,520),l:rr(.7,1.3),s:rr(3,9),c:'#2a2533',g:1400,dr:.6,fl,rot:rr(0,TAU),vr:rr(-12,12)})}
   function word(t,x,y,z,col){fx({d:.5,dws:f=>{const T=f.t/f.d,sz=z*(1+T*.35);c.save();c.globalAlpha=Math.max(0,1-T*T);c.translate(x,y-T*34);c.rotate(-.12);c.font=`900 ${sz}px "Big Shoulders Display",Impact,sans-serif`;
     c.textAlign='center';c.textBaseline='middle';c.lineJoin='round';c.lineWidth=sz*.22;c.strokeStyle='#000';c.strokeText(t,0,0);c.fillStyle=col;c.fillText(t,0,0);c.restore()}})}
-  // cráter en el suelo (lienzo de atrás). Las marcas viejas se van apagando un poco con cada una nueva; las grietas brillan y se enfrían.
-  function scar(x,y,r,col,hole){if(!s||!(r>0))return;s.setTransform(dpr,0,0,dpr,0,0);
-    s.globalCompositeOperation='destination-out';s.fillStyle='rgba(0,0,0,.05)';s.fillRect(0,0,cw,ch);s.globalCompositeOperation='source-over';
-    if(hole!==false){s.save();s.translate(x,y);s.scale(1,.26);const g=s.createRadialGradient(0,0,0,0,0,r);g.addColorStop(0,'rgba(0,0,0,.82)');g.addColorStop(.55,'rgba(8,4,14,.58)');g.addColorStop(.82,'rgba(30,22,48,.22)');g.addColorStop(1,'rgba(0,0,0,0)');
-      s.fillStyle=g;s.beginPath();s.arc(0,0,r,0,TAU);s.fill();s.lineWidth=5;s.strokeStyle='rgba(205,190,255,.13)';s.beginPath();s.arc(0,r*.06,r*.8,Math.PI*1.08,Math.PI*1.92);s.stroke();s.restore()}
-    const lines=[];for(let i=0,n=r>60?9:6;i<n;i++){let a=rr(0,TAU),px=x+Math.cos(a)*r*.42,py=y+Math.sin(a)*r*.42*.26;const pts=[[px,py]];
-      for(let k=0;k<5;k++){a+=rr(-.55,.55);const L=r*rr(.18,.36);px+=Math.cos(a)*L;py+=Math.sin(a)*L*.28;pts.push([px,py])}lines.push(pts);
-      s.beginPath();pts.forEach((p,j)=>j?s.lineTo(p[0],p[1]):s.moveTo(p[0],p[1]));s.strokeStyle='rgba(0,0,0,.62)';s.lineWidth=rr(1.6,3.2);s.lineCap='round';s.lineJoin='round';s.stroke()}
-    CK.push({lines,col:okc(col)||'#ff7a2e',t:0,d:2.4})}
+  // impacto en el suelo: una quemadura suave que se apaga en un par de segundos (lienzo de atrás) y grietas de energía del color del golpe que brillan y se enfrían.
+  // Antes las grietas se pintaban en negro y no se borraban nunca: se amontonaban rayajos negros debajo de cada luchador.
+  let scT=0;
+  function scar(x,y,r,col,hole){if(!s||!(r>0))return;s.setTransform(dpr,0,0,dpr,0,0);s.globalCompositeOperation='source-over';scT=now();const C=okc(col)||'#ff7a2e';
+    if(hole!==false){s.save();s.translate(x,y);s.scale(1,.24);const g=s.createRadialGradient(0,0,0,0,0,r);g.addColorStop(0,'rgba(6,3,12,.5)');g.addColorStop(.5,rgba(C,.14));g.addColorStop(1,rgba(C,0));
+      s.globalAlpha=1;s.fillStyle=g;s.beginPath();s.arc(0,0,r,0,TAU);s.fill();s.restore()}
+    const lines=[];for(let i=0,n=r>60?7:5;i<n;i++){let a=rr(0,TAU),px=x+Math.cos(a)*r*.38,py=y+Math.sin(a)*r*.38*.24;const pts=[[px,py]];
+      for(let k=0;k<3;k++){a+=rr(-.45,.45);const L=r*rr(.16,.3);px+=Math.cos(a)*L;py+=Math.sin(a)*L*.26;pts.push([px,py])}lines.push(pts)}
+    CK.push({lines,col:C,t:0,d:1.1})}
+  function fadeScars(dt){if(!s||!scT)return;s.setTransform(1,0,0,1,0,0);
+    if(now()-scT>3200){s.clearRect(0,0,sc.width,sc.height);scT=0;return} // al rato se limpia del todo: sin restos
+    s.globalCompositeOperation='destination-out';s.globalAlpha=1;s.fillStyle='rgba(0,0,0,'+Math.min(1,dt*1.4)+')';s.fillRect(0,0,sc.width,sc.height);s.globalCompositeOperation='source-over'}
   const craterAt=(p,r,col,hole)=>{const B=brect(p,.5);if(B)scar(B.cx,B.y+B.h*1.01,r,col,hole)};
   function boomAt(x,y,col,k,fl,vic){flare(x,y,260*k,col,.45);flare(x,y,150*k,'#ffffff',.22);ring(x,y,220*k,col,.6,6);
     sparks(x,y,60*k,col,{max:950*k,life:.6,size:5,g:300});
@@ -573,7 +579,7 @@ const VFX=(()=>{
     for(const e of A.tr){const age=(t-e.t)/240;if(age<.12)continue;const r=e.r,k=Math.max(r.w/im.naturalWidth,r.h/im.naturalHeight),sw=r.w/k,sh=r.h/k;
       b.globalAlpha=.32*(1-age);b.drawImage(im,(im.naturalWidth-sw)/2,(im.naturalHeight-sh)*.12,sw,sh,r.x,r.y,r.w,r.h)}}
   function drawCracks(){b.globalCompositeOperation='lighter';b.lineCap='round';b.lineJoin='round';
-    for(const k of CK){const a=Math.pow(1-k.t/k.d,1.6);for(const pts of k.lines){b.beginPath();pts.forEach((p,i)=>i?b.lineTo(p[0],p[1]):b.moveTo(p[0],p[1]));b.globalAlpha=.55*a;b.strokeStyle=k.col;b.lineWidth=5;b.stroke();b.globalAlpha=.9*a;b.strokeStyle='#fff2c8';b.lineWidth=1.4;b.stroke()}}}
+    for(const k of CK){const a=Math.pow(Math.max(0,1-k.t/k.d),1.6);for(const pts of k.lines){b.beginPath();pts.forEach((p,i)=>i?b.lineTo(p[0],p[1]):b.moveTo(p[0],p[1]));b.globalAlpha=.4*a;b.strokeStyle=k.col;b.lineWidth=4;b.stroke();b.globalAlpha=.75*a;b.strokeStyle='#fff2c8';b.lineWidth=1.1;b.stroke()}}}
   // círculo de dominio en el suelo
   function drawDomain(dt){const L=st.classList,want=L.contains('dz0')||L.contains('dz1');if(want)domC=L.contains('shr')?'#ff1f3d':pcol(L.contains('dz0')?0:1);dom+=((want?1:0)-dom)*Math.min(1,dt*4);if(dom<.01)return;
     const x=cw/2,y=ch*.9,R=cw*.46*(.55+.45*dom),k=.22,E=(r,a)=>[x+Math.cos(a)*r,y+Math.sin(a)*r*k],rot=TT*.35;
@@ -581,7 +587,7 @@ const VFX=(()=>{
     b.strokeStyle=domC;b.lineWidth=2.4;b.globalAlpha=.65*dom;for(const f of[1,.93,.62]){b.beginPath();b.ellipse(x,y,R*f,R*f*k,0,0,TAU);b.stroke()}
     b.globalAlpha=.55*dom;for(let i=0;i<24;i++){const a=rot+i/24*TAU,p1=E(R*.93,a),p2=E(R*(i%2?.86:.79),a);b.beginPath();b.moveTo(p1[0],p1[1]);b.lineTo(p2[0],p2[1]);b.stroke()}
     for(const off of[0,Math.PI/3]){b.beginPath();for(let i=0;i<=3;i++){const p=E(R*.62,-rot*1.6+off+i*TAU/3);i?b.lineTo(p[0],p[1]):b.moveTo(p[0],p[1])}b.stroke()}}
-  function drawBack(dt){b.setTransform(1,0,0,1,0,0);b.globalCompositeOperation='source-over';b.globalAlpha=1;b.clearRect(0,0,bk.width,bk.height);if(sc)b.drawImage(sc,0,0);
+  function drawBack(dt){fadeScars(dt);b.setTransform(1,0,0,1,0,0);b.globalCompositeOperation='source-over';b.globalAlpha=1;b.clearRect(0,0,bk.width,bk.height);if(sc)b.drawImage(sc,0,0);
     b.setTransform(dpr,0,0,dpr,0,0);drawCracks();drawDomain(dt);drawTrail(0);drawTrail(1);drawAura(0);drawAura(1);b.globalAlpha=1;b.globalCompositeOperation='source-over'}
   // estallido de poder: el aura se desboca, el suelo se agrieta, el polvo sale disparado y las rocas levitan
   function powerUp(p){if(!on)return;const R=rect(p,.5);if(!R)return;const S=auraOf(p),col=(S&&!S.dark&&S.col)||pcol(p),gy=R.y+R.h*1.02;AU[p].boost=Math.max(AU[p].boost,1.6);
@@ -848,7 +854,7 @@ async function run(tk,script){
   const AB=$('ab'),ST=$('abst'),FX=$('abfx'),WD=$('abw');
   ABS=1;AB.style.setProperty('--k',1);VFX.start(ST);
   const T0=S0.ev[0]&&S0.ev[0].teams; // orden real de cada equipo (el motor lo manda; si no, el de la compra)
-  const team=[0,1].map(p=>T0?T0[p]:(P[p]&&P[p].c||[]).map(c=>c.n)),ko=[[],[]],act=[-1,-1],cur=[null,null];let hpN=[1,1],lastDown='',lastL=null,dno=0;
+  const team=[0,1].map(p=>T0?T0[p]:(P[p]&&P[p].c||[]).map(c=>c.n)),ko=[[],[]],act=[-1,-1],cur=[null,null];let hpN=[1,1],HM=[1000,1000],lastDown='',lastL=null,dno=0;
   const roster=p=>$('abt'+p).innerHTML=team[p].map((n,k)=>{const c=C(n);return c?`<i class="ab-th${k===act[p]?' on':''}${ko[p][k]?' ko':''}" data-n="${n}" style="--h:${c.h}">${spr(c)}</i>`:''}).join('');
   roster(0);roster(1);
   const say=async(h,ms)=>{$('abdl').innerHTML='<span>'+h+'</span>';if(ms)await z(ms)};
@@ -856,7 +862,13 @@ async function run(tk,script){
   const com=h=>{const c=$('abcom');c.innerHTML='<span>🎙 '+h+'</span>';re(c,'on')};
   const tmp=(html,ms)=>{const w=document.createElement('div');w.innerHTML=html;const el=w.firstElementChild;FX.appendChild(el);setTimeout(()=>el.remove(),ms/Math.min(ABS,2));return el};
   const ctr=(p,f=.42)=>{const s=ST.getBoundingClientRect(),r=$('abc'+p).getBoundingClientRect();return{x:r.left+r.width/2-s.left,y:r.top+r.height*f-s.top}};
-  const setB=(p,hp,en)=>{const v=$('abh'+p);if(hp!=null){hp=Math.max(0,Math.min(1,hp));v.style.width=$('abg'+p).style.width=hp*100+'%';v.className='v'+(hp>.5?'':hp>.2?' mid':' low');$('abhp'+p).textContent=Math.ceil(hp*100)+'%'}if(en!=null)$('abk'+p).style.width=Math.max(0,Math.min(1,en))*100+'%'};
+  const hpS=[0,0],hpTw=[0,0]; // PS que se ven ahora y animación en curso de cada lado
+  const hpNum=(p,to,now)=>{const el=$('abhp'+p),id=++hpTw[p],from=hpS[p],set=v=>{hpS[p]=v;el.textContent=hpF(v)};
+    if(now||from===to||typeof requestAnimationFrame!=='function'){set(to);return}
+    const pm=to<from&&el.closest&&el.closest('.ab-pm');if(pm&&pm.classList)re(pm,'dmg');
+    const t0=performance.now(),st=n=>{if(id!==hpTw[p]||tk!==bt)return;const k=Math.min(1,(n-t0)/420);set(Math.round(from+(to-from)*(1-Math.pow(1-k,3))));if(k<1)requestAnimationFrame(st)};requestAnimationFrame(st)};
+  const setB=(p,hp,en,now)=>{const v=$('abh'+p);if(hp!=null){hp=Math.max(0,Math.min(1,hp));v.style.width=$('abg'+p).style.width=hp*100+'%';v.style.setProperty('--hh',Math.round(hp<.5?hp*2*50:50+(hp-.5)*2*80));v.className='v'+(hp>.25?'':' low');
+    hpNum(p,Math.ceil(hp*HM[p]-1e-6),now);$('abhm'+p).textContent='/ '+hpF(HM[p])}if(en!=null)$('abk'+p).style.width=Math.max(0,Math.min(1,en))*100+'%'};
   const num=(p,txt,k='')=>{const c=ctr(p,.22);tmp(`<span class="ab-num ${k}" style="left:${c.x+(Math.random()*40-20)}px;top:${c.y}px">${txt}</span>`,1200)};
   const elC=a=>{const e=cur[a]&&ELC[ELN[cur[a].n]];return e?e[0]:null};
   const at=(p,f,cls,inner='',ms=1200,st='')=>{const c=ctr(p,f);return tmp(`<span class="${cls}" style="left:${c.x}px;top:${c.y}px;${st}">${inner}</span>`,ms)};
@@ -871,7 +883,7 @@ async function run(tk,script){
   const fa=(p,c)=>{const f=$('abf'+p);f.classList.remove('in','atk','hit','dodge');void f.offsetWidth;f.classList.add(c)};
   const lunge=p=>{fa(p,'atk');speed(1-p);VFX.dash(p)},hurt=p=>{fa(p,'hit');re($('abfc'+p),'hit')},dodge=p=>fa(p,'dodge');
   const sfx=k=>{if(ABS<=2)SND.fx(k)};
-  const pct=x=>'-'+Math.max(1,Math.round(x*100))+'%';
+  const dmgT=(p,x)=>'-'+hpF(Math.max(1,Math.round(x*HM[p]))),healT=(p,x)=>'+'+hpF(Math.max(1,Math.round(x*HM[p]))); // daño y curas en PS de quien los recibe
   const badge=(p,k,cut)=>{$('abtr'+p).innerHTML=cut?`<span class="trx">${$('abtr'+p).innerHTML}</span>`:trB(k)};
   const cutin=async(p,c,m)=>{VFX.charge(p);const el=tmp(`<div class="ab-cut${p?' r':''}" style="--c:var(--p${p+1});--on:var(--on${p+1})"><span class="ci" style="--h:${c.h}">${spr(c)}</span><span class="ct"><small>${dnh(c)}</small><b>${m}</b></span></div>`,1000);sfx('charge');await z(820);return el};
   // cut-in de firma de las habilidades únicas: retrato enorme, banda del color de la habilidad y su nombre
@@ -900,7 +912,7 @@ async function run(tk,script){
   const pops=()=>(TR_T[lang]||TR_T.en).pops;
   // golpes definitivos de las habilidades únicas (no se esquivan)
   const ultHit=async(h,a,d,lethal,upd)=>{
-    const dmgFx=(big=true)=>{hurt(d);burst(d,big,SIGC[h.u]);num(d,pct(h.dmg),'crit');shake();zoom(d);imp();upd();if(h.u!=='hakai')VFX.knock(d,lethal?2:1)};
+    const dmgFx=(big=true)=>{hurt(d);burst(d,big,SIGC[h.u]);num(d,dmgT(d,h.dmg),'crit');shake();zoom(d);imp();upd();if(h.u!=='hakai')VFX.knock(d,lethal?2:1)};
     say(`<b>${dnh(cur[a])}</b>: «${(AB_T[lang]||AB_T.es).ult[h.u]||''}»`);
     if(lethal)await finisher(d);
     if(h.u==='hakai'){at(d,.45,'ab-orb','',1300);VFX.hakai(d);sfx('time');await z(750);dmgFx();if(lethal)mark(d,'gone');flash('#a43cff');sfx('boom');await z(900)}
@@ -912,7 +924,7 @@ async function run(tk,script){
     const k=h.tr,nm=trT(k,0),by=h.by==null?d:h.by,col=SIGC[k]||`var(--p${a+1})`;
     const sName=h.s?(TR_T.en[h.s]?trT(h.s,0):C(h.s)?dnh(C(h.s)):h.s):'';
     const L=i=>abF(trT(k,i),{a:An,d:Dn,b:dnh(cur[by]),m:h.m!=null?mvOf(cur[by],h.m):'',s:sName});
-    const dmgOn=(p,big)=>{if(h.dmg>0){hurt(p);burst(p,big,col);num(p,pct(h.dmg),big?'crit':'')}};
+    const dmgOn=(p,big)=>{if(h.dmg>0){hurt(p);burst(p,big,col);num(p,dmgT(p,h.dmg),big?'crit':'')}};
     const line=L(2);if(line&&!['erase','haki','chain','rock'].includes(k))say(line);
     switch(k){
       // ---- compartidos ----
@@ -920,9 +932,9 @@ async function run(tk,script){
       case 'time':stg('tstop');pop(nm,'',col);sfx('time');await z(950);break;
       case 'req':shield(a);flash('#ffd23f');pop(nm,'','#ffd23f');sfx('awake');num(a,'0','txt');await z(1100);break;
       case 'serious':await sig(a,k);break;
-      case 'toll':pop(nm,'',`var(--p${a+1})`);flash('#fff');hurt(d);if(h.dmg)num(d,pct(h.dmg));sfx('boom');upd();await z(1000);break;
+      case 'toll':pop(nm,'',`var(--p${a+1})`);flash('#fff');hurt(d);if(h.dmg)num(d,dmgT(d,h.dmg));sfx('boom');upd();await z(1000);break;
       case 'domain':await cutin(a,cur[a],nm);stg('dz'+a);sfx('domain');await z(400);break;
-      case 'regen':num(a,'+'+Math.round((h.heal||0)*100)+'%','heal');sfx('awake');upd();await z(650);break;
+      case 'regen':num(a,healT(a,h.heal||0),'heal');sfx('awake');upd();await z(650);break;
       case 'adapt':shield(a);num(a,pops().adapt+(h.lv>1?' ×'+h.lv:''),'txt');sfx('hum');await z(600);break;
       case 'gen':flash('#c4001a');stg('gen');pop(nm,'','#ff3b3b');sfx('charge');await z(1000);stg('gen',false);break;
       case 'stun':num(a,pops().stun,'txt');sfx('whiff');await z(650);break;
@@ -938,23 +950,23 @@ async function run(tk,script){
       case 'copy':pop(nm,'',col);sfx('charge');await z(700);break;
       case 'clones':await sig(a,k);mark(a,'cln');break;
       case 'amaterasu':mark(d,'burn');pop(nm,'',col);flash('#2a0838');sfx('boom');await z(850);break;
-      case 'burn':hurt(d);num(d,pct(h.dmg));sfx('hum');upd();await z(450);break;
+      case 'burn':hurt(d);num(d,dmgT(d,h.dmg));sfx('hum');upd();await z(450);break;
       case 'meteor':await sig(a,k);break;
       case 'rock':if(h.miss){say(L(3));drop(d,'meteor',true);await z(520);dodge(d);num(d,abT('dodgePop'),'txt');sfx('boom');shake();await z(500);break}
         say(line);drop(d,'meteor');await z(540);dmgOn(d,true);VFX.boom(d,'#ff7a2e',1.2);shake();imp();sfx('boom');upd();await z(520);break;
-      case 'tsukuyomi':await sig(a,k);stg('tsk');flash('#c4001a');sfx('charge');if(h.dmg){hurt(d);num(d,pct(h.dmg))}upd();await z(1300);stg('tsk',false);break;
+      case 'tsukuyomi':await sig(a,k);stg('tsk');flash('#c4001a');sfx('charge');if(h.dmg){hurt(d);num(d,dmgT(d,h.dmg))}upd();await z(1300);stg('tsk',false);break;
       case 'kamui':lunge(by);await z(170);at(a,.45,'ab-vtx','',1100);sfx('time');pop(nm,'',col);upd();await z(950);break;
       case 'gates':mark(a,'gt');upd();await sig(a,k);break;
-      case 'gear5':await sig(a,k);mark(a,'g5');if(h.heal)num(a,'+'+Math.round(h.heal*100)+'%','heal');sfx('awake');upd();await z(500);break;
+      case 'gear5':await sig(a,k);mark(a,'g5');if(h.heal)num(a,healT(a,h.heal),'heal');sfx('awake');upd();await z(500);break;
       case 'quake':crack();shake();setTimeout(shake,260);sfx('quake');num(d,pops().stun,'txt');await z(900);break;
       case 'haki':say(line);at(a,.5,'ab-ring','',1100);stg('hki');shake();sfx('haki');await z(750);
-        if(h.ko){say(L(3));hurt(d);num(d,pct(h.dmg),'crit');imp();upd()}else num(d,pops().stun,'txt');await z(850);stg('hki',false);break;
+        if(h.ko){say(L(3));hurt(d);num(d,dmgT(d,h.dmg),'crit');imp();upd()}else num(d,pops().stun,'txt');await z(850);stg('hki',false);break;
       case 'mugetsu':stg('mug');await sig(a,k);break;
       case 'kyoka':await sig(a,k);break;
       case 'mirage':lunge(by);await z(170);mark(a,'mir');num(a,abT('illusion'),'txt');sfx('whiff');await z(650);mark(a,'mir',false);break;
       case 'shrine':await sig(a,k);stg('shr');stg('dz'+a);sfx('domain');await z(300);break;
-      case 'slash':slashes(d,col);VFX.slash(d,'#ff1f3d');hurt(d);num(d,pct(h.dmg));sfx('slash');upd();await z(500);break;
-      case 'jackpot':slot();sfx('slot');await z(1350);mark(a,'jp');num(a,'+'+Math.round((h.heal||0)*100)+'%','heal');flash('#ffd23f');sfx('awake');upd();await z(500);break;
+      case 'slash':slashes(d,col);VFX.slash(d,'#ff1f3d');hurt(d);num(d,dmgT(d,h.dmg));sfx('slash');upd();await z(500);break;
+      case 'jackpot':slot();sfx('slot');await z(1350);mark(a,'jp');num(a,healT(a,h.heal||0),'heal');flash('#ffd23f');sfx('awake');upd();await z(500);break;
       case 'jpheal':lunge(by);await z(170);hurt(a);num(a,pops().regen,'heal');sfx('hit');await z(450);break;
       case 'rumbling':await sig(a,k);stg('rmb');break;
       case 'ackerman':pop(nm,'',col);sfx('charge');await z(800);break;
@@ -963,7 +975,7 @@ async function run(tk,script){
       case 'rose':at(d,.5,'ab-rose','',1700);VFX.nuke(d);flash('#fff');imp();shake();sfx('nuke');await z(700);dmgOn(d,true);shake();upd();await z(1000);break;
       case 'steal':book(d,a);sfx('charge');await z(700);badge(a,h.s);badge(d,'',true);pop(trT(h.s,0),'',col);sfx('awake');await z(800);break;
       case 'anti':slashes(d,'#0b0b0b',3);mark(a,'anti');badge(d,'',true);sfx('slash');pop(nm,'',col);await z(950);break;
-      case 'chain':if(h.ko){say(line);chain(a,d);sfx('chain');await z(750);hurt(d);imp();shake();num(d,pct(h.dmg),'crit');upd();await z(950)}
+      case 'chain':if(h.ko){say(line);chain(a,d);sfx('chain');await z(750);hurt(d);imp();shake();num(d,dmgT(d,h.dmg),'crit');upd();await z(950)}
         else{say(L(3));await sig(a,k,'Emperor Time');mark(a,'emp')}break;
       case 'hinokami':await sig(a,k);mark(a,'hk');break;
       case 'zawarudo':await sig(a,k);stg('tstop');sfx('time');await z(450);break;
@@ -973,8 +985,8 @@ async function run(tk,script){
       case 'arise':await sig(a,k);shades(a,h.n||2);sfx('hum');await z(700);break;
       case 'shadow':shadeHit(a,d);await z(260);dmgOn(d,false);sfx('hit');upd();await z(380);break;
       case 'geass':await sig(a,k);mark(d,'gs');break;
-      case 'self':mark(a,'gs',false);fa(a,'hit');burst(a,false,'#ff2a55');num(a,pct(h.dmg));sfx('hit');upd();await z(700);break;
-      case 'eclipse':stg('ecl');await sig(a,k);flash('#ff1f1f');num(a,'+60%','heal');sfx('awake');upd();await z(700);break;
+      case 'self':mark(a,'gs',false);fa(a,'hit');burst(a,false,'#ff2a55');num(a,dmgT(a,h.dmg));sfx('hit');upd();await z(700);break;
+      case 'eclipse':stg('ecl');await sig(a,k);flash('#ff1f1f');num(a,healT(a,.6),'heal');sfx('awake');upd();await z(700);break;
       case 'dnote':note(d);sfx('write');await z(2100);mark(d,'dn');break;
       case 'heart':stg('dark');ecg();sfx('heart');await z(1750);mark(d,'dn',false);hurt(d);num(d,'♥','crit');flash('#ff2a3a');upd();await z(800);stg('dark',false);break;
       default:await z(300);
@@ -984,10 +996,10 @@ async function run(tk,script){
   for(const e of S0.ev){
     if(e.t==='start')await say(t('fightStart'),900);
     else if(e.t==='send'){
-      const c=C(e.n),p=e.p,f=$('abf'+p),card=$('abc'+p);act[p]=e.k;cur[p]=c;hpN[p]=e.f==null?1:e.f;
+      const c=C(e.n),p=e.p,f=$('abf'+p),card=$('abc'+p);act[p]=e.k;cur[p]=c;hpN[p]=e.f==null?1:e.f;HM[p]=e.hm||BidEngine.hpMax(e.st||BidEngine.stats(c));
       $('abn'+p).innerHTML=dnh(c);$('abtr'+p).innerHTML=trBadge(c);card.dataset.n=c.n;card.style.setProperty('--h',c.h);card.innerHTML=spr(c);
       const fc=$('abfc'+p);fc.className='ab-face';fc.dataset.n=c.n;fc.style.setProperty('--h',c.h);fc.innerHTML=spr(c);
-      f.className='ab-f a'+p;f.style.setProperty('--lv','');re(f,'in');VFX.enter(p);setB(p,hpN[p],e.e==null?1:e.e);$('abs'+p).innerHTML=stT(c,e.st);roster(p);
+      f.className='ab-f a'+p;f.style.setProperty('--lv','');re(f,'in');VFX.enter(p);setB(p,hpN[p],e.e==null?1:e.e,true);$('abs'+p).innerHTML=stT(c,e.st);roster(p);
       if(team[p].length>1&&e.k===team[p].length-1)com(abF(comT('last'),{a:dnh(c),p:t('player',p+1)}));
       await say(t('sends',p+1,dnh(c)),1150);
     }else if(e.t==='duel'){
@@ -1009,7 +1021,7 @@ async function run(tk,script){
           if(lethal)await finisher(d);
           if(h.rr){drop(d,'roller');await z(560)}else if(h.cl){ghost(a,d);await z(220)}else{lunge(a);await z(h.ts?110:170)}
           const big=h.crit||lethal||h.bf||h.rr;
-          hurt(d);burst(d,big,h.bf?'#ff1f3d':h.as?'#7dff8a':null);num(d,pct(dm(d)),big?'crit':'');sfx(big?'crit':'hit');
+          hurt(d);burst(d,big,h.bf?'#ff1f3d':h.as?'#7dff8a':null);num(d,dmgT(d,dm(d)),big?'crit':'');sfx(big?'crit':'hit');
           if(h.bf){at(d,.45,'ab-bfl','<b>黒閃</b>',950);VFX.bf(d);pop(abT('bfPop'),'','#ff1f3d');imp()}
           else if(h.as){slashes(d,'#7dff8a',3);pop(abT('asPop'),'','#7dff8a')}
           else if(h.ui)pop(abT('uiPop'),'','#dfe7ff');
@@ -1024,7 +1036,7 @@ async function run(tk,script){
             const big=h.k==='spc'||lethal,bc=h.cp!=null?elC(d):h.fc!=null?SIGC.counter:null;
             lunge(a);const tw=VFX.tech(a,h.cp!=null?mvEn(cur[d],h.cp):h.fc!=null?mvEn(cur[d],h.fc):mvEn(cur[a],v),big,bc,{snd:()=>sfx('hit')}); // cada técnica famosa con su animación
             if(tw){sfx('beam');await Promise.race([tw,sleep(2600)]);if(tk!==bt)throw 0}else{beam(a,big,bc);await z(240)}
-            hurt(d);burst(d,true,elC(a));shake();zoom(d);flash(elC(a));num(d,pct(dm(d)),'crit');if(h.k==='spc'&&!lethal)pop(abT('critPop'));if(h.k==='spc'||lethal)imp();if(lethal)VFX.boom(d,elC(a),1.6);VFX.knock(d,lethal?2:1);
+            hurt(d);burst(d,true,elC(a));shake();zoom(d);flash(elC(a));num(d,dmgT(d,dm(d)),'crit');if(h.k==='spc'&&!lethal)pop(abT('critPop'));if(h.k==='spc'||lethal)imp();if(lethal)VFX.boom(d,elC(a),1.6);VFX.knock(d,lethal?2:1);
             sfx('boom');comboHit(a);upd();await z(lethal?1050:760);
           }
         }else if(h.k==='miss'){
@@ -1038,11 +1050,11 @@ async function run(tk,script){
           VFX.clash();pop(abT('clashPop'),'',`var(--p${a+1})`);sfx('beam');shake();await z(600);
           for(const x of (h.fr||[.45,.55,l?1:0])){cl.style.setProperty('--x',x);VFX.clashX(x);if(x===0||x===1)break;sfx('hum');await z(330)}
           if(lethal)await finisher(l);
-          await z(260);cl.remove();VFX.clashEnd(l);VFX.knock(l,lethal?2:1);hurt(l);burst(l,true,elC(w));shake();zoom(l);imp();flash(elC(w));if(h.dmg>0)num(l,pct(dm(l)),'crit');sfx('boom');upd();
+          await z(260);cl.remove();VFX.clashEnd(l);VFX.knock(l,lethal?2:1);hurt(l);burst(l,true,elC(w));shake();zoom(l);imp();flash(elC(w));if(h.dmg>0)num(l,dmgT(l,dm(l)),'crit');sfx('boom');upd();
           await say(abF(abT('clashWin'),{w:dnh(cur[w])}),lethal?1100:900);
         }else if(h.k==='awake'){
           say(abF(abT('awake'),{a:An}));mark(a,'aw');flash(`var(--p${a+1})`); // VFX detecta la clase 'aw' y hace estallar el aurapop(abT('awakePop'),'',`var(--p${a+1})`);sfx('awake');
-          if(h.hp[a]>prev[a])num(a,'+'+Math.round((h.hp[a]-prev[a])*100)+'%','heal');upd();await z(1250);
+          if(h.hp[a]>prev[a])num(a,healT(a,h.hp[a]-prev[a]),'heal');upd();await z(1250);
         }else if(h.k==='tr')await trait(h,a,d,An,Dn,upd);
         else{upd();await z(300)}
         scene(h);if(lethal)stg('fin',false);
@@ -1065,11 +1077,11 @@ async function run(tk,script){
       const W=C(e.n);let cm='';
       if(e.pct>=100)cm='flawless';else if(lastL&&lastL.pw-W.pw>=120)cm='upset';else if(behind[e.p]>=.35)cm='comeback';else if(e.pct<=10)cm='close';
       if(cm)com(abF(comT(cm),{a:dnh(W)}));
-      $('ablog').insertAdjacentHTML('beforeend',`<div><i>${$('abdn').textContent}.</i>${abF(abT('log'),{0:dnh(W),1:dnh(lastL),2:e.pct})}</div>`);
-      await say(t('stands',dnh(W),e.pct),1300);
+      $('ablog').insertAdjacentHTML('beforeend',`<div><i>${$('abdn').textContent}.</i>${abF(abT('log'),{0:dnh(W),1:dnh(lastL),2:hpF(e.hp!=null?e.hp:Math.ceil(e.pct/100*HM[e.p]))})}</div>`);
+      await say(t('stands',dnh(W),hpF(e.hp!=null?e.hp:Math.ceil(e.pct/100*HM[e.p]))+'/'+hpF(e.hm||HM[e.p])),1300);
     }else if(e.t==='end'){
       await say(e.w<0?t('tie'):t('wins',e.w+1),200);
-      const sv=(e.sv||[]).map(s=>{const c=C(s.n);return `<span class="ab-svc"><i class="ab-th" data-n="${s.n}" style="--h:${c.h}">${spr(c)}</i><b>${dnh(c)}</b><small>${Math.max(1,Math.round(s.f*100))}%</small></span>`}).join('');
+      const sv=(e.sv||[]).map(s=>{const c=C(s.n);return `<span class="ab-svc"><i class="ab-th" data-n="${s.n}" style="--h:${c.h}">${spr(c)}</i><b>${dnh(c)}</b><small>${hpF(Math.max(1,Math.ceil(s.f*(s.hm||BidEngine.hpMax(BidEngine.stats(c))))))} ${u('ps')}</small></span>`}).join('');
       const mv=e.mvp&&C(e.mvp.n)?`<div class="ab-mvp" style="--c:var(--p${e.mvp.p+1})"><em>${abT('mvp')}</em><i class="ab-th" data-n="${e.mvp.n}" style="--h:${C(e.mvp.n).h}">${spr(C(e.mvp.n))}</i><span><b>${dnh(C(e.mvp.n))}</b><small>${t('player',e.mvp.p+1)} · ${e.mvp.ko===1?abT('kos1'):abF(abT('kos'),{0:e.mvp.ko})}</small></span></div>`:'';
       E.insertAdjacentHTML('beforeend',`<div class="res ab-res"${e.w>=0?` style="--c:var(--p${e.w+1})"`:''}><h2>${e.w<0?t('tie'):t('winsH',e.w+1)}</h2><p class="ab-note"></p><div class="ab-sv">${sv||`<small>${t('nobody')}</small>`}</div>${mv}<button onclick="again()">${t('again')}</button></div>`);
       E.querySelector('.ab-res').scrollIntoView({behavior:'smooth',block:'nearest'});

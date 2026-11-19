@@ -16,7 +16,7 @@ const cleanName = s => {
   return NAME_RE.test(n) ? n : null;
 };
 const snap = g => ({
-  cat: g.cat, dv: g.dv, phase: g.phase, cur: g.cur ? g.cur.n : null, bid: g.bid, leader: g.leader, left: g.left, free: g.free,
+  cat: g.cat, dv: g.dv, phase: g.phase, cur: g.cur ? g.cur.n : null, bid: g.bid, leader: g.leader, left: g.left, free: g.free, fp: !!g.fp,
   passed: [...g.passed], skips: [...g.skips], locked: g.locked,
   P: g.P.map(p => ({ m: p.m, c: p.c.map(c => ({ n: c.n, paid: c.paid, free: !!c.free })) })),
 });

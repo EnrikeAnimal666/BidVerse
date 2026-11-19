@@ -553,26 +553,29 @@ body:not(.ingame) .logoimg{height:clamp(110px,16vw,190px);max-width:100%}
 .ab-who b{min-width:0;font:900 clamp(1.1rem,2.5vw,1.7rem)/1 var(--disp);letter-spacing:.02em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 2px 0 #000}
 .ab-trn{min-height:1.1em;margin-top:-2px}.ab-pl.a1 .ab-trn{text-align:right}.ab-trn .trb{margin:0}
 .ab-trn .trx{position:relative;opacity:.45;filter:grayscale(1)}.ab-trn .trx::after{content:"";position:absolute;left:-3px;right:-3px;top:50%;height:2px;background:#ff3b3b;transform:rotate(-8deg)}
-/* barras de vida: pista oscura con corte diagonal hacia el centro, relleno con brillo suave y estela roja de daño */
-.ab-bar{position:relative;height:14px;overflow:hidden;border-radius:3px 0 0 3px;background:linear-gradient(180deg,rgba(0,0,0,.72),rgba(28,24,40,.9));
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);clip-path:polygon(0 0,100% 0,calc(100% - 9px) 100%,0 100%)}
-.ab-pl.a1 .ab-bar{border-radius:0 3px 3px 0;clip-path:polygon(0 0,100% 0,100% 100%,9px 100%)}
-.ab-bar i{position:absolute;top:0;bottom:0;left:0;width:100%}
+/* vida: puntos de vida en grande encima y barra redondeada; el color pasa de verde a amarillo y a rojo según lo que queda (--hh lo pone el JS) */
+.ab-life{display:grid;gap:5px;min-width:0}
+.ab-hpn{display:flex;align-items:baseline;gap:6px;min-width:0;line-height:1;white-space:nowrap}
+.ab-pl.a1 .ab-hpn{justify-content:flex-end}
+.ab-hpn .lb{font:800 .58rem var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--c)}
+.ab-hpn b{font:900 1.35rem/1 var(--disp);letter-spacing:.03em;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 2px 0 #000}
+.ab-hpn small{font:700 .7rem var(--mono);color:var(--mut);font-variant-numeric:tabular-nums}
+.ab-pm.dmg .ab-hpn b{animation:abhpn calc(.35s*var(--k)) ease-out}
+@keyframes abhpn{0%{color:#ff6b5a;transform:translateY(-2px)}}
+.ab-bar{position:relative;height:12px;overflow:hidden;border-radius:999px;background:rgba(0,0,0,.6);box-shadow:inset 0 1px 3px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.13)}
+.ab-bar i{position:absolute;top:0;bottom:0;left:0;width:100%;border-radius:inherit}
 .ab-pl.a1 .ab-bar i{left:auto;right:0}
-.ab-hp .g{background:linear-gradient(180deg,#ffd7cd,#ff5a47);transition:width calc(.8s*var(--k)) ease-out calc(.4s*var(--k))}
-.ab-hp .v{background:linear-gradient(180deg,#a6ffd0 0,#2fe07f 45%,#15a35b);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -2px 3px rgba(0,0,0,.22);transition:width calc(.18s*var(--k)) ease-out}
-.ab-hp .v::after{content:"";position:absolute;top:0;bottom:0;right:0;width:22px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.5))}
-.ab-pl.a1 .ab-hp .v::after{right:auto;left:0;background:linear-gradient(270deg,transparent,rgba(255,255,255,.5))}
-.ab-hp .v.mid{background:linear-gradient(180deg,#fff0b3 0,#ffc21f 45%,#d48900)}
-.ab-hp .v.low{background:linear-gradient(180deg,#ffb2a6 0,#ff4141 45%,#c0141f);animation:ablow 1s ease-in-out infinite}
-@keyframes ablow{50%{filter:brightness(1.4) saturate(1.2)}}
-.ab-bar em{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding:0 15px 0 8px;font:800 .66rem/1 var(--mono);font-style:normal;letter-spacing:.04em;color:#fff;text-shadow:0 1px 2px #000,0 0 4px rgba(0,0,0,.85)}
-.ab-pl.a1 .ab-bar em{justify-content:flex-start;padding:0 8px 0 15px}
-.ab-ki{height:6px;width:78%;border-radius:2px 0 0 2px;clip-path:polygon(0 0,100% 0,calc(100% - 5px) 100%,0 100%)}
-.ab-pl.a1 .ab-ki{justify-self:end;border-radius:0 2px 2px 0;clip-path:polygon(0 0,100% 0,100% 100%,5px 100%)}
-.ab-ki i{width:0;background:linear-gradient(90deg,#1769ff,#47c6ff 70%,#d4f8ff);transition:width calc(.45s*var(--k))}
-.ab-pl.a1 .ab-ki i{background:linear-gradient(270deg,#1769ff,#47c6ff 70%,#d4f8ff)}
-.ab-ki::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(33.33% - 2px),rgba(6,5,10,.9) calc(33.33% - 2px) 33.33%)}
+.ab-hp .g{background:rgba(255,238,220,.7);transition:width calc(.7s*var(--k)) ease-out calc(.35s*var(--k))}
+.ab-hp .v{--hh:130;background:linear-gradient(180deg,hsl(var(--hh) 95% 72%),hsl(var(--hh) 82% 47%) 55%,hsl(var(--hh) 88% 36%));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 0 12px hsl(var(--hh) 90% 50% / .5);transition:width calc(.2s*var(--k)) ease-out}
+.ab-hp .v.low{animation:ablow 1s ease-in-out infinite}
+@keyframes ablow{50%{filter:brightness(1.5)}}
+/* ki: tres tramos (una técnica cada uno) separados por huecos, sin rayas negras */
+.ab-ki{height:5px;width:72%;background:rgba(0,0,0,.45);box-shadow:none;
+  -webkit-mask:repeating-linear-gradient(90deg,#000 0 calc(33.33% - 3px),transparent calc(33.33% - 3px) 33.33%);mask:repeating-linear-gradient(90deg,#000 0 calc(33.33% - 3px),transparent calc(33.33% - 3px) 33.33%)}
+.ab-pl.a1 .ab-ki{justify-self:end;-webkit-mask-position:right;mask-position:right}
+.ab-ki i{width:0;border-radius:0;background:linear-gradient(90deg,#1f6bff,#5fd0ff);transition:width calc(.45s*var(--k))}
+.ab-pl.a1 .ab-ki i{background:linear-gradient(270deg,#1f6bff,#5fd0ff)}
 .ab-tm{display:flex;gap:5px;min-height:34px}.ab-pl.a1 .ab-tm{justify-content:flex-end}
 .ab-th{position:relative;flex:none;width:28px;height:34px;display:grid;place-items:center;overflow:hidden;background:hsl(var(--h,30) 70% 45%);border:1.5px solid rgba(255,255,255,.25);font-style:normal;font-size:1rem;transform:skewX(-8deg);transition:filter .4s}
 .ab-th img{width:100%;height:100%;object-fit:cover;object-position:50% 12%}
@@ -883,7 +886,7 @@ body:not(.ingame) .logoimg{height:clamp(110px,16vw,190px);max-width:100%}
   .ab-pl{grid-template-columns:minmax(0,1fr);padding:8px 16px 8px 9px;gap:5px}.ab-pl.a1{padding:8px 9px 8px 16px}
   .ab-face{display:none}
   .ab-who{flex-direction:column;align-items:flex-start;gap:2px}.ab-pl.a1 .ab-who{flex-direction:column;align-items:flex-end}
-  .ab-hp{height:12px}.ab-ki{height:5px}.ab-th{width:24px;height:30px;font-size:.85rem}.ab-tm{min-height:30px;gap:4px}
+  .ab-hp{height:10px}.ab-ki{height:4px}.ab-hpn{gap:4px}.ab-hpn b{font-size:1.05rem}.ab-hpn small{font-size:.6rem}.ab-hpn .lb{display:none}.ab-th{width:24px;height:30px;font-size:.85rem}.ab-tm{min-height:30px;gap:4px}
   .ab-stage{height:clamp(270px,44svh,340px)}
   .ab-f{width:34%;bottom:10%}.ab-f.a0{left:5%}.ab-f.a1{right:5%}
   .ab-sig .sg-pic{width:40%}.ab-sig .sg-t b{-webkit-text-stroke:1.5px #000}

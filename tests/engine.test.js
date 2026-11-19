@@ -25,12 +25,34 @@ let n=0;const ok=(c,m)=>{assert(c,m);n++};
  ok(E.next(g).ev[0].t==='lot','siguiente lote');
  ok(E.next(g).ev.length===0,'next doble ignorado');
 }
-// ---- temporizador: nadie puja -> descartes -> reparto ----
+// ---- temporizador: nadie puja ni pasa -> solo ese lote va a uno al azar, gratis, y la subasta sigue ----
 {const g=E.create({cat:'anime',pool:POOLS.anime,rng:E.mulberry32(2)});E.next(g);
  let last;for(let i=0;i<E.SECS;i++)last=E.tick(g);
- ok(last.ev.some(e=>e.t==='deal')&&!last.ev.some(e=>e.t==='sold'),'sin pujas al agotar el tiempo: reparto al azar');
- ok(g.P[0].c.length===3&&g.P[1].c.length===3&&g.idx>=g.deck.length,'reparto completa 3+3');
- ok(E.next(g).ev[0].t==='finish','y se acaba');}
+ const s=last.ev.find(e=>e.t==='sold');ok(s&&s.rand&&s.price===0,'sin pujas al agotar el tiempo: al azar');
+ ok(g.P[0].c.length+g.P[1].c.length===1&&g.P[0].m===20&&g.P[1].m===20,'solo ese lote y gratis');
+ ok(E.next(g).ev[0].t==='lot','la subasta sigue');}
+// ---- saltar: si uno pasa, el otro se lo lleva gratis (pulsando o sin hacer nada) ----
+{const g=E.create({cat:'anime',pool:POOLS.anime,rng:E.mulberry32(6)});E.next(g);
+ let r=E.skip(g,0);ok(r.ev[0].t==='pass'&&g.free===1&&g.fp,'pasa el 0: el 1 lo tiene gratis');
+ ok(E.place(g,0,3).ev.length===0,'quien ha pasado ya no puja');
+ let last;for(let i=0;i<E.SECS;i++)last=E.tick(g);
+ const s=last.ev.find(e=>e.t==='sold');ok(s&&s.p===1&&s.price===0&&!s.rand,'sin hacer nada: se lo lleva quien NO ha pasado (no al azar)');
+ ok(g.P[1].m===20&&g.skips[0]===2&&g.skips[1]===2,'gratis y sin gastar saltos');
+ E.next(g);E.skip(g,1);r=E.place(g,0,'');ok(r.ev[0].t==='sold'&&r.ev[0].p===0&&r.ev[0].price===0&&g.P[0].m===20,'pulsando: se lo queda gratis (no hace falta pujar $1)');}
+{const g=E.create({cat:'anime',pool:POOLS.anime,rng:E.mulberry32(7)});E.next(g);g.skips=[2,0];
+ const r=E.skip(g,0);ok(r.ev.some(e=>e.t==='forced')&&r.wait.act==='close','al rival no le quedan saltos: es suyo');
+ const c=E.close(g,false);ok(c.ev[0].t==='sold'&&c.ev[0].p===1&&c.ev[0].price===0,'se lo lleva gratis');}
+// ---- sin dinero: regalar el lote al rival no gasta saltos ----
+{const g=E.create({cat:'anime',pool:POOLS.anime,rng:E.mulberry32(8)});g.P[1].m=0;g.skips=[0,2];
+ let r=E.next(g);ok(g.free===0&&!g.fp&&g.phase==='bidding'&&E.gives(g,0),'sin saltos pero puede regalarlo: no está obligado');
+ r=E.skip(g,0);ok(r.ev[0].t==='sold'&&r.ev[0].p===1&&r.ev[0].gift&&g.skips[0]===0,'regalo al rival sin dinero, sin gastar saltos');
+ g.skips=[1,2];E.next(g);r=E.skip(g,0);ok(r.ev[0].gift&&g.skips[0]===1,'con saltos tampoco gasta');}
+{const g=E.create({cat:'anime',pool:POOLS.anime,rng:E.mulberry32(9)});g.P[1].m=0;g.P[1].c=g.deck.splice(-3);
+ E.next(g);ok(g.free===0&&!E.gives(g,0),'el rival no tiene hueco: no se le puede regalar');
+ const r=E.skip(g,0);ok(r.ev[0].t==='discard'&&g.skips[0]===1,'descartar sí gasta un salto');}
+// ---- vida en puntos ----
+{const hp=n=>E.hpMax(E.stats(POOLS.anime.find(c=>c.n===n)));
+ ok(hp('Goku')>hp('Naruto')&&hp('Naruto')>hp('Reigen')&&hp('Reigen')>=100,'cada personaje tiene su vida');}
 // ---- skips: ambos pasan, se descarta, se gastan descartes ----
 {const g=E.create({cat:'anime',pool:POOLS.anime,rng:E.mulberry32(3)});E.next(g);
  E.skip(g,0);let r=E.skip(g,1);ok(r.ev[0].t==='noBids'&&g.skips[0]===1&&g.skips[1]===1,'ambos pasan: -1 descarte a cada uno');}
@@ -65,6 +87,7 @@ function bot(cat,seed){
       if(e.t==='duel'){ok(e.hits.length>=1&&e.hits.length<=30,'golpes');let pv=[1,1];
         for(const h of e.hits){ok(h.hp[0]>=0&&h.hp[1]>=0&&h.hp[0]<=1&&h.hp[1]<=1,'hp en rango')}}
       ok(!('pw' in e),'el guion no lleva poder')}
+    ok(ev.filter(e=>e.t==='send').every(e=>e.hm>0),'cada luchador sale con su vida máxima');
     ok(sends===downs+2||sends===downs+1||sends===downs,'cada caído tiene su envío');
     const end=ev[ev.length-1];ok(end.w===-1||end.sv.length>=1,'ganador con supervivientes');
   }else{const f=E.resolveUfc(g);ok(f.bouts.length<=8,'<=8 combates');
@@ -78,8 +101,8 @@ for(let s=1;s<=200;s++){bot('anime',s);bot('ufc',s)}
 {const a=bot('anime',99),b=bot('anime',99);ok(JSON.stringify(a.P)===JSON.stringify(b.P),'misma semilla = misma partida')}
 // ---- duelo: números de referencia ----
 {const rng=E.mulberry32(5),P=n=>ctx.R.find(r=>r[0]===n)[2];
- const st=(a,b,N=5000)=>{let one=0,weak=0,h=0;for(let i=0;i<N;i++){const r=E.duel(rng,{pw:P(a),f:1},{pw:P(b),f:1});h+=r.hits.length;if(r.hits.length===1)one++;if(r.w!==(P(a)>=P(b)?0:1))weak++}return{one:one/N,weak:weak/N,h:h/N}};
- const gm=st('Goku','Madara');ok(gm.one<.1&&gm.weak<.02&&gm.h>3,'Goku no revienta a Madara de un golpe');
- const gr=st('Goku','Reigen');ok(gr.one>.9,'Goku sí revienta a Reigen');
+ const st=(a,b,N=5000)=>{let one=0,weak=0,h=0;for(let i=0;i<N;i++){const r=E.duel(rng,{n:a,pw:P(a),f:1},{n:b,pw:P(b),f:1});h+=r.hits.length;if(r.hits.length===1)one++;if(r.w!==(P(a)>=P(b)?0:1))weak++}return{one:one/N,weak:weak/N,h:h/N}};
+ const gm=st('Goku','Madara');ok(gm.one<.1&&gm.weak>.1&&gm.weak<.3&&gm.h>3,'Goku no revienta a Madara de un golpe (+195: gana ~80 %)');
+ const gr=st('Goku','Reigen');ok(gr.one>.6&&gr.weak<.01,'Goku sí revienta a Reigen');
  const ns=st('Naruto','Sasuke');ok(ns.weak>.4&&ns.weak<.6,'Naruto-Sasuke igualados');}
 console.log('OK',n,'comprobaciones');

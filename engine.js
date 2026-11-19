@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '2026-11-18c';
+  const VERSION = '2026-11-19a';
   const CFG = { anime: { start: 20 }, ufc: { start: 40 }, futbol: { start: 100 } }, MAXC = 3, SECS = 10;
   // Fútbol: 4-3-3 (1 portero, 4 defensas, 3 medios, 3 delanteros). Se subasta por posiciones, igual que la UFC por categorías.
   const FUT_DIVS = [{ k: 'GK', n: 1 }, { k: 'DEF', n: 4 }, { k: 'MID', n: 3 }, { k: 'FWD', n: 3 }];
@@ -41,7 +41,7 @@
       ? divs.flatMap(d => shuffle(rng, pool.filter(x => x.cls === d.k)))
       : animeDeck(rng, pool);
     return {
-      cat, rng, divs, deck, idx: -1, dv: '', cur: null, bid: 0, leader: -1, left: SECS, free: -1,
+      cat, rng, divs, deck, idx: -1, dv: '', cur: null, bid: 0, leader: -1, left: SECS, free: -1, fp: false,
       passed: [false, false], skips: [2, 2], locked: false,
       phase: 'idle', // idle → bidding → (forced) → closing → … → fight
       P: [{ m: CFG[cat].start, c: [] }, { m: CFG[cat].start, c: [] }],
@@ -54,6 +54,11 @@
   const can = (g, p) => DIVC(g) ? g.P[p].c.filter(c => c.cls === g.dv).length < need(g, g.dv) : g.P[p].c.length < MAXC;
   const out = (g, p) => !can(g, p) || g.P[p].m < 1;
   const divEnd = g => { let n = g.idx; while (n < g.deck.length && g.deck[n].cls === g.dv) n++; return n; };
+  /* Lote gratis (g.free = quien se lo puede quedar sin pagar). Hay dos motivos:
+       · el rival no puede pujar (sin dinero o sin hueco): g.fp = false
+       · el rival ha pasado (saltado) este lote:          g.fp = true
+     gives(g, p): pasar ahora le regala el lote al rival sin gastar saltos (el rival no tiene dinero pero sí hueco). */
+  const gives = (g, p) => g.free === p && !g.fp && can(g, 1 - p);
 
   /* ---------- subasta ---------- */
   function next(g) {
@@ -67,14 +72,14 @@
       g.locked = true; g.phase = 'fight';
       return { ev: [{ t: 'finish' }], wait: null };
     }
-    g.cur = g.deck[g.idx]; g.bid = 0; g.leader = -1; g.left = SECS; g.free = -1;
+    g.cur = g.deck[g.idx]; g.bid = 0; g.leader = -1; g.left = SECS; g.free = -1; g.fp = false;
     const e = [can(g, 0), can(g, 1)], b = [e[0] && g.P[0].m >= 1, e[1] && g.P[1].m >= 1], dead = e[0] && e[1] && !b[0] && !b[1];
     if (e[0] && e[1]) { if (b[0] !== b[1]) g.free = b[0] ? 0 : 1; } else g.free = e[0] ? 0 : 1; // lote gratis para quien aún puede coger
     g.passed = [false, false]; if (g.free >= 0) g.passed[1 - g.free] = true;
     g.locked = dead; g.phase = 'bidding';
     const ev = [{ t: 'lot' }];
     if (dead) { const r = giveRandom(g, true); return { ev: ev.concat(r.ev), wait: r.wait }; } // nadie tiene dinero: este lote va a uno al azar
-    if (g.free >= 0 && g.skips[g.free] <= 0) { // no le quedan descartes: se lo lleva gratis
+    if (g.free >= 0 && g.skips[g.free] <= 0 && !gives(g, g.free)) { // no le quedan descartes (y no puede regalárselo al rival): se lo lleva gratis
       g.locked = true; g.leader = g.free; g.phase = 'forced';
       return { ev: ev.concat({ t: 'forced' }), wait: { ms: 1600, act: 'close' } };
     }
@@ -104,11 +109,14 @@
   function skip(g, p) {
     if ((p !== 0 && p !== 1) || g.phase !== 'bidding' || g.locked || g.leader === p) return NONE();
     if (g.leader >= 0) return close(g, false); // el otro va ganando: aceptas
-    if (g.skips[p] <= 0 || g.passed[p]) return NONE();
+    if (g.passed[p] || (g.skips[p] <= 0 && !gives(g, p))) return NONE(); // regalárselo al rival sin dinero no gasta saltos
     g.passed[p] = true;
-    if (g.passed[1 - p]) return close(g, false);
-    g.left = SECS;
-    return { ev: [{ t: 'pass', p }], wait: null };
+    if (g.free === p) return close(g, false); // pasa quien tenía el lote gratis: regalo, descarte o los dos pasan
+    // Pasa con el lote abierto: el rival se lo puede llevar GRATIS (y se lo lleva si no hace nada). Si a él tampoco le quedan saltos, ya es suyo.
+    const o = 1 - p; g.free = o; g.fp = true; g.left = SECS;
+    const ev = [{ t: 'pass', p }];
+    if (g.skips[o] <= 0) { g.locked = true; g.leader = o; g.phase = 'forced'; ev.push({ t: 'forced' }); return { ev, wait: { ms: 1600, act: 'close' } }; }
+    return { ev, wait: null };
   }
 
   function close(g, afk) {
@@ -121,8 +129,12 @@
       g.P[p].m -= g.bid; g.P[p].c.push({ ...g.cur, paid: g.bid, free: g.free === p });
       ev.push({ t: 'sold', p, price: g.bid, free: g.free === p });
     } else if (afk) return giveRandom(g, false); // se acabó el tiempo sin pujas: SOLO este lote va a uno de los dos al azar
-    else if (g.free >= 0) { const o = 1 - g.free; g.skips[g.free] = Math.max(0, g.skips[g.free] - 1); if (can(g, o)) { g.P[o].c.push({ ...g.cur, paid: 0, free: true }); ev.push({ t: 'sold', p: o, price: 0, free: true, gift: true }); } else ev.push({ t: 'discard' }); } // el rival sin dinero pero con hueco se lo queda gratis; si no tiene hueco, se descarta
-    else { ev.push({ t: 'noBids' }); g.skips = g.skips.map(s => Math.max(0, s - 1)); }
+    else if (g.free >= 0 && !g.fp) { // pasa quien lo tenía gratis porque el rival no podía pujar
+      const o = 1 - g.free;
+      if (can(g, o)) { g.P[o].c.push({ ...g.cur, paid: 0, free: true }); ev.push({ t: 'sold', p: o, price: 0, free: true, gift: true }); } // el rival sin dinero pero con hueco se lo queda gratis (no cuesta saltos)
+      else { g.skips[g.free] = Math.max(0, g.skips[g.free] - 1); ev.push({ t: 'discard' }); } // sin hueco en el rival: se descarta y cuesta un salto
+    }
+    else { ev.push({ t: 'noBids' }); g.skips = g.skips.map(s => Math.max(0, s - 1)); } // pasan los dos
     return { ev, wait: { ms: 2600, act: 'next' } };
   }
 
@@ -146,6 +158,14 @@
     if (c.st) return c.st;
     const o = PRO[c.pr] || PRO.A, h = hsh(c.n), v = o.map((x, i) => Math.max(5, Math.min(1000, Math.round(c.pw + x * .6 + ((h >>> (i * 5)) % 31) - 15))));
     return c.st = { STR: v[0], SPD: v[1], DUR: v[2], TEC: v[3], ENE: v[4] };
+  }
+  /* PUNTOS DE VIDA (anime): cada personaje tiene su vida máxima, sobre todo por su resistencia (DUR) y algo por el resto.
+     Crece en exponencial como el poder: ~400 PS un humano corriente, ~2.000 a media tabla, ~10.000 un dios.
+     El duelo se sigue calculando en fracción de vida (0-1); el daño en puntos = fracción × vida máxima de quien lo recibe. */
+  function hpMax(s) {
+    if (!s) return 1000;
+    const v = .7 * s.DUR + .3 * (s.STR + s.SPD + s.TEC + s.ENE) / 4;
+    return Math.max(100, Math.round(400 * Math.pow(10, 1.4 * clamp(v, 0, 1100) / 1000) / 10) * 10);
   }
 
   /* ---------- DUELO (anime) v2 ----------
@@ -458,11 +478,11 @@
 
   // Combate final de anime: devuelve el guion completo (eventos) para animarlo. Solo lleva nombres, vida, ki y estadísticas.
   function resolveAnime(g) {
-    const rng = g.rng, T = g.P.map(p => p.c.map(c => ({ n: c.n, pw: c.pw, tr: c.tr || '', st: stats(c), f: 1, e: 1, aw: false, dead: false, ko: 0, dmg: 0 }))), i = [0, 0];
+    const rng = g.rng, T = g.P.map(p => p.c.map(c => { const st = stats(c); return { n: c.n, pw: c.pw, tr: c.tr || '', st, hm: hpMax(st), f: 1, e: 1, aw: false, dead: false, ko: 0, dmg: 0 }; })), i = [0, 0];
     const alive = p => i[p] < T[p].length, ev = [{ t: 'start', teams: T.map(t => t.map(c => c.n)) }];
     const adv = p => { do i[p]++; while (i[p] < T[p].length && T[p][i[p]].dead); }; // el siguiente que siga vivo (el Eclipse puede llevarse a uno)
     const mate = p => { for (let j = i[p] + 1; j < T[p].length; j++) if (!T[p][j].dead) return j; return -1; };
-    const send = p => { const c = T[p][i[p]]; ev.push({ t: 'send', p, k: i[p], n: c.n, f: +c.f.toFixed(4), e: +c.e.toFixed(3), aw: c.aw, st: c.st }); };
+    const send = p => { const c = T[p][i[p]]; ev.push({ t: 'send', p, k: i[p], n: c.n, f: +c.f.toFixed(4), e: +c.e.toFixed(3), aw: c.aw, st: c.st, hm: c.hm }); };
     if (alive(0)) send(0);
     if (alive(1)) send(1);
     let k = 0;
@@ -484,13 +504,13 @@
       const wp = sim.w, lp = 1 - wp, W = T[wp][i[wp]], L = T[lp][i[lp]];
       const rem = Math.max(.03, sim.hp[wp]);
       W.f = rem; W.e = Math.min(1, sim.en[wp] + .3); W.ko++; L.f = 0; L.dead = true;
-      ev.push({ t: 'down', p: lp, k: i[lp], n: L.n }, { t: 'stands', p: wp, n: W.n, pct: Math.round(rem * 100), e: +W.e.toFixed(3) });
+      ev.push({ t: 'down', p: lp, k: i[lp], n: L.n }, { t: 'stands', p: wp, n: W.n, pct: Math.round(rem * 100), hp: Math.ceil(rem * W.hm), hm: W.hm, e: +W.e.toFixed(3) });
       adv(lp); if (alive(lp)) send(lp);
     }
     const w = alive(0) ? 0 : alive(1) ? 1 : -1;
     const all = T.flatMap((t, p) => t.map(c => ({ p, n: c.n, ko: c.ko, dmg: c.dmg })));
     const mvp = all.length ? all.sort((x, y) => y.ko - x.ko || y.dmg - x.dmg)[0] : null;
-    ev.push({ t: 'end', w, sv: w < 0 ? [] : T[w].filter(c => !c.dead).map(c => ({ n: c.n, f: c.f })), mvp: mvp && { p: mvp.p, n: mvp.n, ko: mvp.ko, dmg: +mvp.dmg.toFixed(3) } });
+    ev.push({ t: 'end', w, sv: w < 0 ? [] : T[w].filter(c => !c.dead).map(c => ({ n: c.n, f: c.f, hm: c.hm })), mvp: mvp && { p: mvp.p, n: mvp.n, ko: mvp.ko, dmg: +mvp.dmg.toFixed(3) } });
     return { ev, winner: w };
   }
 
@@ -632,5 +652,5 @@
     return { kind: 'anime', script: resolveAnime(g) };
   }
 
-  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, ROTO_PW, ROTO_P, order, FT, FUT_DIVS, futXI, resolveFutbol, resolve, create, can, out, next, tick, place, skip, close, duel, stats, decide, resolveAnime, resolveUfc, mulberry32 };
+  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, ROTO_PW, ROTO_P, order, FT, FUT_DIVS, futXI, resolveFutbol, resolve, create, can, out, gives, next, tick, place, skip, close, duel, stats, hpMax, decide, resolveAnime, resolveUfc, mulberry32 };
 });
