@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '2026-11-19a';
+  const VERSION = '2026-11-24a';
   const CFG = { anime: { start: 20 }, ufc: { start: 40 }, futbol: { start: 100 } }, MAXC = 3, SECS = 10;
   // Fútbol: 4-3-3 (1 portero, 4 defensas, 3 medios, 3 delanteros). Se subasta por posiciones, igual que la UFC por categorías.
   const FUT_DIVS = [{ k: 'GK', n: 1 }, { k: 'DEF', n: 4 }, { k: 'MID', n: 3 }, { k: 'FWD', n: 3 }];
@@ -25,11 +25,20 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const shuffle = (rng, a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   /* Rareza (solo anime): los rotos (poder ≥ 900: God, Zeno, La Verdad, Gran Sacerdote, Whis, Saitama, Goku, Beerus) salen en 1 de cada 10 partidas.
-     Con probabilidad ROTO_P uno de ellos (al azar) entra entre los 6 primeros lotes, que toda partida llega a ver; los demás van al fondo del mazo. */
-  const ROTO_PW = 900, ROTO_P = 1 / 10;
+     Con probabilidad ROTO_P uno de ellos (al azar) entra entre los 6 primeros lotes, que toda partida llega a ver; los demás van al fondo del mazo.
+     En esas partidas el resto del mazo se endurece para que quien no se lleve el roto tenga una pequeña oportunidad:
+       · los débiles se van al fondo: barajado con pesos (poder < 300 pesa 0,2 y < 450 pesa 0,5), así salen muchos menos al principio
+       · Light Yagami (el Death Note se lleva por delante a cualquiera, hasta a God) tiene LIGHT_P más de colarse entre los LIGHT_TOP primeros lotes
+     Calibrado con 20.000 mazos (10 primeros lotes): débiles (< 300) ~1,5 → ~0,4 · medios (300-449) ~4,8 → ~3,5 · Light ~6 % → ~23 %. */
+  const ROTO_PW = 900, ROTO_P = 1 / 10, LIGHT_P = .15, LIGHT_TOP = 10;
+  const deckW = c => c.tr === 'dnote' ? 1 : c.pw < 300 ? .2 : c.pw < 450 ? .5 : 1;
+  const wshuffle = (rng, a, w) => a.map(c => ({ c, k: Math.pow(rng(), 1 / w(c)) })).sort((x, y) => y.k - x.k).map(x => x.c); // Efraimidis-Spirakis
   function animeDeck(rng, pool) {
-    const roto = c => c.pw >= ROTO_PW, deck = shuffle(rng, pool.filter(c => !roto(c))), top = shuffle(rng, pool.filter(roto));
-    if (top.length && rng() < ROTO_P) deck.splice(rndi(rng, 0, Math.min(5, deck.length)), 0, top.shift());
+    const roto = c => c.pw >= ROTO_PW, rest = pool.filter(c => !roto(c)), top = shuffle(rng, pool.filter(roto));
+    if (!top.length || rng() >= ROTO_P) return shuffle(rng, rest).concat(top);
+    const deck = wshuffle(rng, rest, deckW), li = deck.findIndex(c => c.tr === 'dnote');
+    if (li >= LIGHT_TOP && rng() < LIGHT_P) deck.splice(rndi(rng, 0, LIGHT_TOP - 2), 0, deck.splice(li, 1)[0]); // (luego entra el roto: Light sigue entre los 10 primeros)
+    deck.splice(rndi(rng, 0, Math.min(5, deck.length)), 0, top.shift());
     return deck.concat(top);
   }
 
@@ -168,16 +177,18 @@
     return Math.max(100, Math.round(400 * Math.pow(10, 1.4 * clamp(v, 0, 1100) / 1000) / 10) * 10);
   }
 
-  /* ---------- DUELO (anime) v2 ----------
-     Idea: diferencias pequeñas de poder = combate igualado; diferencias enormes = paliza. La ventaja crece despacio hasta ~250 puntos
-     y muy deprisa a partir de ~400 (un dios borra a un humano de un golpe). Calibrado con miles de duelos simulados (mismo perfil, sin daño previo):
-       +50 → ~57 %   +100 → ~65 %   +150 → ~73 %   +250 → ~87 %   +400 → ~98 %   +600 → 100 %
+  /* ---------- DUELO (anime) v3 ----------
+     Idea: diferencias pequeñas de poder = combate igualado; a partir de ~100 puntos el más fuerte gana casi siempre y con 300+ es una paliza
+     (realista: el débil solo tiene una pequeña oportunidad). Calibrado con miles de duelos simulados (mismo perfil, sin daño previo):
+       +25 → ~57 %   +50 → ~64 %   +100 → ~78 %   +150 → ~87 %   +200 → ~94 %   +300 → ~99 %   +400 → 100 %
+     (v2 era mucho más plana: +100 → 65 %, +200 → 79 %, +300 → 92 %.) Lo que la endurece: menos forma del día (FORM), menos azar en el daño (VAR),
+     ventaja de velocidad y de precisión más marcada (K1, KS, KA) y un despertar menos frecuente y más flojo (AWP, AWK).
      Mecánicas (todas salen en el guion para animarlas):
        · golpe / crítico                · técnica especial (gasta ki, más daño)   · esquiva (+ contraataque)
        · choque de técnicas: los dos lanzan su técnica a la vez y empujan; el que gana revienta al otro
-       · despertar: la primera vez que un personaje baja del 33 % de vida puede (55 %) sacar su verdadero poder (+stats, recupera ki). Una vez por combate.
+       · despertar: la primera vez que un personaje baja del 33 % de vida puede (40 %) sacar su verdadero poder (+stats, recupera ki). Una vez por combate.
      La vida y el ki que le quedan al ganador pasan al siguiente duelo (el ki se recupera un poco entre duelos). */
-  const AN = { FORM: 80, K1: 7000, K3: 900, BASE: .19, KS: 3000, KA: 2600, AWK: 55, AWHP: .33, AWP: .55, SPC: .34, REGEN: .05, CAP: 80 };
+  const AN = { FORM: 35, K1: 2000, K3: 900, BASE: .19, KS: 1500, KA: 1500, AWK: 45, AWHP: .33, AWP: .4, SPC: .34, REGEN: .05, CAP: 80, VAR: .4 };
   const ex = d => d / AN.K1 + Math.sign(d) * Math.pow(Math.abs(d) / AN.K3, 3); // exponente: lineal suave + cúbico (castiga las diferencias enormes)
   const mul = d => Math.pow(10, ex(d));
   /* ---------- RASGOS (anime): habilidades propias de algunos personajes. La clave está en data-anime.js (TRAITS) y llega como c.tr ----------
@@ -233,11 +244,36 @@
        eclipse   Griffith: 1 vez, en vez de caer, sacrifica al siguiente de su equipo y renace al 60 %
        dnote     Light Yagami: antes que nadie escribe el nombre del rival; el rival lo mata de un golpe (es un simple humano) y
                  40 s después muere de un ataque al corazón. Caen los dos siempre: nada lo para, ni God, ni robarlo ni anularlo.
+       perfect   Cell: 1 vez, en vez de caer se regenera de una sola célula: vuelve al 20 % con +30 a todo (Zenkai)
+       shock     C.C.: el primer rival que la golpea ve la Imagen de Choque: pierde 1 turno y un 40 % de ki
+       makanko   Piccolo: en su 3.er turno suelta el Makankosappo que estaba cargando: no se esquiva, atraviesa el Infinito y quita al menos un 30 %
+       mokuton   Hashirama: 1 vez por debajo del 50 %: el Dragón de Madera atrapa al rival (2 turnos), le absorbe el ki y Hashirama se cura un 12 %
+       poison    Muzan: cada golpe que conecta le inyecta su sangre al rival: pierde un 1,5 % por dosis en cada turno (hasta 4 dosis)
+       kakuja    Kaneki: por debajo del 50 % se cubre con su kakuja: recibe un 30 % menos y cada golpe que da le cura un 4 %
+       snatch    Ban: cada golpe que conecta le roba 12 a todo al rival y se lo queda (hasta 5 veces)
+       seal      Father: suprime la alquimia: el rival no puede usar técnicas especiales (ni chocarlas), solo golpes
+       byakugo   Tsunade: 1 vez por debajo del 35 %: libera el Byakugō, se cura un 40 % y su siguiente golpe pega ×1,8
+       exblood   Nezuko: cuando la golpean su sangre explota y quema al atacante un 5 % (hasta 4 veces)
+       terpsi    Neferpitou: al caer, Terpsícore mueve su cuerpo como una marioneta: 2 golpes más contra el rival
+       hiraishin Minato: actúa siempre el primero y sus 3 primeros turnos de ataque no se pueden esquivar
+       room      Law: 1 vez por debajo del 25 %: Shambles intercambia su vida con la del rival (si el rival tiene al menos un 25 % más)
+       ispear    Toji: sus golpes atraviesan el Infinito y nada los anula (Requiem, rebobinar, Jackpot, Eclipse, portales…), ni las ilusiones
+       judge     Higuruma: en su primer turno juzga al rival: le confisca la habilidad y, si es culpable (60 %), la Espada del Verdugo
+                 hace que su siguiente golpe quite al menos un 55 %
+       mob100    Mob: tras recibir 3 golpes sus emociones llegan al 100 %: +100 a todo el resto del duelo
+       black     Frieza: 1 vez por debajo del 50 %: Black Freezer, +100 a todo
+       bungee    Hisoka: en cuanto le conecta un golpe, el Bungee Gum lo deja pegado: el rival ya no puede esquivar sus ataques
+       portal    Rick: el primer golpe que le dejaría K.O. entra por un portal y le da al atacante (hasta un 15 %)
      Todo sale en el guion como golpes { k:'tr', tr:<clave>, a:<dueño> } para animarlo. */
   const TR = { INF: 2, TS: 2, UI: .18, TOLLE: .4, TOLLH: .1, DOMC: .5, DOMN: 4, DOMX: 1.4, RGHP: .6, RG: .07, RGN: 4, AD: .1, ADN: 4, GEN: 2, RAGEHP: .4, RAGEX: 1.3, SUNN: 4, SUNX: 1.5, SER: 3, SERX: .55,
     ULTRA: .22, EGO: 22, EGON: 6, HAKAI: .35, ERASE: .5, RWD: .15, CPN: 2, CLN: 3, CLX: .6, BURN: .04, BURNN: 8, MET: 2, GATEHP: .35, G5HP: .5, G5B: 70, G5H: .25, G5A: .12,
     ASC: .15, ASX: 2.4, QK: .5, HAKI: 200, MUGHP: .3, MUGB: 90, KYO: 2, SLASH: .05, BF: .15, BFU: .1, BFX: 2.5, JP: .12, JPN: 4, RBHP: .4, RBN: 3, ACK: 800, ACKX: .8,
-    GONHP: .3, GONB: 220, GONN: 3, GONP: 150, ROSE: .5, EMB: 90, EMH: .03, HKN: 3, ANTI: .6, ZWN: 1, MIH: .6, ECL: .6, GS: 1, SHAD: 2, SHADN: 5, FC: .4 };
+    GONHP: .3, GONB: 220, GONN: 3, GONP: 150, ROSE: .5, EMB: 90, EMH: .03, HKN: 3, ANTI: .6, ZWN: 1, MIH: .6, ECL: .6, GS: 1, SHAD: 2, SHADN: 5, FC: .4,
+    PFH: .2, PFB: 30, SHK: 1, SHKE: .4, MKT: 3, MKX: .3, MOKHP: .5, MOKN: 2, MOKH: .12, PS: .015, PSN: 4, KJHP: .5, KJD: .7, KJH: .04, SN: 12, SNN: 5,
+    BKHP: .35, BKH: .4, BKX: 1.8, XB: .05, XBN: 4, TPN: 2, HRN: 3, RMHP: .25, RMD: .25, JDP: .6, JDX: .55, MOB: 3, MOBB: 100, BLHP: .5, BLB: 100, PTX: .15 };
+  // habilidades que paran o desvían golpes (la Lanza Celestial Invertida de Toji las atraviesa)
+  const GUARDS = ['inf', 'req', 'rewind', 'jackpot', 'eclipse', 'kyoka', 'perfect', 'portal'];
+  const DOT = new Set(['burn', 'slash', 'venom', 'exblood', 'portalhit']); // daño continuo o de rebote: no cuenta como golpe para las reacciones
   const TROUPE = ['Chrollo Lucilfer', 'Uvogin', 'Feitan', 'Phinks', 'Nobunaga', 'Franklin', 'Machi', 'Shalnark', 'Pakunoda', 'Shizuku', 'Bonolenov', 'Kortopi', 'Kalluto']; // Brigada Fantasma (Kurapika)
   function duel(rng, A, B) {
     const fm = [0, 1].map(() => (rng() - .5) * 2 * AN.FORM), F = [A, B];
@@ -255,20 +291,31 @@
     const skill = i => .6 * S(i, 'SPD') + .4 * S(i, 'TEC');
     const fx = (a, d, k, P = 'ENE') => AN.BASE * mul(S(a, P) - S(d, 'DUR')) * k; // daño "de fórmula" de las técnicas de los rasgos
     const hurt = (d, x) => { const v = Math.min(hp[d], x); hp[d] = Math.max(0, hp[d] - x); dmg[1 - d] += v; return v; };
-    // ¿Algo anula este golpe? Devuelve la clave del rasgo que lo para (y lo gasta), o ''
-    const guard = (d, x) => {
+    // ¿Algo anula este golpe de a contra d? Devuelve la clave del rasgo que lo para (y lo gasta), o ''. Nada para la Lanza Celestial Invertida.
+    const guard = (d, x, a) => {
+      if (has(a, 'ispear')) return '';
       if (X[d].jp > 0) { X[d].jp--; return 'jpheal'; }                                                                                 // Jackpot: regeneración instantánea
       if (has(d, 'req') && !used[d].req && x >= hp[d]) { used[d].req = 1; return 'req'; }                                              // Requiem
       if (has(d, 'rewind') && !used[d].rw && x >= TR.RWD) { used[d].rw = 1; stun[1 - d] = Math.max(stun[1 - d], 1); return 'rewind'; } // Whis
       if (has(d, 'eclipse') && !used[d].ecl && x >= hp[d] && F[d].mate) { used[d].ecl = 1; hp[d] = TR.ECL; X[d].sac = 1; return 'eclipse'; } // Griffith
+      if (has(d, 'perfect') && !used[d].pf && x >= hp[d]) { used[d].pf = 1; hp[d] = TR.PFH; bo[d] += TR.PFB; return 'perfect'; }        // Cell: renace de una célula
+      if (has(d, 'portal') && !used[d].pt && x >= hp[d]) { used[d].pt = 1; X[d].px = Math.min(TR.PTX, x); return 'portal'; }          // Rick: el golpe entra por un portal
       return '';
     };
-    const block = (d, g, a) => rec(Object.assign({ a: d, k: 'tr', tr: g, by: a }, g === 'eclipse' ? { s: F[d].mate } : null));
+    const block = (d, g, a) => {
+      const r = rec(Object.assign({ a: d, k: 'tr', tr: g, by: a }, g === 'eclipse' ? { s: F[d].mate } : null));
+      if (g === 'portal' && hp[a] > 0) { const v = hurt(a, X[d].px || 0); rec({ a: d, k: 'tr', tr: 'portalhit', dmg: +v.toFixed(4) }); took(a, v, 1); awaken(a); } // ...y sale por otro detrás del atacante
+      return r;
+    };
     const boost = (a, d) => (dom[a] > 0 ? TR.DOMX : 1) * (has(a, 'sun') && acts[a] <= TR.SUNN ? TR.SUNX : 1) * (has(a, 'rage') && hp[a] < TR.RAGEHP ? TR.RAGEX : 1)
-      * (has(d, 'adapt') ? 1 - TR.AD * (X[d].ad || 0) : 1) * (has(a, 'ackerman') ? 1 + clamp((pwOf(d) - pwOf(a)) / TR.ACK, 0, TR.ACKX) : 1);
-    const took = (d, v) => {
+      * (has(d, 'adapt') ? 1 - TR.AD * (X[d].ad || 0) : 1) * (has(a, 'ackerman') ? 1 + clamp((pwOf(d) - pwOf(a)) / TR.ACK, 0, TR.ACKX) : 1) * (X[d].kj ? TR.KJD : 1);
+    const took = (d, v, dot) => {
       if (!(v > 0)) return; taken[d]++;
       if (hp[d] <= 0) return;
+      const o = 1 - d;
+      if (has(d, 'mob100') && !used[d].mb && taken[d] >= TR.MOB) { used[d].mb = 1; bo[d] += TR.MOBB; rec({ a: d, k: 'tr', tr: 'mob100' }); }
+      if (!dot && has(d, 'shock') && !used[d].shk) { used[d].shk = 1; stun[o] = Math.max(stun[o], TR.SHK); en[o] = Math.max(0, en[o] - TR.SHKE); rec({ a: d, k: 'tr', tr: 'shock' }); }
+      if (!dot && has(d, 'exblood') && (X[d].xb || 0) < TR.XBN && hp[o] > 0) { X[d].xb = (X[d].xb || 0) + 1; chip(d, o, TR.XB, 'exblood', null, 1); }
       if (has(d, 'adapt') && (X[d].ad || 0) < TR.ADN) { X[d].ad = (X[d].ad || 0) + 1; rec({ a: d, k: 'tr', tr: 'adapt', lv: X[d].ad }); }
       if (has(d, 'ego') && (X[d].eg || 0) < TR.EGON) { X[d].eg = (X[d].eg || 0) + 1; bo[d] += TR.EGO; rec({ a: d, k: 'tr', tr: 'ego', lv: X[d].eg }); }
     };
@@ -280,28 +327,35 @@
     };
     const chip = (a, d, x, key, tag, pierce) => { // daño directo de un rasgo (meteoritos, sombras, llamas, cortes…)
       if (!pierce && inf[d] > 0) { inf[d]--; rec({ a: d, k: 'tr', tr: 'inf', by: a }); return 0; }
-      const g = guard(d, x); if (g) { block(d, g, a); return 0; }
-      const v = hurt(d, x); rec(Object.assign({ a, k: 'tr', tr: key, dmg: +v.toFixed(4) }, tag)); took(d, v); awaken(d); return v;
+      const g = guard(d, x, a); if (g) { block(d, g, a); return 0; }
+      const v = hurt(d, x); rec(Object.assign({ a, k: 'tr', tr: key, dmg: +v.toFixed(4) }, tag)); took(d, v, DOT.has(key)); awaken(d); return v;
     };
     const ult = (a, x, tag) => { // golpe definitivo de un rasgo: no se puede esquivar y atraviesa el Infinito
       const d = 1 - a; x = Math.min(1, x);
-      const g = guard(d, x); if (g) { block(d, g, a); return 0; }
+      const g = guard(d, x, a); if (g) { block(d, g, a); return 0; }
       const v = hurt(d, x); rec(Object.assign({ a, k: 'spc', crit: true, dmg: +v.toFixed(4), v: 0 }, tag)); took(d, v); awaken(d); return v;
     };
     const strike = (a, kind, tag, mlt = 1, P) => { // kind: 'hit' | 'sp' | 'ctr' · P: poder a usar si no es el de siempre
       const d = 1 - a, sp = kind === 'sp', ctr = kind === 'ctr';
-      if (inf[d] > 0) { inf[d]--; rec(Object.assign({ a: d, k: 'tr', tr: 'inf', by: a }, tag)); return null; }
+      if (inf[d] > 0 && !has(a, 'ispear')) { inf[d]--; rec(Object.assign({ a: d, k: 'tr', tr: 'inf', by: a }, tag)); return null; }
+      const bk = !ctr && X[a].bk, sw = !ctr && X[a].sw; if (bk) X[a].bk = 0; if (sw) X[a].sw = 0; // Byakugō (×1,8) y Espada del Verdugo (50 %+): solo el siguiente golpe
       const crit = rng() < .06 + clamp(S(a, 'TEC'), 0, 1000) / 1000 * .1 + (has(a, 'asura') ? TR.ASC : 0);
       const bf = !sp && has(a, 'bflash') && rng() < TR.BF + TR.BFU * (X[a].bf || 0); // Destello Negro
       if (bf) { X[a].bf = (X[a].bf || 0) + 1; en[a] = Math.min(1, en[a] + .25); }
       const pw = P != null ? P : sp ? S(a, 'ENE') : S(a, 'STR');
-      const x = Math.min(1, AN.BASE * mul(pw - S(d, 'DUR')) * (.7 + .6 * rng()) * (crit ? (has(a, 'asura') ? TR.ASX : 1.6) : 1) * (sp ? 1.55 : 1)
-        * (ctr && !(tag && tag.ui) ? .6 : 1) * (bf ? TR.BFX : 1) * (sp && has(d, 'anti') ? TR.ANTI : 1) * mlt * boost(a, d));
-      const g = guard(d, x); if (g) { block(d, g, a); return null; }
-      const v = hurt(d, x);
-      const r = rec(Object.assign({ a, k: ctr ? 'ctr' : sp ? (crit ? 'spc' : 'sp') : crit ? 'crit' : 'hit', crit, dmg: +v.toFixed(4), v: rndi(rng, 0, 5) }, bf ? { bf: 1 } : null, crit && has(a, 'asura') ? { as: 1 } : null, tag));
+      let x = Math.min(1, AN.BASE * mul(pw - S(d, 'DUR')) * (1 - AN.VAR / 2 + AN.VAR * rng()) * (crit ? (has(a, 'asura') ? TR.ASX : 1.6) : 1) * (sp ? 1.55 : 1)
+        * (ctr && !(tag && tag.ui) ? .6 : 1) * (bf ? TR.BFX : 1) * (sp && has(d, 'anti') ? TR.ANTI : 1) * (bk ? TR.BKX : 1) * mlt * boost(a, d));
+      if (sw) x = Math.max(x, TR.JDX);
+      const g = guard(d, x, a); if (g) { block(d, g, a); return null; }
+      const v = hurt(d, x), ext = {};
+      if (bk) ext.bk = 1; if (sw) ext.ex = 1;
+      if (v > 0 && has(a, 'poison') && (X[d].ps || 0) < TR.PSN) ext.ps = X[d].ps = (X[d].ps || 0) + 1;                                   // Muzan: una dosis más de sangre
+      if (v > 0 && X[a].kj && hp[a] > 0) { const h0 = hp[a]; hp[a] = Math.min(1, hp[a] + TR.KJH); ext.lf = +(hp[a] - h0).toFixed(4); }   // Kaneki se alimenta
+      if (v > 0 && has(a, 'snatch') && (X[a].sn || 0) < TR.SNN) { ext.sn = X[a].sn = (X[a].sn || 0) + 1; bo[a] += TR.SN; bo[d] -= TR.SN; } // Ban roba fuerza
+      const r = rec(Object.assign({ a, k: ctr ? 'ctr' : sp ? (crit ? 'spc' : 'sp') : crit ? 'crit' : 'hit', crit, dmg: +v.toFixed(4), v: rndi(rng, 0, 5) }, bf ? { bf: 1 } : null, crit && has(a, 'asura') ? { as: 1 } : null, ext, tag));
       took(d, v); awaken(d);
       if (hp[d] > 0 && hp[a] > 0) {
+        if (has(a, 'bungee') && !X[a].bg && v > 0) { X[a].bg = 1; rec({ a, k: 'tr', tr: 'bungee' }); } // Hisoka: el rival queda pegado
         if (has(a, 'amaterasu') && !used[a].am) { used[a].am = 1; X[d].burn = TR.BURNN; rec({ a, k: 'tr', tr: 'amaterasu' }); }
         if (sp && has(a, 'quake') && rng() < TR.QK) { stun[d] = Math.max(stun[d], 1); rec({ a, k: 'tr', tr: 'quake' }); }
         if (sp && has(d, 'copy') && (X[d].cp || 0) < TR.CPN && !(tag && tag.cp != null)) { // Garou copia la técnica y la devuelve
@@ -317,6 +371,7 @@
       // daño al empezar su turno (aunque esté atrapado): llamas negras y cortes del Santuario
       if (X[a].burn > 0) { X[a].burn--; chip(d, a, TR.BURN, 'burn', null, 1); if (hp[a] <= 0) return; }
       if (dom[d] > 0 && has(d, 'shrine')) { chip(d, a, TR.SLASH, 'slash', null, 1); if (hp[a] <= 0) return; }
+      if (X[a].ps > 0) { chip(d, a, TR.PS * X[a].ps, 'venom', { lv: X[a].ps }, 1); if (hp[a] <= 0) return; }
       if (stun[a] > 0) { stun[a]--; rec({ a, k: 'tr', tr: 'stun' }); return; }
       acts[a]++;
       en[a] = Math.min(1, en[a] + AN.REGEN);
@@ -327,6 +382,13 @@
       if (has(a, 'rage') && hp[a] < TR.RAGEHP && !used[a].rage) { used[a].rage = 1; rec({ a, k: 'tr', tr: 'rage' }); }
       if (has(a, 'jackpot') && !used[a].jp && rng() < TR.JP) { used[a].jp = 1; const h0 = hp[a]; hp[a] = 1; X[a].jp = TR.JPN; rec({ a, k: 'tr', tr: 'jackpot', heal: +(1 - h0).toFixed(4) }); }
       if (has(a, 'clones') && !used[a].cl) { used[a].cl = 1; X[a].cl = TR.CLN; rec({ a, k: 'tr', tr: 'clones' }); }
+      if (has(a, 'kakuja') && !X[a].kj && hp[a] < TR.KJHP) { X[a].kj = 1; rec({ a, k: 'tr', tr: 'kakuja' }); }
+      if (has(a, 'judge') && !used[a].jd) { // Sentencia mortal: confisca la habilidad del rival y, si es culpable, la Espada del Verdugo
+        used[a].jd = 1; const s = tr[d];
+        if (s) { tr[d] = ''; if (s === 'inf') inf[d] = 0; if (s === 'kyoka') X[a].ill = 0; if (s === 'geass') X[a].gs = 0; if (s === 'domain' || s === 'shrine') dom[d] = 0; if (s === 'kakuja') X[d].kj = 0; }
+        const guilty = rng() < TR.JDP; if (guilty) X[a].sw = 1;
+        rec({ a, k: 'tr', tr: 'judge', s, g: guilty ? 1 : 0 }); return;
+      }
       if (has(a, 'gen') && !used[a].gen) { used[a].gen = 1; stun[d] = TR.GEN; rec({ a, k: 'tr', tr: 'gen' }); return; }
       if (has(a, 'tsukuyomi') && !used[a].tk) {
         used[a].tk = 1; stun[d] = TR.GEN; en[d] = Math.max(0, en[d] - .3);
@@ -337,6 +399,11 @@
       if (has(a, 'mugetsu') && !used[a].mg && hp[a] < TR.MUGHP) { used[a].mg = 1; rec({ a, k: 'tr', tr: 'mugetsu' }); ult(a, Math.max(.65, fx(a, d, 3)), { u: 'mugetsu' }); en[a] = 0; bo[a] -= TR.MUGB; return; }
       if (has(a, 'rumbling') && !used[a].rb && hp[a] < TR.RBHP) { used[a].rb = 1; rec({ a, k: 'tr', tr: 'rumbling' }); for (let j = 0; j < TR.RBN && hp[d] > 0; j++) ult(a, Math.max(.08, fx(a, d, .6, 'STR')), { u: 'rumbling', j }); return; }
       if (has(a, 'gear5') && !used[a].g5 && hp[a] < TR.G5HP) { used[a].g5 = 1; X[a].g5 = 1; bo[a] += TR.G5B; const h0 = hp[a]; hp[a] = Math.min(1, hp[a] + TR.G5H); rec({ a, k: 'tr', tr: 'gear5', heal: +(hp[a] - h0).toFixed(4) }); return; }
+      if (has(a, 'makanko') && !used[a].mk && acts[a] >= TR.MKT) { used[a].mk = 1; rec({ a, k: 'tr', tr: 'makanko' }); ult(a, Math.max(TR.MKX, fx(a, d, 1.6)), { u: 'makanko' }); return; }
+      if (has(a, 'mokuton') && !used[a].mok && hp[a] < TR.MOKHP) { used[a].mok = 1; stun[d] = Math.max(stun[d], TR.MOKN); en[d] = 0; const h0 = hp[a]; hp[a] = Math.min(1, hp[a] + TR.MOKH); rec({ a, k: 'tr', tr: 'mokuton', heal: +(hp[a] - h0).toFixed(4) }); return; }
+      if (has(a, 'byakugo') && !used[a].bk && hp[a] < TR.BKHP) { used[a].bk = 1; X[a].bk = 1; const h0 = hp[a]; hp[a] = Math.min(1, hp[a] + TR.BKH); rec({ a, k: 'tr', tr: 'byakugo', heal: +(hp[a] - h0).toFixed(4) }); return; }
+      if (has(a, 'black') && !used[a].bl && hp[a] < TR.BLHP) { used[a].bl = 1; bo[a] += TR.BLB; rec({ a, k: 'tr', tr: 'black' }); return; }
+      if (has(a, 'room') && !used[a].rm && hp[a] < TR.RMHP && hp[d] - hp[a] >= TR.RMD) { used[a].rm = 1; const t = hp[a]; hp[a] = hp[d]; hp[d] = t; rec({ a, k: 'tr', tr: 'room' }); return; }
       if (has(a, 'adult') && !used[a].gon && hp[a] < TR.GONHP) { used[a].gon = 1; X[a].gon = TR.GONN + 1; bo[a] += TR.GONB; rec({ a, k: 'tr', tr: 'adult' }); return; }
       if (has(a, 'serious') && !used[a].ser && taken[a] >= TR.SER) { used[a].ser = 1; rec({ a, k: 'tr', tr: 'serious' }); ult(a, Math.max(TR.SERX, fx(a, d, 2.5, 'STR'))); return; } // atraviesa el Infinito
       if (has(a, 'time') && !used[a].ts && (hp[a] < .75 || rng() < .25)) {
@@ -351,27 +418,28 @@
         return;
       }
       if ((has(a, 'domain') || has(a, 'shrine')) && !used[a].dom && en[a] >= TR.DOMC && (hp[a] < .8 || rng() < .25)) { used[a].dom = 1; en[a] -= TR.DOMC; dom[a] = TR.DOMN; rec({ a, k: 'tr', tr: tr[a] }); return; }
-      if (X[a].ill > 0) { X[a].ill--; rec({ a: d, k: 'tr', tr: 'mirage', by: a }); return; } // Kyōka Suigetsu: ataca a una ilusión
+      if (X[a].ill > 0 && !has(a, 'ispear')) { X[a].ill--; rec({ a: d, k: 'tr', tr: 'mirage', by: a }); return; } // Kyōka Suigetsu: ataca a una ilusión
       if (X[a].gs > 0) { X[a].gs--; const v = hurt(a, Math.min(.2, AN.BASE * (.6 + .4 * rng()))); rec({ a, k: 'tr', tr: 'self', dmg: +v.toFixed(4) }); awaken(a); return; } // Geass: se golpea a sí mismo
-      const sure = dom[a] > 0, free = X[a].hk > 0; // Hinokami Kagura: la danza encadena técnicas sin gastar ki
-      const wantSp = free || en[a] >= AN.SPC && rng() < .2 + (S(a, 'ENE') >= S(a, 'STR') ? .14 : 0) + (hp[a] < .4 ? .12 : 0);
+      const hr = has(a, 'hiraishin') && acts[a] <= TR.HRN, sure = dom[a] > 0 || hr || X[a].bg; // dominio, Dios del Trueno Volador o Bungee Gum: no se esquiva
+      const sealed = has(d, 'seal'), free = !sealed && X[a].hk > 0; // Hinokami Kagura: la danza encadena técnicas sin gastar ki · Father: sin técnicas
+      const wantSp = !sealed && (free || en[a] >= AN.SPC && rng() < .2 + (S(a, 'ENE') >= S(a, 'STR') ? .14 : 0) + (hp[a] < .4 ? .12 : 0));
       if (wantSp) {
         if (free) X[a].hk--; else en[a] -= AN.SPC;
         if (has(d, 'kamui') && !used[d].km) { used[d].km = 1; rec({ a: d, k: 'tr', tr: 'kamui', by: a, m: rndi(rng, 0, 5) }); return; }
         if (has(d, 'counter') && !used[d].fc) { // Full Counter: le devuelve su propia técnica con el doble de fuerza
           used[d].fc = 1; const m = rndi(rng, 0, 5); rec({ a: d, k: 'tr', tr: 'counter', by: a, m });
-          const x = Math.min(TR.FC, 2 * AN.BASE * mul(S(a, 'ENE') - S(d, 'DUR')) * 1.55 * (.7 + .6 * rng())), g = guard(a, x);
+          const x = Math.min(TR.FC, 2 * AN.BASE * mul(S(a, 'ENE') - S(d, 'DUR')) * 1.55 * (.7 + .6 * rng())), g = guard(a, x, d);
           if (g) { block(a, g, d); return; }
           const v = hurt(a, x); rec({ a: d, k: 'spc', crit: true, dmg: +v.toFixed(4), v: 0, fc: m }); took(a, v); awaken(a); return;
         }
-        if (en[d] >= AN.SPC && rng() < .3) { // CHOQUE DE TÉCNICAS
+        if (!has(a, 'seal') && en[d] >= AN.SPC && rng() < .3) { // CHOQUE DE TÉCNICAS (si Father suprime la alquimia, el rival no puede responder)
           en[d] -= AN.SPC;
           const q = clamp(1 / (1 + Math.pow(10, -ex(S(a, 'ENE') - S(d, 'ENE')) * AN.K1 / AN.KS)), .1, .9), w = rng() < q ? a : 1 - a, l = 1 - w;
           let x = .5; const fr = []; // punto de choque (0 = lado del jugador 0, 1 = lado del jugador 1); empuja hacia el perdedor
           for (let i = 0; i < 4; i++) { x = clamp(x + (rng() - .5) * .34 + (l === 1 ? .05 : -.05), .2, .8); fr.push(+x.toFixed(2)); }
           fr.push(l === 1 ? 1 : 0);
           const crit = rng() < .1, dx = Math.min(1, AN.BASE * mul(S(w, 'ENE') - S(l, 'DUR')) * (.8 + .4 * rng()) * 1.7 * (crit ? 1.4 : 1) * (has(l, 'anti') ? TR.ANTI : 1) * boost(w, l));
-          const g = guard(l, dx), v = g ? 0 : hurt(l, dx);
+          const g = guard(l, dx, w), v = g ? 0 : hurt(l, dx);
           rec({ a, k: 'clash', w, crit, fr, dmg: +v.toFixed(4), v: rndi(rng, 0, 5), vw: rndi(rng, 0, 5) });
           if (g) block(l, g, w); else { took(l, v); awaken(l); }
           return;
@@ -384,16 +452,20 @@
         else if (rng() < .22 + Math.max(0, S(d, 'TEC') - S(a, 'TEC')) / 1500) strike(d, 'ctr');
         clone(a); return;
       }
-      strike(a, wantSp ? 'sp' : 'hit');
+      strike(a, wantSp ? 'sp' : 'hit', hr ? { hr: 1 } : null);
       if (wantSp && has(a, 'hinokami') && !used[a].hn && hp[0] > 0 && hp[1] > 0) { used[a].hn = 1; X[a].hk = TR.HKN; rec({ a, k: 'tr', tr: 'hinokami' }); }
       clone(a);
     };
     const act = a => { const inDom = dom[a] > 0; turn(a); if (inDom) dom[a] = Math.max(0, dom[a] - 1); };
     const end = () => {
       for (const i of [0, 1]) if (hp[i] <= 0 && has(i, 'rose') && !X[i].gone && hp[1 - i] > 0) { // Rosa del Pobre: cuando Netero cae, la bomba explota
-        const g = guard(1 - i, TR.ROSE);
+        const g = guard(1 - i, TR.ROSE, i);
         if (g) { rec({ a: i, k: 'tr', tr: 'rose', dmg: 0 }); block(1 - i, g, i); }
         else { const v = hurt(1 - i, TR.ROSE); rec({ a: i, k: 'tr', tr: 'rose', dmg: +v.toFixed(4) }); }
+      }
+      for (const i of [0, 1]) if (hp[i] <= 0 && has(i, 'terpsi') && !X[i].gone && hp[1 - i] > 0) { // Terpsícore: el cuerpo de Pitou sigue luchando
+        rec({ a: i, k: 'tr', tr: 'terpsi' });
+        for (let j = 0; j < TR.TPN && hp[1 - i] > 0; j++) chip(i, 1 - i, clamp(fx(i, 1 - i, 1, 'STR'), .05, .35), 'puppet', { j });
       }
       return { w: hp[0] > 0 ? 0 : hp[1] > 0 ? 1 : -1, hp, hits, en, aw, dmg, sac: X.map(x => !!x.sac) }; // w = -1: caen los dos
     };
@@ -444,6 +516,9 @@
       if (has(i, 'toll')) { en[o] = Math.max(0, en[o] - TR.TOLLE); const v = hurt(o, Math.max(0, Math.min(hp[o] - .02, TR.TOLLH))); rec({ a: i, k: 'tr', tr: 'toll', dmg: +v.toFixed(4) }); }
       if (has(i, 'sun')) rec({ a: i, k: 'tr', tr: 'sun' });
       if (has(i, 'heaven')) rec({ a: i, k: 'tr', tr: 'heaven' });
+      if (has(i, 'seal')) rec({ a: i, k: 'tr', tr: 'seal' });
+      if (has(i, 'hiraishin')) rec({ a: i, k: 'tr', tr: 'hiraishin' });
+      if (has(i, 'ispear') && GUARDS.includes(tr[o])) rec({ a: i, k: 'tr', tr: 'ispear', s: tr[o] });
       if (has(i, 'kyoka')) { X[o].ill = TR.KYO; rec({ a: i, k: 'tr', tr: 'kyoka' }); }
       if (has(i, 'geass')) { X[o].gs = TR.GS; rec({ a: i, k: 'tr', tr: 'geass' }); }
       if (has(i, 'ackerman') && pwOf(o) - pwOf(i) >= 40) rec({ a: i, k: 'tr', tr: 'ackerman' });
@@ -460,7 +535,8 @@
       }
     }
     if (KO()) return end();
-    while (hp[0] > 0 && hp[1] > 0 && hits.length < AN.CAP) act(rng() < pA() ? 0 : 1);
+    let first = has(0, 'hiraishin') ? 0 : has(1, 'hiraishin') ? 1 : -1; // Dios del Trueno Volador: Minato siempre se mueve el primero
+    while (hp[0] > 0 && hp[1] > 0 && hits.length < AN.CAP) { act(first >= 0 ? first : rng() < pA() ? 0 : 1); first = -1; }
     if (hp[0] > 0 && hp[1] > 0) { // tope de golpes: el que va peor cae con un último golpe
       const l = hp[0] < hp[1] ? 0 : hp[1] < hp[0] ? 1 : +(rng() < .5), v = hurt(l, hp[l]);
       rec({ a: 1 - l, k: 'crit', crit: true, dmg: +v.toFixed(4), v: rndi(rng, 0, 5) });
@@ -652,5 +728,5 @@
     return { kind: 'anime', script: resolveAnime(g) };
   }
 
-  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, ROTO_PW, ROTO_P, order, FT, FUT_DIVS, futXI, resolveFutbol, resolve, create, can, out, gives, next, tick, place, skip, close, duel, stats, hpMax, decide, resolveAnime, resolveUfc, mulberry32 };
+  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, GUARDS, ROTO_PW, ROTO_P, LIGHT_P, order, FT, FUT_DIVS, futXI, resolveFutbol, resolve, create, can, out, gives, next, tick, place, skip, close, duel, stats, hpMax, decide, resolveAnime, resolveUfc, mulberry32 };
 });

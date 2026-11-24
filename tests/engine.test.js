@@ -84,7 +84,7 @@ function bot(cat,seed){
   if(cat==='anime'){ok(g.P[0].c.length>=1||g.P[1].c.length>=1,'alguien tiene equipo');
     const f=E.resolveAnime(g),ev=f.ev;ok(ev[0].t==='start'&&ev[ev.length-1].t==='end','guion completo');
     let sends=0,downs=0;for(const e of ev){if(e.t==='send')sends++;if(e.t==='down')downs++;
-      if(e.t==='duel'){ok(e.hits.length>=1&&e.hits.length<=30,'golpes');let pv=[1,1];
+      if(e.t==='duel'){ok(e.hits.length>=1&&e.hits.length<=E.AN.CAP+10,'golpes');let pv=[1,1];
         for(const h of e.hits){ok(h.hp[0]>=0&&h.hp[1]>=0&&h.hp[0]<=1&&h.hp[1]<=1,'hp en rango')}}
       ok(!('pw' in e),'el guion no lleva poder')}
     ok(ev.filter(e=>e.t==='send').every(e=>e.hm>0),'cada luchador sale con su vida máxima');
@@ -102,7 +102,42 @@ for(let s=1;s<=200;s++){bot('anime',s);bot('ufc',s)}
 // ---- duelo: números de referencia ----
 {const rng=E.mulberry32(5),P=n=>ctx.R.find(r=>r[0]===n)[2];
  const st=(a,b,N=5000)=>{let one=0,weak=0,h=0;for(let i=0;i<N;i++){const r=E.duel(rng,{n:a,pw:P(a),f:1},{n:b,pw:P(b),f:1});h+=r.hits.length;if(r.hits.length===1)one++;if(r.w!==(P(a)>=P(b)?0:1))weak++}return{one:one/N,weak:weak/N,h:h/N}};
- const gm=st('Goku','Madara');ok(gm.one<.1&&gm.weak>.1&&gm.weak<.3&&gm.h>3,'Goku no revienta a Madara de un golpe (+195: gana ~80 %)');
+ const gm=st('Goku','Madara');ok(gm.one<.1&&gm.weak>.02&&gm.weak<.15&&gm.h>3,'Goku no revienta a Madara de un golpe, pero le gana casi siempre (+195: ~93 %)');
  const gr=st('Goku','Reigen');ok(gr.one>.6&&gr.weak<.01,'Goku sí revienta a Reigen');
  const ns=st('Naruto','Sasuke');ok(ns.weak>.4&&ns.weak<.6,'Naruto-Sasuke igualados');}
+// ---- curva v3: el débil solo tiene una pequeña oportunidad ----
+{const rng=E.mulberry32(8),N=4000,wr=g=>{let w=0;for(let i=0;i<N;i++){const b=300+(i%3)*150;if(E.duel(rng,{n:'X'+i%37,pw:b+g,f:1},{n:'Y'+i%41,pw:b,f:1}).w===0)w++}return w/N};
+ const w0=wr(0),w50=wr(50),w100=wr(100),w200=wr(200),w300=wr(300);
+ ok(w0>.45&&w0<.55,'igualados ~50 %');ok(w50>.58&&w50<.72,'+50 ~64 %');ok(w100>.72&&w100<.85,'+100 ~78 %');ok(w200>.9,'+200 > 90 %');ok(w300>.97,'+300 > 97 %');}
+// ---- mazo: con un roto salen menos débiles y Light algo más ----
+{let R={n:0,weak:0,light:0},N0={n:0,weak:0,light:0};
+ for(let s=1;s<=6000;s++){const g=E.create({cat:'anime',pool:POOLS.anime,rng:E.mulberry32(s)}),top=g.deck.slice(0,10),o=top.some(c=>c.pw>=E.ROTO_PW)?R:N0;
+   o.n++;o.weak+=top.filter(c=>c.pw<300&&c.tr!=='dnote').length;if(top.some(c=>c.tr==='dnote'))o.light++;
+   ok(g.deck.length===POOLS.anime.length&&new Set(g.deck.map(c=>c.n)).size===g.deck.length,'mazo completo y sin repetir')}
+ ok(R.n>400&&R.n<800,'roto en ~1 de cada 10 partidas');
+ ok(R.weak/R.n<N0.weak/N0.n*.45,'con roto, muchos menos débiles al principio');ok(R.weak>0,'...pero alguno sigue saliendo');
+ ok(R.light/R.n>.15&&R.light/R.n<.32&&N0.light/N0.n<.1,'con roto, Light sale más (~23 % frente a ~6 %)');}
+// ---- habilidades únicas nuevas: cada una se activa y nada se sale de rango ----
+{const P=n=>POOLS.anime.find(c=>c.n===n),rng=E.mulberry32(21);
+ const mk=(n,o)=>{const c=P(n);return Object.assign({n:c.n,pw:c.pw,pr:c.pr,tr:c.tr,f:1,e:1},o)};
+ const runs=(a,b,N=300,oa,ob)=>{const out=[];for(let i=0;i<N;i++)out.push(E.duel(rng,mk(a,oa),mk(b,ob)));return out};
+ const fires=(rs,k,p=0)=>rs.some(r=>r.hits.some(h=>h.k==='tr'&&h.tr===k&&h.a===p));
+ const NEW={perfect:'Cell',shock:'C.C.',makanko:'Piccolo',mokuton:'Hashirama',poison:'Muzan',kakuja:'Kaneki',snatch:'Ban',seal:'Father',byakugo:'Tsunade',exblood:'Nezuko',
+   terpsi:'Neferpitou',hiraishin:'Minato',room:'Law',ispear:'Toji',judge:'Hiromi Higuruma',mob100:'Mob',black:'Frieza',bungee:'Hisoka',portal:'Rick Sanchez'};
+ for(const k in NEW)ok(P(NEW[k]).tr===k,NEW[k]+' tiene '+k);
+ ok(POOLS.anime.filter(c=>c.tr==='regen').length<=3,'la regeneración ya no se repite tanto');
+ const foe={perfect:'Sukuna',shock:'Tanjiro',makanko:'Gojo',mokuton:'Sukuna',poison:'Akaza',kakuja:'Akaza',snatch:'Zoro',seal:'Itachi',byakugo:'Jiraiya',exblood:'Inosuke',
+   terpsi:'Ging Freecss',hiraishin:'Kakashi',room:'Ace',ispear:'Gojo',judge:'Aizen',mob100:'Ging Freecss',black:'Cell',bungee:'Killua',portal:'Madara'};
+ for(const k in NEW){const rs=runs(NEW[k],foe[k]);
+   ok(rs.every(r=>r.hits.every(h=>h.hp.every(x=>x>=0&&x<=1))),k+': vida en rango');
+   const extra={snatch:'sn',poison:'ps',kakuja:'lf'}[k];
+   ok(extra?rs.some(r=>r.hits.some(h=>h.a===0&&h[extra]>0)):fires(rs,k),k+' se activa')}
+ // reglas concretas
+ ok(runs('Minato','Jiraiya',200).every(r=>{const h=r.hits.find(h=>h.tr!=='hiraishin');return !h||h.a===0}),'Minato se mueve siempre el primero');
+ ok(runs('Toji','Gojo',200).every(r=>!r.hits.some(h=>h.tr==='inf'&&h.a===1)),'la Lanza Celestial atraviesa el Infinito');
+ ok(runs('Father','Goku',200).every(r=>!r.hits.some(h=>h.a===1&&(h.k==='sp'||h.k==='spc'||h.k==='clash'))),'con Father el rival no lanza técnicas');
+ ok(runs('Asta','Father',200).every(r=>!r.hits.some(h=>h.tr==='seal')),'Asta anula la supresión de Father');
+ ok(runs('Rick Sanchez','God',50).every(r=>r.w===1),'God no entra por ningún portal');
+ ok(runs('Light Yagami','Cell',50).every(r=>r.w===-1),'el Death Note también mata a Cell (no renace)');
+ const jd=runs('Hiromi Higuruma','Gojo',300);ok(jd.every(r=>{const j=r.hits.find(h=>h.tr==='judge');return !j||!r.hits.slice(r.hits.indexOf(j)).some(h=>h.tr==='inf')}),'Higuruma confisca el Infinito');}
 console.log('OK',n,'comprobaciones');

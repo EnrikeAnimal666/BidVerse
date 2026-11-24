@@ -42,6 +42,7 @@
     if (left < s.now) w = Math.max(w, 1.6);                           // no quedan lotes suficientes: hay que llevárselo
     else if (left < s.now * 2) w *= 1.3;                              // quedan pocos
     if (g.cat === 'anime' && c.pw >= E.ROTO_PW) w = Math.max(w, 3.2); // un "roto" (God, Zeno…) gana casi solo una partida
+    if (g.cat === 'anime' && c.tr === 'dnote' && g.P.some(x => x.c.some(y => y.pw >= E.ROTO_PW))) w = Math.max(w, 2.2); // con un roto en juego, el Death Note es la única respuesta
     const v = Math.floor(per * w * ((mem && mem.mood) || 1));
     return Math.max(0, Math.min(v, m - Math.max(0, s.all - 1) * (g.cat === 'futbol' ? 2 : 1))); // deja algo para los huecos que faltan
   }

@@ -342,7 +342,7 @@ const AB_T={
   clone:'¡Un clon de <b>{a}</b> golpea a {d}!',roller:'¡<b>{a}</b> aplasta a {d} con una apisonadora!',copied:'<b>{a}</b> devuelve «{m}»',
   fc:'«{m}» vuelve contra {d} con el doble de fuerza',dko:'¡Doble K.O.!',dkoLog:'<b>{0}</b> y <b>{1}</b> caen a la vez',
   sac:'<b>{0}</b> ha sido sacrificado',sacLog:'{0} cae sacrificado en el Eclipse',unique:'Habilidad única',illusion:'¡Ilusión!',erased:'Borrado',
-  ult:{hakai:'Hakai',gates:'Night Guy',mugetsu:'Mugetsu',rumbling:'El Retumbar'}},
+  ult:{hakai:'Hakai',gates:'Night Guy',mugetsu:'Mugetsu',rumbling:'El Retumbar',makanko:'Makankosappo'}},
  en:{duel:'Duel',ki:'KI',skip:'Skip animation',special:'Special technique',
   hit:['<b>{a}</b> hits {d}','<b>{a}</b> chains a combo on {d}','<b>{a}</b> lands a straight on {d}','Flying kick by <b>{a}</b>','<b>{a}</b> appears behind {d} and strikes','<b>{a}</b> charges at {d}'],
   crit:['Critical hit by <b>{a}</b>!','<b>{a}</b> finds {d}’s weak spot!'],
@@ -355,7 +355,7 @@ const AB_T={
   clone:'A clone of <b>{a}</b> hits {d}!',roller:'<b>{a}</b> crushes {d} with a road roller!',copied:'<b>{a}</b> fires back “{m}”',
   fc:'“{m}” hits {d} back at double power',dko:'Double K.O.!',dkoLog:'<b>{0}</b> and <b>{1}</b> fall together',
   sac:'<b>{0}</b> has been sacrificed',sacLog:'{0} is sacrificed in the Eclipse',unique:'Unique ability',illusion:'Illusion!',erased:'Erased',
-  ult:{hakai:'Hakai',gates:'Night Guy',mugetsu:'Mugetsu',rumbling:'The Rumbling'}}};
+  ult:{hakai:'Hakai',gates:'Night Guy',mugetsu:'Mugetsu',rumbling:'The Rumbling',makanko:'Special Beam Cannon'}}};
 // Rasgos: [nombre, qué hace, frase al activarse, frase alternativa]. Las reglas están en engine.js (RASGOS).
 const TR_T={
  en:{touch:['Touch of God','Acts first and erases anyone with a single touch','<b>{a}</b> reaches out… one touch is enough.'],
@@ -418,7 +418,29 @@ const TR_T={
   eclipse:['Eclipse','Once, instead of falling, sacrifices the next teammate and is reborn at 60%','<b>{a}</b> offers up {s}… the Eclipse begins'],
   dnote:['Death Note','Writes the rival’s name before anyone moves: the rival kills Light with one blow and dies of a heart attack 40 s later. Both always fall','<b>{a}</b> writes {d}’s name in the Death Note…','','Heart attack · 40 s'],
   heart:['','','40 seconds later… {d}’s heart stops.'],
-  pops:{stun:'Trapped!',adapt:'Adapted',regen:'Regen'}},
+  perfect:['Perfect Cell','Once, instead of falling, regenerates from a single cell: back at 20% with +30 to all stats (Zenkai)','<b>{a}</b> regenerates from a single cell… and comes back stronger!'],
+  shock:['Shock Image','The first rival to hit her sees the Shock Image: loses a turn and 40% ki','{d} touches <b>{a}</b>… and drowns in her memories'],
+  makanko:['Special Beam Cannon','On their 3rd turn fires the beam they were charging: undodgeable, pierces Infinity, at least 30%','<b>{a}</b> has been charging… “Special Beam Cannon!”'],
+  mokuton:['Wood Dragon','Once below 50%: the Wood Dragon binds the rival (2 turns), drains their ki and heals 12%','<b>{a}</b>: “Wood Release: Wood Dragon!”'],
+  poison:['Demon King’s Blood','Each hit injects his blood: the rival loses 1.5% per dose every turn (up to 4 doses)',''],
+  venom:['','','The demon blood eats away at {d}'],
+  kakuja:['Kakuja','Below 50% the kakuja covers him: takes 30% less and every hit he lands heals him 4%','<b>{a}</b>’s kakuja armor erupts'],
+  snatch:['Snatch','Each hit steals 12 from all of the rival’s stats and keeps them (up to 5 times)',''],
+  seal:['Alchemy Suppression','The rival can’t use special techniques (or clash): only plain hits','<b>{a}</b> seals all alchemy: {d} can’t use techniques'],
+  byakugo:['Byakugō','Once below 35%: releases the seal, heals 40% and the next hit lands ×1.8','<b>{a}</b> releases the Strength of a Hundred Seal'],
+  exblood:['Exploding Blood','When hit, her blood bursts into flames and burns the attacker 5% (up to 4 times)','<b>{a}</b>’s blood explodes on {d}'],
+  terpsi:['Terpsichora','When she falls, her puppeted body strikes the rival 2 more times','<b>{a}</b> is dead… but Terpsichora keeps her body fighting'],
+  puppet:['','','The puppet strikes {d}'],
+  hiraishin:['Flying Thunder God','Always moves first, and their first 3 attack turns can’t be dodged','<b>{a}</b> has already marked {d} with a kunai'],
+  room:['Shambles','Once below 25%: swaps HP with the rival (if the rival has at least 25% more)','<b>{a}</b>: “ROOM… Shambles!”'],
+  ispear:['Inverted Spear of Heaven','Hits pierce Infinity and nothing cancels them (Requiem, rewinds, Jackpot, Eclipse, portals…) or illusions','<b>{a}</b> draws the Inverted Spear of Heaven: “{s}” is useless'],
+  judge:['Deadly Sentencing','First turn: confiscates the rival’s ability and, if guilty (60%), the Executioner’s Sword makes the next hit take at least 55%','<b>{a}</b>: “Domain Expansion: Deadly Sentencing.”','GUILTY','NOT GUILTY','Confiscated'],
+  mob100:['???%','After taking 3 hits their emotions reach 100%: +100 to all stats for the rest of the duel','<b>{a}</b>’s emotions hit 100%…'],
+  black:['Black Frieza','Once below 50%: transforms into Black Frieza, +100 to all stats','<b>{a}</b>: “I’ve been training too.”'],
+  bungee:['Bungee Gum','Once a hit lands, the rival is stuck: they can’t dodge his attacks anymore','<b>{a}</b>: “Bungee Gum has the properties of both rubber and gum.”'],
+  portal:['Portal Gun','The first blow that would K.O. him goes through a portal and hits the attacker (up to 15%)','<b>{a}</b> opens a portal: {b}’s blow goes right through'],
+  portalhit:['','','…and comes out behind {d}!'],
+  pops:{stun:'Trapped!',adapt:'Adapted',regen:'Regen',dose:'Poison ×',stuck:'Stuck!',sword:'Executioner’s Sword',hundred:'×1.8',ref:'Nothing stops it'}},
  es:{touch:['Toque de Dios','Actúa primero y borra a cualquiera de un solo toque','<b>{a}</b> extiende la mano… basta un toque.'],
   inf:['Infinito','Los 2 primeros ataques no le llegan','El ataque de {b} se frena en el aire: ¡Infinito de <b>{a}</b>!'],
   time:['Tiempo detenido','1 vez por duelo: 2 golpes imposibles de esquivar','<b>{a}</b>: «¡Tiempo, detente!»'],
@@ -479,13 +501,37 @@ const TR_T={
   eclipse:['Eclipse','1 vez, en vez de caer, sacrifica al siguiente de su equipo y renace al 60 %','<b>{a}</b> ofrece a {s}… comienza el Eclipse'],
   dnote:['Death Note','Escribe el nombre del rival antes que nadie: el rival mata a Light de un golpe y 40 s después muere de un ataque al corazón. Caen los dos siempre','<b>{a}</b> escribe el nombre de {d} en el Death Note…','','Ataque al corazón · 40 s'],
   heart:['','','40 segundos después… el corazón de {d} se para.'],
-  pops:{stun:'¡Atrapado!',adapt:'Adaptado',regen:'Regenera'}}};
+  perfect:['Cell Perfecto','1 vez, en vez de caer se regenera de una sola célula: vuelve al 20 % con +30 a todo (Zenkai)','<b>{a}</b> se regenera de una sola célula… ¡y vuelve más fuerte!'],
+  shock:['Imagen de Choque','El primer rival que la golpea ve la Imagen de Choque: pierde un turno y un 40 % de ki','{d} toca a <b>{a}</b>… y se ahoga en sus recuerdos'],
+  makanko:['Makankosappo','En su 3.er turno suelta el rayo que estaba cargando: no se esquiva, atraviesa el Infinito y quita al menos un 30 %','<b>{a}</b> llevaba rato cargando… «¡Makankosappo!»'],
+  mokuton:['Dragón de Madera','1 vez por debajo del 50 %: el Dragón de Madera atrapa al rival (2 turnos), le absorbe el ki y se cura un 12 %','<b>{a}</b>: «¡Mokuton: Dragón de Madera!»'],
+  poison:['Sangre del Rey Demonio','Cada golpe le inyecta su sangre al rival: pierde un 1,5 % por dosis en cada turno (hasta 4 dosis)',''],
+  venom:['','','La sangre demoníaca devora a {d}'],
+  kakuja:['Kakuja','Por debajo del 50 % le cubre su kakuja: recibe un 30 % menos y cada golpe que da le cura un 4 %','¡La armadura kakuja de <b>{a}</b> estalla!'],
+  snatch:['Snatch','Cada golpe le roba 12 a todo al rival y se lo queda (hasta 5 veces)',''],
+  seal:['Supresión de la alquimia','El rival no puede usar técnicas especiales (ni chocarlas): solo golpes','<b>{a}</b> sella toda la alquimia: {d} no puede usar técnicas'],
+  byakugo:['Byakugō','1 vez por debajo del 35 %: libera el sello, se cura un 40 % y su siguiente golpe pega ×1,8','<b>{a}</b> libera el Sello de la Fuerza de un Centenar'],
+  exblood:['Sangre Explosiva','Cuando la golpean, su sangre arde y quema al atacante un 5 % (hasta 4 veces)','La sangre de <b>{a}</b> explota sobre {d}'],
+  terpsi:['Terpsícore','Al caer, su cuerpo sigue luchando como una marioneta: 2 golpes más contra el rival','<b>{a}</b> ha muerto… pero Terpsícore sigue moviendo su cuerpo'],
+  puppet:['','','La marioneta golpea a {d}'],
+  hiraishin:['Dios del Trueno Volador','Se mueve siempre el primero y sus 3 primeros turnos de ataque no se pueden esquivar','<b>{a}</b> ya ha marcado a {d} con un kunai'],
+  room:['Shambles','1 vez por debajo del 25 %: intercambia su vida con la del rival (si el rival tiene al menos un 25 % más)','<b>{a}</b>: «ROOM… ¡Shambles!»'],
+  ispear:['Lanza Celestial Invertida','Sus golpes atraviesan el Infinito y nada los anula (Requiem, rebobinar, Jackpot, Eclipse, portales…), ni las ilusiones','<b>{a}</b> desenvaina la Lanza Celestial Invertida: «{s}» no sirve de nada'],
+  judge:['Sentencia Mortal','Primer turno: confisca la habilidad del rival y, si es culpable (60 %), la Espada del Verdugo hace que su siguiente golpe quite al menos un 55 %','<b>{a}</b>: «Expansión de dominio: Sentencia Mortal».','CULPABLE','INOCENTE','Confiscado'],
+  mob100:['???%','Tras recibir 3 golpes sus emociones llegan al 100 %: +100 a todo el resto del duelo','Las emociones de <b>{a}</b> llegan al 100 %…'],
+  black:['Black Freezer','1 vez por debajo del 50 %: se transforma en Black Freezer, +100 a todo','<b>{a}</b>: «Yo también he estado entrenando».'],
+  bungee:['Bungee Gum','En cuanto conecta un golpe, el rival queda pegado: ya no puede esquivar sus ataques','<b>{a}</b>: «La Bungee Gum tiene las propiedades de la goma y del chicle».'],
+  portal:['Pistola de Portales','El primer golpe que le dejaría K.O. entra por un portal y le da al atacante (hasta un 15 %)','<b>{a}</b> abre un portal: el golpe de {b} lo atraviesa'],
+  portalhit:['','','…¡y sale por detrás de {d}!'],
+  pops:{stun:'¡Atrapado!',adapt:'Adaptado',regen:'Regenera',dose:'Veneno ×',stuck:'¡Pegado!',sword:'Espada del Verdugo',hundred:'×1,8',ref:'Nada la para'}}};
 const trT=(k,i)=>{const d=TR_T[lang]||TR_T.en,v=d[k];return v?v[i]||'':''};
 // Habilidades únicas (una por personaje icónico) y su color de firma
 const SIGC={touch:'#fff3c4',inf:'#7fd8ff',serious:'#ffd23f',sun:'#ffb02e',ultra:'#dfe7ff',ego:'#b04dff',hakai:'#a43cff',erase:'#ffffff',rewind:'#7ad7ff',copy:'#ff4d6d',
  clones:'#ff9d2e',amaterasu:'#a35cff',meteor:'#ff7a2e',tsukuyomi:'#ff2a3a',kamui:'#8f6bff',gates:'#3dff9e',gear5:'#ffffff',asura:'#7dff8a',quake:'#cfe9ff',haki:'#ff2a2a',
  mugetsu:'#aab2c8',kyoka:'#8affd0',shrine:'#ff1f3d',bflash:'#ff1f3d',jackpot:'#ffd23f',rumbling:'#ffb27a',ackerman:'#c9d6e3',adult:'#ffd23f',rose:'#ff9ec4',steal:'#b07cff',
- chain:'#ffcf5a',hinokami:'#ff6a00',anti:'#9dff6a',zawarudo:'#ffd23f',heaven:'#9be7ff',counter:'#ff3b6b',arise:'#8a7cff',geass:'#ff2a55',eclipse:'#ff1f1f',dnote:'#f2f2f2'};
+ chain:'#ffcf5a',hinokami:'#ff6a00',anti:'#9dff6a',zawarudo:'#ffd23f',heaven:'#9be7ff',counter:'#ff3b6b',arise:'#8a7cff',geass:'#ff2a55',eclipse:'#ff1f1f',dnote:'#f2f2f2',
+ perfect:'#7dff8a',shock:'#f3e6ff',makanko:'#ffe14d',mokuton:'#9ccc65',poison:'#d1173a',kakuja:'#ff2a3a',snatch:'#ff8a3d',seal:'#ff4a3d',byakugo:'#c48bff',exblood:'#ff4fa3',
+ terpsi:'#e6dcff',hiraishin:'#ffd23f',room:'#5fb8ff',ispear:'#d9dde8',judge:'#e7c86b',mob100:'#2bff6e',black:'#9b4dff',bungee:'#ff6ec7',portal:'#39ff7a'};
 const UNQ=new Set(Object.keys(SIGC));
 const trB=k=>k?`<em class="trb${UNQ.has(k)?' u':''}" title="${trT(k,1)}"${UNQ.has(k)?` style="--sc:${SIGC[k]}"`:''}>${UNQ.has(k)?'★':'✦'} ${trT(k,0)}</em>`:'';
 const trBadge=c=>c&&c.tr?trB(c.tr):'';
@@ -494,23 +540,30 @@ const abF=(s,o)=>s.replace(/\{(\w+)\}/g,(m,k)=>o[k]??m);
 const mvOf=(c,v)=>{const l=c?(lang==='es'?c.mvEs:c.mv)||c.mv||[]:[];return l.length?l[(v||0)%l.length]:abT('special')};
 const mvEn=(c,v)=>{const l=c&&c.mv||[];return l.length?l[(v||0)%l.length]:''}; // nombre en inglés: VFX elige la animación de la técnica por él
 let ABS=1; // las peleas siempre a velocidad normal
+/* Pantalla del combate v4: el HUD va encima del escenario, como en un juego de lucha (retrato, barra de vida larga e inclinada, ki por tramos,
+   nombre, habilidad y equipo, con el rombo del duelo en medio), los subtítulos y el comentarista dentro de la escena, abajo,
+   y debajo del escenario la comparativa de estadísticas de los dos luchadores en pista (las barras de cada uno salen del centro). */
 function abArena(){
   const plate=p=>`<div class="ab-pl a${p}" style="--c:var(--p${p+1});--on:var(--on${p+1})">
-<div class="ab-face" id="abfc${p}"></div>
-<div class="ab-pm"><div class="ab-who"><span>${t('player',p+1)}</span><b id="abn${p}">—</b></div><div class="ab-trn" id="abtr${p}"></div>
-<div class="ab-life"><div class="ab-hpn"><span class="lb">${u('ps')}</span><b id="abhp${p}">—</b><small id="abhm${p}"></small></div>
-<div class="ab-bar ab-hp"><i class="g" id="abg${p}"></i><i class="v" id="abh${p}"></i></div>
-<div class="ab-bar ab-ki"><i id="abk${p}"></i></div></div>
-<div class="ab-tm" id="abt${p}"></div></div><div class="ab-stw" id="abs${p}"></div></div>`;
+<div class="ab-side"><div class="ab-face" id="abfc${p}"></div><div class="ab-tm" id="abt${p}"></div></div>
+<div class="ab-pm"><div class="ab-bar ab-hp"><i class="g" id="abg${p}"></i><i class="v" id="abh${p}"></i></div>
+<div class="ab-bar ab-ki"><i id="abk${p}"></i></div>
+<div class="ab-who"><b id="abn${p}">—</b><div class="ab-hpn"><b id="abhp${p}">—</b><small id="abhm${p}"></small></div></div>
+<div class="ab-meta"><span class="ab-pn">${t('player',p+1)}</span><div class="ab-trn" id="abtr${p}"></div></div></div></div>`;
   const emb=Array.from({length:18},(_,i)=>`<s style="left:${rnd(2,98)}%;--s:${rnd(3,7)}px;--d:${rnd(6,13)}s;--dl:-${rnd(0,13)}s;--x:${rnd(-70,70)}px;--ec:var(--p${i%2+1})"></s>`).join('');
   const fighter=p=>`<div class="ab-f a${p}" id="abf${p}" style="--c:var(--p${p+1})"><i class="ab-aura"></i><div class="ab-card" id="abc${p}"></div><i class="ab-shd"></i></div>`;
-  return `<div class="ab" id="ab"><div class="ab-top">${plate(0)}<div class="ab-c"><small>${abT('duel')}</small><b id="abdn">1</b></div>${plate(1)}</div>
+  return `<div class="ab" id="ab">
 <div class="ab-stage" id="abst"><div class="ab-world" id="abw"><div class="ab-sky"></div><div class="ab-neb"></div><div class="ab-alt"></div><div class="ab-floor"></div><div class="ab-emb">${emb}</div><canvas class="ab-bk" aria-hidden="true"></canvas>${fighter(0)}${fighter(1)}</div>
-<div class="ab-spl"></div><div class="ab-vig"></div><canvas class="ab-cv" aria-hidden="true"></canvas><div class="ab-fx" id="abfx"></div></div>
-<div class="ab-com" id="abcom" aria-live="polite"></div>
-<div class="ab-bot"><div class="ab-dlg" id="abdl"></div></div>
+<div class="ab-spl"></div><div class="ab-vig"></div><canvas class="ab-cv" aria-hidden="true"></canvas><div class="ab-fx" id="abfx"></div>
+<div class="ab-hud">${plate(0)}<div class="ab-c"><small>${abT('duel')}</small><b id="abdn">1</b></div>${plate(1)}</div>
+<div class="ab-sub"><div class="ab-com" id="abcom" aria-live="polite"></div><div class="ab-dlg" id="abdl"></div></div></div>
+<div class="ab-tape" id="abtape"></div>
 <div class="ab-log" id="ablog"></div></div>`;
 }
+// comparativa de estadísticas de los dos luchadores en pista: el valor más alto de cada fila se ilumina
+function abTape(st){const el=$('abtape');if(!el)return;const L=ST_LBL[lang]||ST_LBL.es;
+  el.innerHTML=['STR','SPD','DUR','TEC','ENE'].map(k=>{const a=st[0]&&st[0][k],b=st[1]&&st[1][k],w=v=>Math.max(0,Math.min(100,(v||0)/10));
+    return `<div class="tp-r"><b class="${a>b?'up':''}">${a??'—'}</b><i class="l"><u style="width:${w(a)}%"></u></i><small>${L[k]}</small><i><u style="width:${w(b)}%"></u></i><b class="${b>a?'up':''}">${b??'—'}</b></div>`}).join('')}
 // Elemento de las técnicas (solo cambia el color y el estilo del rayo). Sin elemento = color del jugador.
 const ELEM={fire:['Mereoleona','Deidara','Ace','Tanjiro','Feitan','Rengoku','Roy Mustang','Jogo','Escanor','Demon King'],
  bolt:['Fourth Raikage','Sasuke','Minato','Hajime Kashimo','Zeus','Killua','Zenitsu','Thor','Killer B'],
@@ -531,6 +584,8 @@ const COM_T={en:{first:'First blood!',gap:['<b>{a}</b> is toying with {b}…','T
   close:'¡<b>{a}</b> sobrevive por los pelos!',last:'<b>{a}</b> es la última esperanza de {p}',combo:'{0} GOLPES'}};
 const comT=k=>(COM_T[lang]||COM_T.en)[k];
 const STAGE_FX=['dz0','dz1','tstop','fin','gen','god','tsk','ecl','mih','shr','rmb','mug','hki','dark','rwd'];
+// marcas que solo duran un duelo (el ganador pasa al siguiente sin ellas)
+const DUEL_MARKS=['burn','ego','cln','gt','g5','jp','adult','spent','hk','emp','anti','gs','mir','rg','pf','kj','m100','bk','blk','bound','sealed','gum','psn','sword','puppet'];
 /* ---------- VFX: efectos del combate de anime en dos lienzos ----------
    DETRÁS de los luchadores (dentro del mundo: se mueve con la cámara)
      · aura de llamas por capas, como se dibuja en el anime: tranquila en reposo y desbocada al despertar o transformarse
@@ -610,12 +665,12 @@ const VFX=(()=>{
     chips(x,y,10*k,fl||ch*.9);if(vic!=null)craterAt(vic,70*k,col);stopT=now()+110}
 
   /* ---- AURA de llamas: la silueta se recalcula cada fotograma con ruido, en tres capas (exterior suave → núcleo brillante) ---- */
-  const AURS={aw:[null,1.5],rg:['#ff2a2a',1.3],ego:['#b04dff',1.45],g5:['#ffffff',1.55],emp:['#ff2a3a',1.2],hk:['#ff6a00',1.3],adult:['#ffd23f',1.8],gt:['#3dff9e',1.8],jp:['#ffd23f',1.2],win:[null,.8]};
-  const POW=['aw','rg','ego','g5','emp','hk','adult','gt','jp']; // cuando aparece una de estas: estallido de poder
+  const AURS={aw:[null,1.5],rg:['#ff2a2a',1.3],ego:['#b04dff',1.45],g5:['#ffffff',1.55],emp:['#ff2a3a',1.2],hk:['#ff6a00',1.3],adult:['#ffd23f',1.8],gt:['#3dff9e',1.8],jp:['#ffd23f',1.2],pf:['#7dff8a',1.4],kj:['#ff1f3d',1.5],m100:['#2bff6e',1.9],bk:['#c48bff',1.3],blk:['#9b4dff',1.7],win:[null,.8]};
+  const POW=['aw','rg','ego','g5','emp','hk','adult','gt','jp','pf','kj','m100','bk','blk']; // cuando aparece una de estas: estallido de poder
   function auraOf(p){const f=document.getElementById('abf'+p);if(!f)return null;const L=f.classList;if(L.contains('ko')||L.contains('dust')||L.contains('gone'))return null;
     const e=EL(p);let col=e.c,c2=e.c2,lv=.3,dark=null;
     for(const k in AURS)if(L.contains(k)){col=AURS[k][0]||pcol(p);c2='#ffffff';lv=Math.max(lv,AURS[k][1])}
-    if(L.contains('anti'))dark='#050505';if(L.contains('burn'))dark='#14001f';if(L.contains('spent'))lv=.06;if(dark)lv=Math.max(lv,1);
+    if(L.contains('anti'))dark='#050505';if(L.contains('blk'))dark='#16002a';if(L.contains('burn'))dark='#14001f';if(L.contains('spent'))lv=.06;if(dark)lv=Math.max(lv,1);
     if(st.classList.contains('dz'+p))lv+=.35;
     return {col,c2,lv,dark}}
   function auraPts(cx,cy,w,h,k,t,m){const N=46,out=[],rx=w/2+(8+16*k)*m,ry=h/2+(6+10*k)*m,top=(22+52*k)*m;
@@ -912,7 +967,7 @@ async function run(tk,script){
   const AB=$('ab'),ST=$('abst'),FX=$('abfx'),WD=$('abw');
   ABS=1;AB.style.setProperty('--k',1);VFX.start(ST);
   const T0=S0.ev[0]&&S0.ev[0].teams; // orden real de cada equipo (el motor lo manda; si no, el de la compra)
-  const team=[0,1].map(p=>T0?T0[p]:(P[p]&&P[p].c||[]).map(c=>c.n)),ko=[[],[]],act=[-1,-1],cur=[null,null];let hpN=[1,1],HM=[1000,1000],lastDown='',lastL=null,dno=0;
+  const team=[0,1].map(p=>T0?T0[p]:(P[p]&&P[p].c||[]).map(c=>c.n)),ko=[[],[]],act=[-1,-1],cur=[null,null],stv=[null,null];let hpN=[1,1],HM=[1000,1000],lastDown='',lastL=null,dno=0;
   const roster=p=>$('abt'+p).innerHTML=team[p].map((n,k)=>{const c=C(n);return c?`<i class="ab-th${k===act[p]?' on':''}${ko[p][k]?' ko':''}" data-n="${n}" style="--h:${c.h}">${spr(c)}</i>`:''}).join('');
   roster(0);roster(1);
   const say=async(h,ms)=>{$('abdl').innerHTML='<span>'+h+'</span>';if(ms)await z(ms)};
@@ -955,7 +1010,16 @@ async function run(tk,script){
   const slashes=(p,col,n=4)=>{let h='';for(let i=0;i<n;i++)h+=`<i style="--a:${rnd(-70,70)}deg;--dl:${i*70}ms;--y:${rnd(-40,40)}px"></i>`;at(p,.45,'ab-slash',h,900,`--c:${col||'#fff'}`)};
   const shades=(a,n)=>{for(let i=0;i<n;i++)at(a,.98,'ab-shade','',1500,`--dx:${(i-(n-1)/2)*44}px;--dl:${i*90}ms`)};
   const shadeHit=(a,d)=>{const A=ctr(a,.5),D=ctr(d,.5);tmp(`<span class="ab-shade go" style="left:${A.x}px;top:${A.y}px;--tx:${D.x-A.x}px"></span>`,600)};
-  const chain=(a,d)=>{const A=ctr(a,.45),D=ctr(d,.45);tmp(`<i class="ab-chain" style="left:${Math.min(A.x,D.x)}px;width:${Math.abs(D.x-A.x)}px;top:${A.y}px;--o:${a?'right':'left'}"></i>`,1500)};
+  const chain=(a,d,k='')=>{const A=ctr(a,.45),D=ctr(d,.45);tmp(`<i class="ab-chain ${k}" style="left:${Math.min(A.x,D.x)}px;width:${Math.abs(D.x-A.x)}px;top:${A.y}px;--o:${a?'right':'left'}"></i>`,1500)};
+  const gum=(a,d)=>chain(a,d,'gum'); // Bungee Gum: un hilo de chicle rosa
+  // marcas de las habilidades que llevan los golpes normales (veneno, robo, cura al golpear, golpes reforzados, teletransporte)
+  const tagFx=(h,a,d)=>{const P=pops();
+    if(h.ps){mark(d,'psn');$('abf'+d).style.setProperty('--ps',h.ps);num(d,P.dose+h.ps,'txt')}
+    if(h.lf)num(a,healT(a,h.lf),'heal');
+    if(h.sn){num(a,'+'+BidEngine.TR.SN,'txt');if(h.sn===1)pop(trT('snatch',0),'',SIGC.snatch)}
+    if(h.bk){pop(P.hundred,'',SIGC.byakugo);crack();mark(a,'bk',false)}
+    if(h.ex){pop(P.sword,'',SIGC.judge);slashes(d,SIGC.judge,2);mark(a,'sword',false)}};
+  const tp=a=>{at(a,.5,'ab-tp','',600,`--c:${SIGC.hiraishin}`);sfx('whiff')}; // Dios del Trueno Volador: aparece al lado del rival
   const book=(from,to)=>{const A=ctr(from,.3),D=ctr(to,.3);tmp(`<span class="ab-book" style="left:${A.x}px;top:${A.y}px;--dx:${D.x-A.x}px">📖</span>`,1000)};
   const note=d=>{const n=dn(cur[d]);tmp(`<div class="ab-dnote"><small>DEATH NOTE</small><b style="--n:${n.length}">${n}</b><em>${trT('dnote',4)}</em></div>`,2300)};
   const ecg=()=>tmp('<div class="ab-ecg"><svg viewBox="0 0 400 100" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,50 70,50 82,22 96,84 108,50 170,50 182,26 195,80 206,50 400,50"/></svg><b>♥</b></div>',1900);
@@ -975,6 +1039,7 @@ async function run(tk,script){
     if(lethal)await finisher(d);
     if(h.u==='hakai'){at(d,.45,'ab-orb','',1300);VFX.hakai(d);sfx('time');await z(750);dmgFx();if(lethal)mark(d,'gone');flash('#a43cff');sfx('boom');await z(900)}
     else if(h.u==='rumbling'){drop(d,'stomp');await z(520);dmgFx();VFX.boom(d,'#ffb27a',1.2);sfx('quake');await z(520)}
+    else if(h.u==='makanko'){lunge(a);const tw=VFX.tech(a,'Makankosappo',true,SIGC.makanko);sfx('beam');if(tw){await Promise.race([tw,sleep(2400)]);if(tk!==bt)throw 0}else{beam(a,true,SIGC.makanko);await z(260)}dmgFx();flash(SIGC.makanko);sfx('boom');await z(900)}
     else if(h.u==='mugetsu'){tmp('<i class="ab-mug"></i>',1300);sfx('beam');await z(520);dmgFx();flash('#000');sfx('boom');await z(1000)}
     else{lunge(a);beam(a,true,SIGC[h.u]);await z(260);dmgFx();flash(SIGC[h.u]);sfx('boom');await z(950)} // Night Guy
   };
@@ -1047,6 +1112,29 @@ async function run(tk,script){
       case 'eclipse':stg('ecl');await sig(a,k);flash('#ff1f1f');num(a,healT(a,.6),'heal');sfx('awake');upd();await z(700);break;
       case 'dnote':note(d);sfx('write');await z(2100);mark(d,'dn');break;
       case 'heart':stg('dark');ecg();sfx('heart');await z(1750);mark(d,'dn',false);hurt(d);num(d,'♥','crit');flash('#ff2a3a');upd();await z(800);stg('dark',false);break;
+      // ---- únicas nuevas ----
+      case 'perfect':lunge(by);await z(170);hurt(a);burst(a,true,SIGC.counter);flash('#000');await z(300);await sig(a,k);mark(a,'pf');pop('ZENKAI','',col);sfx('awake');upd();await z(650);break;
+      case 'shock':tmp('<div class="ab-shk"><i></i></div>',1350);flash('#fff');sfx('time');await z(800);num(d,pops().stun,'txt');upd();await z(550);break;
+      case 'makanko':await sig(a,k);break; // el rayo es el golpe definitivo que viene detrás (ultHit)
+      case 'mokuton':await sig(a,k);at(d,.62,'ab-wood','',1500);sfx('quake');shake();await z(650);mark(d,'bound');num(d,pops().stun,'txt');if(h.heal)num(a,healT(a,h.heal),'heal');upd();await z(700);break;
+      case 'venom':hurt(d);at(d,.4,'ab-drip','',950,`--c:${col}`);num(d,dmgT(d,h.dmg));sfx('hum');upd();await z(480);break;
+      case 'kakuja':await sig(a,k);mark(a,'kj');break;
+      case 'seal':await sig(a,k);tmp(`<i class="ab-circle" style="--c:${col}"></i>`,1800);mark(d,'sealed');sfx('domain');await z(600);break;
+      case 'byakugo':await sig(a,k);mark(a,'bk');if(h.heal)num(a,healT(a,h.heal),'heal');sfx('awake');upd();await z(500);break;
+      case 'exblood':at(d,.45,'ab-burst','',650,`--s:130px;--c:${col}`);VFX.hit(d,false,col);hurt(d);num(d,dmgT(d,h.dmg));sfx('boom');upd();await z(560);break;
+      case 'terpsi':mark(a,'puppet');await sig(a,k);break;
+      case 'puppet':ghost(a,d);await z(220);hurt(d);burst(d,false,col);num(d,dmgT(d,h.dmg));sfx('hit');upd();await z(480);break;
+      case 'hiraishin':at(d,.3,'ab-kunai','',1400,`--c:${col}`);pop(nm,'',col);sfx('whiff');await z(950);break;
+      case 'room':await sig(a,k);tmp(`<i class="ab-room" style="--c:${col}"></i>`,1900);sfx('domain');await z(750);num(0,'⇄','txt');num(1,'⇄','txt');sfx('time');flash(col);upd();await z(850);break;
+      case 'ispear':pop(nm,'',col);slashes(d,col,2);sfx('slash');await z(950);break;
+      case 'judge':{await sig(a,k);const v=trT('judge',h.g?3:4);
+        tmp(`<div class="ab-verdict${h.g?' g':''}"><small>${trT('judge',0)}</small><b>${v}</b>${h.s&&TR_T.en[h.s]?`<em>${trT('judge',5)}: ${trT(h.s,0)}</em>`:''}</div>`,2000);
+        sfx(h.g?'boom':'whiff');await z(1000);if(h.s)badge(d,'',true);if(h.g)mark(a,'sword');await z(900);break}
+      case 'mob100':await sig(a,k);mark(a,'m100');shake();break;
+      case 'black':await sig(a,k);mark(a,'blk');flash('#16002a');break;
+      case 'bungee':gum(a,d);pop(nm,'',col);mark(d,'gum');num(d,pops().stuck,'txt');sfx('chain');await z(950);break;
+      case 'portal':lunge(by);await z(170);at(a,.45,'ab-portal','',1300,`--c:${col}`);num(a,'⟲','txt');sfx('time');await z(750);break;
+      case 'portalhit':at(d,.45,'ab-portal','',1000,`--c:${col}`);await z(220);hurt(d);burst(d,true,col);num(d,dmgT(d,h.dmg),'crit');shake();sfx('boom');upd();await z(700);break;
       default:await z(300);
     }
     upd();
@@ -1057,12 +1145,12 @@ async function run(tk,script){
       const c=C(e.n),p=e.p,f=$('abf'+p),card=$('abc'+p);act[p]=e.k;cur[p]=c;hpN[p]=e.f==null?1:e.f;HM[p]=e.hm||BidEngine.hpMax(e.st||BidEngine.stats(c));
       $('abn'+p).innerHTML=dnh(c);$('abtr'+p).innerHTML=trBadge(c);card.dataset.n=c.n;card.style.setProperty('--h',c.h);card.innerHTML=spr(c);
       const fc=$('abfc'+p);fc.className='ab-face';fc.dataset.n=c.n;fc.style.setProperty('--h',c.h);fc.innerHTML=spr(c);
-      f.className='ab-f a'+p;f.style.setProperty('--lv','');re(f,'in');VFX.enter(p);setB(p,hpN[p],e.e==null?1:e.e,true);$('abs'+p).innerHTML=stT(c,e.st);roster(p);
+      f.className='ab-f a'+p;f.style.setProperty('--lv','');re(f,'in');VFX.enter(p);setB(p,hpN[p],e.e==null?1:e.e,true);stv[p]=e.st||BidEngine.stats(c);abTape(stv);roster(p);
       if(team[p].length>1&&e.k===team[p].length-1)com(abF(comT('last'),{a:dnh(c),p:t('player',p+1)}));
       await say(t('sends',p+1,dnh(c)),1150);
     }else if(e.t==='duel'){
       const A=C(e.a),B=C(e.b);$('abdn').textContent=++dno;
-      STAGE_FX.forEach(c=>stg(c,false));[0,1].forEach(p=>{mark(p,'win',false);if(cur[p])$('abtr'+p).innerHTML=trBadge(cur[p])});
+      STAGE_FX.forEach(c=>stg(c,false));[0,1].forEach(p=>{mark(p,'win',false);$('abf'+p).classList.remove(...DUEL_MARKS);if(cur[p])$('abtr'+p).innerHTML=trBadge(cur[p])});
       tmp(`<div class="ab-vs"><div class="vs-s l"><b>${dnh(A)}</b></div><b class="vs-x">${t('vs')}</b><div class="vs-s r"><b>${dnh(B)}</b></div><small class="vs-n">${abT('duel')} ${dno}</small></div>`,1700);
       sfx('charge');
       const gp=A.pw-B.pw;if(Math.abs(gp)>=250){const s=gp>0?[A,B]:[B,A];com(abF(comT('gap')[dno%2],{a:dnh(s[0]),b:dnh(s[1])}))}else if(Math.abs(gp)<=40)com(comT('even'));
@@ -1077,9 +1165,9 @@ async function run(tk,script){
         if(h.k==='hit'||h.k==='crit'||h.k==='ctr'){
           say(h.k==='ctr'?abF(abT(h.ui?'uctr':'ctr'),{a:An,d:Dn}):h.cl?abF(abT('clone'),{a:An,d:Dn}):h.rr?abF(abT('roller'),{a:An,d:Dn}):abF(abT(h.k==='crit'?'crit':'hit',v),{a:An,d:Dn}));
           if(lethal)await finisher(d);
-          if(h.rr){drop(d,'roller');await z(560)}else if(h.cl){ghost(a,d);await z(220)}else{lunge(a);await z(h.ts?110:170)}
+          if(h.rr){drop(d,'roller');await z(560)}else if(h.cl){ghost(a,d);await z(220)}else{if(h.hr)tp(a);lunge(a);await z(h.ts||h.hr?110:170)}
           const big=h.crit||lethal||h.bf||h.rr;
-          hurt(d);burst(d,big,h.bf?'#ff1f3d':h.as?'#7dff8a':null);num(d,dmgT(d,dm(d)),big?'crit':'');sfx(big?'crit':'hit');
+          hurt(d);burst(d,big,h.bf?'#ff1f3d':h.as?'#7dff8a':h.ex?SIGC.judge:null);num(d,dmgT(d,dm(d)),big?'crit':'');sfx(big?'crit':'hit');tagFx(h,a,d);
           if(h.bf){at(d,.45,'ab-bfl','<b>黒閃</b>',950);VFX.bf(d);pop(abT('bfPop'),'','#ff1f3d');imp()}
           else if(h.as){slashes(d,'#7dff8a',3);pop(abT('asPop'),'','#7dff8a')}
           else if(h.ui)pop(abT('uiPop'),'','#dfe7ff');
@@ -1092,9 +1180,9 @@ async function run(tk,script){
             say(h.cp!=null?abF(abT('copied'),{a:An,m}):h.fc!=null?abF(abT('fc'),{a:An,d:Dn,m}):abF(abT(h.k),{a:An,m}));if(h.en)setB(a,null,h.en[a]);
             if(h.fc==null)await cutin(a,cur[a],m);if(lethal)await finisher(d);
             const big=h.k==='spc'||lethal,bc=h.cp!=null?elC(d):h.fc!=null?SIGC.counter:null;
-            lunge(a);const tw=VFX.tech(a,h.cp!=null?mvEn(cur[d],h.cp):h.fc!=null?mvEn(cur[d],h.fc):mvEn(cur[a],v),big,bc,{snd:()=>sfx('hit')}); // cada técnica famosa con su animación
+            if(h.hr)tp(a);lunge(a);const tw=VFX.tech(a,h.cp!=null?mvEn(cur[d],h.cp):h.fc!=null?mvEn(cur[d],h.fc):mvEn(cur[a],v),big,bc,{snd:()=>sfx('hit')}); // cada técnica famosa con su animación
             if(tw){sfx('beam');await Promise.race([tw,sleep(2600)]);if(tk!==bt)throw 0}else{beam(a,big,bc);await z(240)}
-            hurt(d);burst(d,true,elC(a));shake();zoom(d);flash(elC(a));num(d,dmgT(d,dm(d)),'crit');if(h.k==='spc'&&!lethal)pop(abT('critPop'));if(h.k==='spc'||lethal)imp();if(lethal)VFX.boom(d,elC(a),1.6);VFX.knock(d,lethal?2:1);
+            hurt(d);burst(d,true,elC(a));shake();zoom(d);flash(elC(a));num(d,dmgT(d,dm(d)),'crit');tagFx(h,a,d);if(h.k==='spc'&&!lethal)pop(abT('critPop'));if(h.k==='spc'||lethal)imp();if(lethal)VFX.boom(d,elC(a),1.6);VFX.knock(d,lethal?2:1);
             sfx('boom');comboHit(a);upd();await z(lethal?1050:760);
           }
         }else if(h.k==='miss'){
@@ -1115,7 +1203,7 @@ async function run(tk,script){
           if(h.hp[a]>prev[a])num(a,healT(a,h.hp[a]-prev[a]),'heal');upd();await z(1250);
         }else if(h.k==='tr')await trait(h,a,d,An,Dn,upd);
         else{upd();await z(300)}
-        scene(h);if(lethal)stg('fin',false);
+        scene(h);if(lethal)stg('fin',false);if(h.k!=='tr'&&h.k!=='awake')mark(a,'bound',false);
         behind=[0,1].map(p=>Math.max(behind[p],h.hp[1-p]-h.hp[p]));
       }
     }else if(e.t==='sac'){

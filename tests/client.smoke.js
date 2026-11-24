@@ -88,9 +88,27 @@ async function play(cat,seed){
   assert(P[0].m>=0&&P[1].m>=0);
   return{t:Math.round(h.clock.now/1000),n0:P[0].c.length,n1:P[1].c.length};
 }
+// combate anime con equipos elegidos (sin subasta): para que todas las habilidades se animen al menos una vez
+async function fight(a,b,seed){
+  const h=run('anime',seed);
+  J(h,`start('anime');{const pk=n=>POOLS.anime.find(c=>c.n===n);G.P[0].c=${JSON.stringify(a)}.map(pk);G.P[1].c=${JSON.stringify(b)}.map(pk);G.phase='fight';G.rng=BidEngine.mulberry32(${seed});mirror();
+    const S=BidEngine.resolveAnime(G);window.__keys=S.ev.filter(e=>e.t==='duel').flatMap(e=>e.hits.filter(h=>h.k==='tr').map(h=>h.tr).concat(e.hits.filter(h=>h.u).map(h=>'u:'+h.u)));
+    run(++bt,S).catch(e=>{if(e!==0)throw e})}`);
+  const done=()=>/class="res[ "]/.test(String(h.ctx.document.getElementById('end').innerHTML));
+  await drain(h,done);assert(done(),'el combate termina: '+a+' / '+b);
+  return J(h,'window.__keys');
+}
 process.on('unhandledRejection',e=>{throw e});
 (async()=>{
   let ok=0;const rows=[];
   for(const cat of['anime','ufc'])for(let s=1;s<=15;s++){const r=await play(cat,s*7919);ok++;if(s<=2)rows.push(cat+' #'+s+': '+JSON.stringify(r))}
-  console.log(rows.join('\n'));console.log('OK',ok,'partidas completas (subasta + combate) sin errores');process.exit(0);
+  console.log(rows.join('\n'));console.log('OK',ok,'partidas completas (subasta + combate) sin errores');
+  const T=[[['Cell','C.C.','Piccolo'],['Hashirama','Muzan','Kaneki']],[['Ban','Father','Tsunade'],['Nezuko','Neferpitou','Minato']],[['Law','Toji','Hiromi Higuruma'],['Mob','Frieza','Hisoka']],
+    [['Rick Sanchez','Gojo','Neferpitou'],['Aizen','Toji','Law']],[['Hiromi Higuruma','Kaneki','Muzan'],['Rick Sanchez','Cell','Tsunade']],[['Light Yagami','Piccolo','Hashirama'],['Cell','Rick Sanchez','Father']],
+    [['Mob','Hisoka','Frieza'],['Ging Freecss','Killua','Cell']],[['Hisoka','Mob','Frieza'],['Gon','Silva Zoldyck','Madara']]];
+  const seen=new Set();let nf=0;
+  for(const[a,b]of T)for(const s of[3,17,41,59]){(await fight(a,b,s)).forEach(k=>seen.add(k));nf++}
+  const want=['perfect','shock','makanko','u:makanko','mokuton','venom','kakuja','seal','byakugo','exblood','terpsi','puppet','hiraishin','room','ispear','judge','mob100','black','bungee','portal','portalhit'];
+  const miss=want.filter(k=>!seen.has(k));assert(!miss.length,'habilidades sin animar: '+miss.join(', '));
+  console.log('OK',nf,'combates con todas las habilidades nuevas animadas sin errores');process.exit(0);
 })().catch(e=>{console.error('FALLO:',e);process.exit(1)});
