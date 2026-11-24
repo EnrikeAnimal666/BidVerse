@@ -5,3 +5,8 @@ server/data/
 *.db
 *.db-wal
 *.db-shm
+
+# Vídeo promocional y audio generados (pesan ~50 MB, no deben subirse)
+promo/out/
+# Originales de los fondos antes de comprimirlos a WebP (copia local, no se sube)
+bg/originales/
