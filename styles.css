@@ -1298,3 +1298,54 @@ body.inlobby .brand{justify-content:center!important}
 /* ---------- LOGO: enlace al inicio ---------- */
 h1.brandimg a.home{display:inline-block;line-height:0;color:inherit;text-decoration:none;cursor:pointer}
 h1.brandimg a.home:focus-visible{outline:2px solid var(--acc);outline-offset:4px;border-radius:4px}
+/* ================= COMBATE ANIME 3D (f3d/): el HUD flota sobre el escenario ================= */
+.ab-3d{position:absolute;inset:0;display:block;width:100%;height:100%;z-index:1}
+.ab.d3{max-width:1240px;grid-template-columns:minmax(0,1fr)}
+.ab.d3 .ab-sky,.ab.d3 .ab-neb,.ab.d3 .ab-alt,.ab.d3 .ab-floor,.ab.d3 .ab-emb,.ab.d3 .ab-bk,.ab.d3 .ab-cv,.ab.d3 .ab-spl{display:none}
+.ab.d3 .ab-f{visibility:hidden;pointer-events:none}
+.ab.d3>.ab-stage{grid-row:1;grid-column:1;height:clamp(430px,76vh,740px);border-radius:6px;background:#05030c;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 70px -30px #000}
+.ab.d3 .ab-vig{background:radial-gradient(ellipse at 50% 52%,transparent 58%,rgba(0,0,0,.55))}
+.ab.d3>.ab-top{grid-row:1;grid-column:1;z-index:6;align-self:start;margin:14px 16px 0;pointer-events:none}
+.ab.d3 .ab-pl{background:linear-gradient(105deg,color-mix(in srgb,var(--c) 34%,rgba(9,7,15,.72)),rgba(9,7,15,.5) 72%);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:inset 0 -1px 0 rgba(255,255,255,.1),0 10px 30px -14px rgba(0,0,0,.8)}
+.ab.d3 .ab-pl.a1{background:linear-gradient(255deg,color-mix(in srgb,var(--c) 34%,rgba(9,7,15,.72)),rgba(9,7,15,.5) 72%)}
+.ab.d3 .ab-c{align-self:start;padding:8px 12px;background:rgba(9,7,15,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:2px solid #ffd23f}
+.ab.d3 .ab-stw{display:none}
+.ab.d3>.ab-com{grid-row:1;grid-column:1;z-index:6;align-self:end;margin-bottom:84px;pointer-events:none;text-shadow:0 2px 10px #000,0 0 2px #000}
+.ab.d3>.ab-bot{grid-row:1;grid-column:1;z-index:6;align-self:end;justify-self:center;width:min(780px,calc(100% - 28px));margin-bottom:16px;pointer-events:none}
+.ab.d3 .ab-dlg{justify-content:center;text-align:center;min-height:2.7em;background:rgba(8,6,14,.6);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-left:0;border-bottom:2px solid #ffd23f;box-shadow:0 12px 30px -16px #000}
+.ab.d3>.ab-log{grid-row:2}
+.ab.d3 .ab-num{font-size:2.3rem}.ab.d3 .ab-num.crit{font-size:3.2rem}
+@media(max-width:700px){
+  .ab.d3>.ab-stage{height:clamp(380px,66svh,580px)}
+  .ab.d3>.ab-top{margin:8px 8px 0}
+  .ab.d3>.ab-com{margin-bottom:96px;font-size:.8rem}
+  .ab.d3>.ab-bot{margin-bottom:10px}.ab.d3 .ab-dlg{font-size:.85rem;padding:8px 12px}
+}
+
+/* ================= MENÚ: cómo jugar (buscar partida · CPU · sala privada) y pantalla de búsqueda ================= */
+.mbox.ps{max-width:560px}
+.ps .mh h3{display:grid;gap:2px}.ps .mh h3 small{font:800 .7rem var(--mono);letter-spacing:.2em;text-transform:uppercase;color:#ffb02e}
+.ps-opts{display:grid;gap:12px;margin-top:6px}
+.ps-o{all:unset;box-sizing:border-box;display:grid;grid-template-columns:52px minmax(0,1fr);gap:14px;align-items:center;padding:16px 18px;border:2px solid var(--ink);border-radius:2px;background:#0e0e10;color:var(--ink);cursor:pointer;transition:transform .12s,box-shadow .12s,background .12s}
+.ps-o span{display:grid;gap:4px;min-width:0}.ps-o b{font:900 1.15rem/1.1 var(--serif)}.ps-o small{font:600 .82rem/1.35 var(--mono);color:var(--mut)}
+.ps-ic{display:grid;place-items:center;width:52px;height:52px;font-style:normal;font-size:1.6rem;border:2px solid var(--ink);background:#16161a}
+button.ps-o:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 #d62839}button.ps-o:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #d62839}
+button.ps-o:focus-visible,.ps-lv button:focus-visible{outline:3px solid #ffb02e;outline-offset:3px}
+.ps-seek{background:linear-gradient(100deg,#d62839,#8a0f1d);border-color:#ff5a68;color:#fff}.ps-seek small{color:rgba(255,255,255,.82)}.ps-seek .ps-ic{background:rgba(0,0,0,.25);border-color:rgba(255,255,255,.6)}
+.ps-cpu{cursor:default}
+.ps-lv{display:flex!important;grid-auto-flow:column;gap:8px;margin-top:6px}
+.ps-lv button{all:unset;box-sizing:border-box;flex:1;padding:9px 6px;text-align:center;font:900 .9rem var(--serif);border:2px solid var(--ink);background:#16161a;color:var(--ink);cursor:pointer;transition:background .12s,color .12s,transform .12s}
+.ps-lv button:hover,.ps-lv button.on:hover{background:var(--ink);color:#0a0a0b;transform:translateY(-1px)}
+.ps-lv button[data-lv="1"]{border-color:#3ddc84}.ps-lv button[data-lv="3"]{border-color:#ff5a68}
+/* búsqueda de rival */
+.lb-seek .lb-body{text-align:center}
+.sk-radar{position:relative;width:150px;height:150px;margin:4px auto 18px;display:grid;place-items:center}
+.sk-radar i{position:absolute;inset:0;border-radius:50%;border:2px solid #ffb02e;opacity:0;animation:skping 2.4s cubic-bezier(.2,.6,.3,1) infinite}
+.sk-radar i:nth-child(2){animation-delay:.8s}.sk-radar i:nth-child(3){animation-delay:1.6s}
+@keyframes skping{0%{transform:scale(.35);opacity:.9}100%{transform:scale(1.15);opacity:0}}
+.sk-me{position:relative;display:grid;place-items:center;width:74px;height:74px;overflow:hidden;border-radius:50%;border:3px solid #ffb02e;background:#16161a;font:900 1.8rem var(--serif);box-shadow:0 0 30px rgba(255,176,46,.45)}
+.sk-me img{width:100%;height:100%;object-fit:cover}
+.sk-t{display:grid;gap:4px;justify-items:center;margin:10px 0 6px}.sk-t b{font:900 2rem/1 var(--disp);color:#ffb02e}.sk-t small{font:600 .8rem var(--mono);color:var(--mut);min-height:1.2em}
+.lb-seek .lb-rules{justify-content:center}
+@media(prefers-reduced-motion:reduce){.sk-radar i{animation:none;opacity:.4}}
+.ab.d3 .ab-clash,.ab.d3 .ab-beam,.ab.d3 .ab-burst,.ab.d3 .ab-shield{opacity:0}

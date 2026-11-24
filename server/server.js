@@ -10,8 +10,8 @@ const ws = require('./ws.js'), { Hub } = require('./rooms.js'), DB = require('./
 const ROOT = path.resolve(__dirname, '..');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.mp4': 'video/mp4', '.webm': 'video/webm', '.ico': 'image/x-icon' };
 // Solo se sirve esto: nada de server/, tests/, .git, node_modules…
-const FILES = new Set(['index.html', 'styles.css', 'game.js', 'engine.js', 'online.js', 'data-anime.js', 'data-ufc.js', 'data-futbol.js', 'data-imgs.js']);
-const DIRS = new Set(['lang', 'pics', 'bg']);
+const FILES = new Set(['index.html', 'styles.css', 'game.js', 'engine.js', 'online.js', 'cpu.js', 'data-anime.js', 'data-ufc.js', 'data-futbol.js', 'data-imgs.js']);
+const DIRS = new Set(['lang', 'pics', 'bg', 'f3d']); // f3d = combate de anime en 3D (módulos del navegador)
 
 function loadPools() { // los datos son scripts de navegador: se evalúan aquí para tener los mismos personajes que el cliente
   const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/^const /gm, 'var ');
@@ -33,7 +33,7 @@ function staticHandler(req, res) {
     if (err || !st.isFile()) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No encontrado'); }
     // ETag: el navegador solo vuelve a descargar un archivo si ha cambiado; las imágenes además se guardan 1 día
     const etag = '"' + st.size.toString(36) + '-' + Math.floor(st.mtimeMs).toString(36) + '"';
-    const head = { ETag: etag, 'Cache-Control': DIRS.has(parts[0]) && parts[0] !== 'lang' ? 'public, max-age=86400' : 'no-cache', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY' };
+    const head = { ETag: etag, 'Cache-Control': DIRS.has(parts[0]) && parts[0] !== 'lang' && parts[0] !== 'f3d' ? 'public, max-age=86400' : 'no-cache', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY' };
     if (req.headers['if-none-match'] === etag) { res.writeHead(304, head); return res.end(); }
     res.writeHead(200, Object.assign({ 'Content-Type': type, 'Content-Length': st.size }, head));
     if (req.method === 'HEAD') return res.end();
