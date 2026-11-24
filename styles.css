@@ -1289,3 +1289,12 @@ body.inlobby .brand{justify-content:center!important}
 .rk-me{margin-top:10px;padding-top:10px;border-top:1px dashed rgba(255,255,255,.2)}
 .rkmsg{margin:0;padding:22px 0;text-align:center;font:600 .85rem var(--mono);color:var(--mut)}
 .rkpts{margin:4px 0 14px;font:800 .95rem var(--mono);color:var(--ink)}.rkpts.up{color:#3ddc84}.rkpts.down{color:#ff6b5a}
+
+/* ---------- FOTO DEL LOTE: foto entera sobre fondo desenfocado cuando recortarla la estropearía (ver fitPic en game.js) ---------- */
+.pic img.bk{display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;filter:blur(22px) brightness(.5) saturate(1.2);transform:scale(1.15)}
+.pic.fit img.bk{display:block}
+.pic.fit img.fg{object-fit:contain;object-position:50% 50%;filter:drop-shadow(0 10px 28px rgba(0,0,0,.55))}
+
+/* ---------- LOGO: enlace al inicio ---------- */
+h1.brandimg a.home{display:inline-block;line-height:0;color:inherit;text-decoration:none;cursor:pointer}
+h1.brandimg a.home:focus-visible{outline:2px solid var(--acc);outline-offset:4px;border-radius:4px}

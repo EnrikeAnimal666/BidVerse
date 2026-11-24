@@ -155,7 +155,8 @@ function apply(res){
 function onEv(e){switch(e.t){
   case 'lot':
     wantImg([cur],true);
-    $('pic').innerHTML=(cur.img?`<img src="${cur.img}" alt="${cur.n}">`:`<div class="e">${cur.e}</div>`)+(cur.kind==='futbol'?`<div class="fovr${cur.leg?' leg':''}"><b>${cur.ovr}</b><span>${roleT(cur.role)}</span></div>`:'')+'<div class="stamp" id="stamp"><span id="st"></span></div>';
+    $('pic').classList.remove('fit');
+    $('pic').innerHTML=(cur.img?lotImg(cur):`<div class="e">${cur.e}</div>`)+(cur.kind==='futbol'?`<div class="fovr${cur.leg?' leg':''}"><b>${cur.ovr}</b><span>${roleT(cur.role)}</span></div>`:'')+'<div class="stamp" id="stamp"><span id="st"></span></div>';
     $('pic').style.setProperty('--h',cur.h);
     $('lot').classList.toggle('ufc',cur.kind==='ufc'||cur.kind==='futbol');
     lastBid=0;lotText();hint();render();timer();break;
@@ -187,6 +188,25 @@ function onEv(e){switch(e.t){
     {const tk=++bt,go=()=>(cat==='ufc'?night:cat==='futbol'?match:run)(tk).catch(er=>{if(er!==0)throw er});
      if(cat==='anime'&&P.some(p=>p.c.length>1))lineup({me:null}).then(o=>{if(tk!==bt)return;o.forEach((x,p)=>BidEngine.order(G,p,x));go()});else go()}break;
 }}
+/* ---------- FOTO DEL LOTE: si el recuadro y la foto tienen formas muy distintas (p. ej. foto vertical en un portátil,
+   donde el recuadro queda ancho y bajo), se muestra la foto entera sobre una copia desenfocada en vez de recortarla ---------- */
+const lotImg=c=>`<img class="bk" src="${c.img}" alt="" aria-hidden="true"><img class="fg" src="${c.img}" alt="${c.n}" onload="fitPic()">`;
+function fitPic(){
+  const p=$('pic'),i=p&&p.querySelector('img.fg');if(!i||!i.naturalWidth||!p.clientHeight)return;
+  const ir=i.naturalWidth/i.naturalHeight,br=p.clientWidth/p.clientHeight;
+  p.classList.toggle('fit',Math.min(ir,br)/Math.max(ir,br)<.8); // con 'cover' se perdería más del 20 % de la foto
+}
+addEventListener('resize',()=>fitPic());
+/* ---------- LOGO = volver al inicio (como «← Menú»; en una partida online pide confirmación porque se abandona) ---------- */
+function goHome(ev){
+  if(ev&&(ev.ctrlKey||ev.metaKey||ev.shiftKey||ev.button===1))return true; // abrir en otra pestaña: que lo haga el navegador
+  if(ev)ev.preventDefault();
+  if(net&&!confirm(lang==='en'?'Leave this online match and go back to the home page?':'¿Salir de la partida online y volver al inicio?'))return false;
+  document.querySelectorAll('.modal.open').forEach(m=>m.classList.remove('open'));
+  if(document.body.classList.contains('inlobby')&&window.olCancel)olCancel();
+  else toMenu();
+  scrollTo(0,0);return false;
+}
 function timer(){$('bar').style.width=Math.max(left,0)/SECS*100+'%';$('barw').classList.toggle('low',left<=3);$('tm').textContent='0:'+pad2(Math.max(left,0))}
 function futSlot(p,c){let off=0;for(const d of FDIVS){if(d.k===c.cls)return off+P[p].c.filter(x=>x.cls===d.k).length-1;off+=d.n}return 0}
 const POS_S={es:{GK:'POR',DEF:'DEF',MID:'MED',FWD:'DEL'},en:{GK:'GK',DEF:'DEF',MID:'MID',FWD:'FWD'}};
@@ -1423,7 +1443,7 @@ function wantImg(list,front){
 function avInner(n){const c=n&&byN.get(n);return c?(c.img?`<img src="${c.img}" alt="${c.n}" loading="lazy">`:c.e):''}
 function padAv(p){const n=net&&net.avs&&net.avs[p];return n&&byN.has(n)?`<div class="pad pav" data-n="${n}">${avInner(n)}</div>`:''}
 function imgShown(c){
-  if(cur&&cur.n===c.n){const e=$('pic').querySelector('.e');if(e)e.outerHTML=`<img src="${c.img}" alt="${c.n}">`}
+  if(cur&&cur.n===c.n){const e=$('pic').querySelector('.e');if(e)e.outerHTML=lotImg(c)}
   if(P&&P.some(p=>p.c.some(x=>x.n===c.n)))render();
   document.querySelectorAll('[data-n]').forEach(e=>{if(e.dataset.n===c.n)(e.matches('.fc')?e.querySelector('.sp'):e).innerHTML=`<img src="${c.img}" alt="">`});
 }
@@ -1490,7 +1510,7 @@ document.querySelectorAll('.fx-anime,.fx-ufc,.fx-foot').forEach(e=>{initFx(e);pa
   const probe=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(src);i.onerror=()=>r(0);i.src=src});
   const first=async list=>{for(let i=0;i<list.length;i+=4){const r=(await Promise.all(list.slice(i,i+4).map(probe))).find(Boolean);if(r)return r}return 0};
   first(cands(['LogoBidVerse','logo-light','Logo-light','logo','Logo','BidverseLogo'])).then(s=>{
-    if(!s){console.warn('BidVerse: no encuentro el logo. Pon pics/logo.png junto a index.html.');h.innerHTML='<span class="wordmark">BidVerse</span>';return}
+    if(!s){console.warn('BidVerse: no encuentro el logo. Pon pics/logo.png junto a index.html.');im.outerHTML='<span class="wordmark">BidVerse</span>';return} // solo se cambia la imagen: el enlace al inicio se queda
     im.src=s;
   });
 })();
