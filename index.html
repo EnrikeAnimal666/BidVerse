@@ -6,6 +6,8 @@
 <link rel="icon" type="image/png" href="pics/logo-icon.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Big+Shoulders+Display:wght@800;900&display=swap">
 <link rel="stylesheet" href="styles.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+<script type="module" src="f3d/main.js"></script>
 </head><body>
 <div id="gbg" class="fx" aria-hidden="true"></div>
 <div class="tick"><div id="mq"></div></div>
@@ -21,9 +23,9 @@
 </div>
 
 <div id="menu"><ul class="modes">
-<li><button class="mode m-anime" onclick="mkRoom('anime')"><div class="fx fx-anime"><i></i><b></b></div><span class="tt" data-i="cat1">anime</span><span class="ds" data-i="cat1d"></span><span class="ft"><em class="cn" id="ch-anime"></em><strong data-m="create"></strong></span></button></li>
-<li><button class="mode m-ufc" onclick="mkRoom('ufc')"><div class="fx fx-ufc"><i></i><b></b></div><span class="tt" data-i="cat2">ufc</span><span class="ds" data-i="cat2d"></span><span class="ft"><em class="cn" id="ch-ufc"></em><strong data-m="create"></strong></span></button></li>
-<li><button class="mode m-foot" onclick="mkRoom('futbol')"><div class="fx fx-foot"><i></i><b></b></div><span class="tt" data-i="cat3">Fútbol</span><span class="ds" data-i="cat3d"></span><span class="ft"><em class="cn" id="ch-foot"></em><strong data-m="create"></strong></span></button></li>
+<li><button class="mode m-anime" onclick="playSheet('anime')"><div class="fx fx-anime"><i></i><b></b></div><span class="tt" data-i="cat1">anime</span><span class="ds" data-i="cat1d"></span><span class="ft"><em class="cn" id="ch-anime"></em><strong data-m="play"></strong></span></button></li>
+<li><button class="mode m-ufc" onclick="playSheet('ufc')"><div class="fx fx-ufc"><i></i><b></b></div><span class="tt" data-i="cat2">ufc</span><span class="ds" data-i="cat2d"></span><span class="ft"><em class="cn" id="ch-ufc"></em><strong data-m="play"></strong></span></button></li>
+<li><button class="mode m-foot" onclick="playSheet('futbol')"><div class="fx fx-foot"><i></i><b></b></div><span class="tt" data-i="cat3">Fútbol</span><span class="ds" data-i="cat3d"></span><span class="ft"><em class="cn" id="ch-foot"></em><strong data-m="play"></strong></span></button></li>
 </ul>
 <div class="joinbar"><span data-m="have"></span><input id="hCode" maxlength="5" autocapitalize="characters" spellcheck="false" data-mph="codePh"><button class="cta" id="hJoin" data-m="join"></button></div>
 </div>
@@ -69,6 +71,12 @@
 <div class="modal" id="rank" onclick="if(event.target===this)closeRank()"><div class="mbox rk"><div class="mh"><h3 data-m="rankTitle"></h3><button onclick="closeRank()">✕</button></div>
 <div class="tabs"><button data-rk="week" onclick="rankTab('week')" data-m="rkWeek"></button><button data-rk="all" onclick="rankTab('all')" data-m="rkAll"></button></div>
 <p class="mnote" id="rkNote"></p><div id="rkList"></div></div></div>
+<div class="modal" id="play" onclick="if(event.target===this)closePlay()"><div class="mbox ol ps"><div class="mh"><h3><small id="psCat"></small><span data-m="psTitle"></span></h3><button type="button" onclick="closePlay()">✕</button></div>
+<div class="ps-opts">
+<button type="button" class="ps-o ps-seek" id="psSeek"><i class="ps-ic" aria-hidden="true">⚔</i><span><b data-m="seek"></b><small data-m="seekD"></small></span></button>
+<div class="ps-o ps-cpu"><i class="ps-ic" aria-hidden="true">🤖</i><span><b data-m="cpu"></b><small data-m="cpuD"></small><span class="ps-lv"><button type="button" data-lv="1" data-m="lv1"></button><button type="button" data-lv="2" data-m="lv2" class="on"></button><button type="button" data-lv="3" data-m="lv3"></button></span></span></div>
+<button type="button" class="ps-o ps-room" id="psRoom"><i class="ps-ic" aria-hidden="true">🔑</i><span><b data-m="room"></b><small data-m="roomD"></small></span></button>
+</div></div></div>
 <div id="netbar"></div>
 <div class="wipe" id="wipe"><span data-i="fightWipe">¡Combate!</span></div>
 <script src="data-anime.js"></script>
@@ -81,5 +89,6 @@
 <script>if(!window.LANGS||!LANGS.en)document.body.innerHTML='<p style="padding:24px;font:16px sans-serif">Faltan lang/en.js y lang/es.js: ponlos en una carpeta llamada <b>lang</b> junto a index.html.</p>'</script>
 <script src="engine.js"></script>
 <script src="game.js"></script>
+<script src="cpu.js"></script>
 <script src="online.js"></script>
 </body></html>

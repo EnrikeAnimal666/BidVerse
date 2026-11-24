@@ -151,10 +151,31 @@ class Room {
 class Hub {
   // users = base de datos de cuentas (server/db.js). Con ella, para crear o entrar en una sala hay que haber iniciado sesión.
   constructor({ pools, divs, futDivs, rng, speed = 1, maxRooms = 300, abandonMs = 90000, orderMs = 25000, users = null }) {
-    Object.assign(this, { pools, divs, futDivs, rng, speed, maxRooms, abandonMs, orderMs, users, rooms: new Map(), sessions: new Map(), real: 0, sweep: 0 });
+    Object.assign(this, { pools, divs, futDivs, rng, speed, maxRooms, abandonMs, orderMs, users, rooms: new Map(), sessions: new Map(), queue: new Map(), real: 0, sweep: 0 }); // queue: categoría → jugadores buscando partida
     this.avNames = new Set(((pools && pools.anime) || []).map(c => c.n)); // solo se aceptan avatares de esta lista
   }
   cleanAv(v) { return typeof v === 'string' && this.avNames.has(v) ? v : null; }
+  // BUSCAR PARTIDA: cola por categoría. El primero que espera (conectado, sin sala y de otra cuenta) se empareja con el que llega.
+  seek(s, cat) {
+    const conn = s.conn;
+    if (s.room) return conn.send({ t: 'err', code: 'inRoom' });
+    if (this.users && !s.uid) return conn.send({ t: 'err', code: 'needLogin' });
+    if (!CATS.includes(cat)) return conn.send({ t: 'err', code: 'badCat' });
+    this.unseek(s);
+    const q = this.queue.get(cat) || [];
+    const i = q.findIndex(o => o !== s && o.conn && !o.room && !(s.uid && o.uid === s.uid));
+    if (i >= 0) {
+      if (this.rooms.size >= this.maxRooms) return conn.send({ t: 'err', code: 'busy' });
+      const code = this.newCode(); if (!code) return conn.send({ t: 'err', code: 'busy' });
+      const o = q.splice(i, 1)[0]; o.seek = null;
+      const r = new Room(this, code, cat); r.quick = true;
+      r.players[0] = o; r.players[1] = s; o.room = r; o.idx = 0; s.room = r; s.idx = 1; this.rooms.set(code, r);
+      r.startGame(); return;
+    }
+    q.push(s); this.queue.set(cat, q); s.seek = cat;
+    conn.send({ t: 'seeking', cat, n: q.length });
+  }
+  unseek(s) { if (!s || !s.seek) return; const q = this.queue.get(s.seek); if (q) { const i = q.indexOf(s); if (i >= 0) q.splice(i, 1); } s.seek = null; }
   newCode() {
     for (let k = 0; k < 50; k++) {
       let c = ''; for (let i = 0; i < 5; i++) c += CODE_ALPHA[crypto.randomInt(CODE_ALPHA.length)];
@@ -196,7 +217,10 @@ class Hub {
     const s = conn.sess; if (!s) return conn.send({ t: 'err', code: 'noHello' });
     s.last = this.real;
     switch (msg.t) {
+      case 'seek': return this.seek(s, msg.cat);
+      case 'unseek': this.unseek(s); return conn.send({ t: 'unseeked' });
       case 'create': {
+        this.unseek(s);
         if (s.room) return conn.send({ t: 'err', code: 'inRoom' });
         if (this.users && !s.uid) return conn.send({ t: 'err', code: 'needLogin' });
         if (!CATS.includes(msg.cat)) return conn.send({ t: 'err', code: 'badCat' });
@@ -206,6 +230,7 @@ class Hub {
         return conn.send(r.info());
       }
       case 'join': {
+        this.unseek(s);
         const code = typeof msg.code === 'string' ? msg.code.trim().toUpperCase() : '';
         if (s.room) return conn.send({ t: 'err', code: 'inRoom' });
         if (this.users && !s.uid) return conn.send({ t: 'err', code: 'needLogin' });
@@ -220,12 +245,12 @@ class Hub {
       case 'skip': if (s.room) s.room.skip(s); return;
       case 'order': if (s.room) s.room.setOrder(s, msg.order); return;
       case 'rematch': if (s.room) s.room.again(s); return;
-      case 'leave': if (s.room) s.room.leave(s); return;
+      case 'leave': this.unseek(s); if (s.room) s.room.leave(s); return;
     }
   }
   disconnect(conn) {
     const s = conn.sess; if (!s || s.conn !== conn) return;
-    s.conn = null; s.last = this.real;
+    s.conn = null; s.last = this.real; this.unseek(s); // al volver, el cliente pide otra vez buscar partida
     if (s.room) s.room.onDisconnect(s);
   }
   // dt = milisegundos reales; el tiempo de juego avanza dt*speed (speed>1 solo en pruebas)
@@ -237,7 +262,7 @@ class Hub {
   }
   cleanup() {
     for (const [c, r] of this.rooms) if (r.idleMs > 600000) { r.players.forEach(s => { if (s) { s.room = null; s.idx = -1; } }); this.rooms.delete(c); }
-    for (const [t, s] of this.sessions) if (!s.conn && !s.room && this.real - s.last > 1800000) this.sessions.delete(t);
+    for (const [t, s] of this.sessions) if (!s.conn && !s.room && this.real - s.last > 1800000) { this.unseek(s); this.sessions.delete(t); }
   }
 }
 module.exports = { Hub, Room, cleanName, snap, CODE_RE };

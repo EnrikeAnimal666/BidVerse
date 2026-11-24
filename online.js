@@ -2,7 +2,7 @@
    No decide nada del juego: manda "pujo"/"paso" y pinta lo que el servidor responde (usa startOnline/netState/netFight de game.js). */
 (function(){
   const $=id=>document.getElementById(id);
-  let ws=null,token=null,myName='',retry=0,wantOpen=false,connected=false,room=null,pending=null,peerOff=false,rcTimer=0,inGame=false,lastCat='anime',iCreated=false,lbShow=0;
+  let ws=null,token=null,myName='',retry=0,wantOpen=false,connected=false,room=null,pending=null,peerOff=false,rcTimer=0,inGame=false,lastCat='anime',iCreated=false,lbShow=0,seekCat=null;
   try{token=localStorage.getItem('bvtoken');myName=localStorage.getItem('bvname')||''}catch(e){}
   const say=(id,txt)=>{const e=$(id);if(e)e.textContent=txt||''};
   const bar=txt=>{const b=$('netbar');if(!b)return;b.style.display=txt?'block':'none';b.textContent=txt||''};
@@ -23,7 +23,11 @@
   function name(){const n=$('olName').value.trim();myName=n;try{localStorage.setItem('bvname',n)}catch(e){}return n}
   window.olCreate=function(cat){pending={t:'create',cat};lastCat=cat;iCreated=true;say('olErr','');flush()};
   window.olJoin=function(){const c=$('olCode').value.trim().toUpperCase();if(!c)return;pending={t:'join',code:c};iCreated=false;say('olErr','');flush()};
-  window.olCancel=function(){pending=null;send({t:'leave'});olReset();closeOnline();hideLobby(true)};
+  window.olCancel=function(){pending=null;if(seekCat){seekCat=null;send({t:'unseek'})}send({t:'leave'});olReset();closeOnline();hideLobby(true)};
+  // BUSCAR PARTIDA: el servidor te empareja con el primero que esté buscando en la misma categoría
+  window.olSeek=function(cat){if(location.protocol==='file:'){alert(u('olNoServer'));return}
+    seekCat=cat;lastCat=cat;iCreated=false;preload(cat);pending={t:'seek',cat};seekScreen(cat);flush()};
+  window.olUnseek=function(){if(!seekCat)return;seekCat=null;pending=null;send({t:'unseek'});hideLobby(true)};
   window.olCopy=function(){const url=location.origin+location.pathname+'?sala='+room.code;
     (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(()=>say('olCopyOk',u('olCopied')),()=>{prompt(u('olCopy'),url)})};
   function flush(){if(connected&&pending){const p=pending;pending=null;
@@ -41,13 +45,15 @@
   }
 
   function on(m){switch(m.t){
-    case 'welcome':connected=true;token=m.token;if(!m.user&&window.bvAuth&&bvAuth()&&window.bvLoggedOut)bvLoggedOut(); // el servidor no reconoce la sesión guardada
+    case 'welcome':connected=true;token=m.token;if(seekCat&&!room&&!inGame&&!pending)pending={t:'seek',cat:seekCat}; // se cortó mientras buscaba: vuelve a la cola
+      if(!m.user&&window.bvAuth&&bvAuth()&&window.bvLoggedOut)bvLoggedOut(); // el servidor no reconoce la sesión guardada
       try{localStorage.setItem('bvtoken',token);if(!myName)localStorage.setItem('bvname',m.name)}catch(e){}
       if(!myName)$('olName').value=m.name;flush();break;
     case 'room': // sala en espera (o actualización)
       room=m;preload(m.cat);if(m.phase==='lobby'){inGame=false;$('olCodeBig').textContent=m.code;say('olCopyOk','');closeOnline();clearTimeout(lbShow);lbShow=setTimeout(()=>lobby(m),iCreated?0:300)}break; // sala en espera: pantalla propia
+    case 'seeking':if(seekCat){const e=$('skN');if(e)e.textContent=m.n>1?lt('seekN').replace('{0}',m.n):''}break;
     case 'start': // empieza (o se reanuda / revancha) una partida
-      clearTimeout(lbShow);hideLobby(false);
+      seekCat=null;clearTimeout(lbShow);hideLobby(false);
       room=Object.assign(room||{},{code:room&&room.code,cat:m.cat,names:m.names,you:m.you});inGame=true;closeOnline();bar('');peerOff=false;
       startOnline(m.cat,m.names,m.you,send,m.avs);break;
     case 'state':if(inGame&&net)netState(m.s,m.ev);break;
@@ -59,7 +65,7 @@
     case 'again':{const b=document.querySelector('.res p');if(b)b.textContent=u('olAgainAsk')}break;
     case 'peerleft':bar((m.timeout?u('olTimeout'):u('olPeerLeft'))+(m.pts&&window.bvPtsText?' '+bvPtsText(m.pts,m.you,true):''));if(net){const b=document.createElement('button');b.textContent=u('olBackMenu');b.onclick=()=>toMenu();$('netbar').appendChild(b)}room=null;inGame=false;break;
     case 'kicked':wantOpen=false;bar(u('olKicked'));hideLobby(true);break;
-    case 'err':{const msg=errText(m.code);
+    case 'err':{const msg=errText(m.code);if(seekCat){seekCat=null;hideLobby(true)}
       if(m.code==='needLogin'&&window.openLogin){if(window.bvLoggedOut)bvLoggedOut();closeOnline();openLogin('in');break} // sin sesión: ventana de cuenta
       if($('online').classList.contains('open')){const c=$('olConn');if(c&&c.style.display!=='none')show('olForm');say('olErr',msg)}else if(net)err(net.me,t(m.code,m.arg));else alert(msg)}break;
   }}
@@ -70,10 +76,12 @@
   /* ---------- PANTALLA DE ESPERA: al crear una sala te lleva aquí hasta que entra el rival ---------- */
   const LB={es:{title:'Sala creada',sub:'Pásale el código o el enlace a tu rival. La partida empieza sola en cuanto entre.',code:'Código de sala',link:'Copiar enlace',copy:'Copiar código',share:'Compartir',copied:'¡Copiado!',
       cat3:'Fútbol',you:'Tú',ready:'Listo',wait:'Esperando rival',notYet:'Todavía no ha entrado',waiting:'Esperando',cancel:'Cancelar sala',back:'← Menú',player:'Jugador',
-      anime:['3 personajes por jugador','$20 para pujar','10 s por puja','Combate por equipos'],ufc:['1 peleador por categoría','8 categorías','$40 para pujar','Noche de combates'],futbol:['11 jugadores · 4-3-3','100M para fichar','50 leyendas + 250 actuales','Partido simulado'],shareTxt:'¡Únete a mi sala de BidVerse! Código: '},
+      anime:['3 personajes por jugador','$20 para pujar','10 s por puja','Combate por equipos'],ufc:['1 peleador por categoría','8 categorías','$40 para pujar','Noche de combates'],futbol:['11 jugadores · 4-3-3','100M para fichar','50 leyendas + 250 actuales','Partido simulado'],shareTxt:'¡Únete a mi sala de BidVerse! Código: ',
+      seekT:'Buscando rival',seekSub:'Te emparejamos con el primero que busque partida en esta categoría. La partida empieza sola.',seekCpu:'Jugar contra la CPU mientras tanto',seekCancel:'Dejar de buscar',seekN:'{0} jugadores buscando ahora'},
     en:{title:'Room created',sub:'Send the code or the link to your rival. The game starts on its own as soon as they join.',code:'Room code',link:'Copy link',copy:'Copy code',share:'Share',copied:'Copied!',
       cat3:'Football',you:'You',ready:'Ready',wait:'Waiting for rival',notYet:'Not here yet',waiting:'Waiting',cancel:'Cancel room',back:'← Menu',player:'Player',
-      anime:['3 characters per player','$20 to bid','10 s per bid','Team battle'],ufc:['1 fighter per division','8 divisions','$40 to bid','Fight night'],futbol:['11 players · 4-3-3','100M to sign','50 legends + 250 current','Simulated match'],shareTxt:'Join my BidVerse room! Code: '}};
+      anime:['3 characters per player','$20 to bid','10 s per bid','Team battle'],ufc:['1 fighter per division','8 divisions','$40 to bid','Fight night'],futbol:['11 players · 4-3-3','100M to sign','50 legends + 250 current','Simulated match'],shareTxt:'Join my BidVerse room! Code: ',
+      seekT:'Finding an opponent',seekSub:'You will be paired with the first player looking for a game in this category. The game starts on its own.',seekCpu:'Play the CPU meanwhile',seekCancel:'Stop searching',seekN:'{0} players searching now'}};
   const lt=k=>(LB[typeof lang!=='undefined'&&LB[lang]?lang:'es'])[k];
   let lbClock=0,lbT0=0,lbRoom=null;
   const url=c=>location.origin+location.pathname+'?sala='+c;
@@ -107,6 +115,22 @@
     if(fresh&&!(history.state&&history.state.bvLobby))try{history.pushState({bvLobby:1},'',location.pathname+location.search+'#sala')}catch(e){}
     scrollTo(0,0);
   }
+  function seekScreen(cat){
+    let el=$('lobby');if(!el){$('menu').insertAdjacentHTML('afterend','<section id="lobby" class="lobby"></section>');el=$('lobby')}
+    if(!(lbRoom&&lbRoom.seek&&lbRoom.cat===cat))lbT0=Date.now();
+    lbRoom={code:'',cat,seek:1};document.body.classList.add('inlobby');$('menu').style.display='none';el.className='lobby lb-'+cat+' lb-seek';
+    const av=myAv()&&window.bvAvTag?bvAvTag(myAv(),'sk-me'):'<span class="sk-me">?</span>';
+    el.innerHTML=`<div class="lb-card"><div class="lb-band"><button class="lb-back" id="lbBack">${lt('back')}</button><span class="lb-cat">${cat==='ufc'?'UFC':cat==='futbol'?(lt('cat3')||'Fútbol'):'Anime'}</span></div>
+<div class="lb-body"><div class="sk-radar" aria-hidden="true"><i></i><i></i><i></i>${av}</div>
+<h2 class="lb-h">${lt('seekT')}<em class="lb-dots"><i></i><i></i><i></i></em></h2><p class="lb-sub">${lt('seekSub')}</p>
+<p class="sk-t"><b id="lbTime">0:00</b><small id="skN"></small></p>
+<ul class="lb-rules">${lt(cat==='ufc'||cat==='futbol'?cat:'anime').map(r=>`<li>${r}</li>`).join('')}</ul>
+<div class="lb-acts"><button class="lb-btn" id="skCpu">${lt('seekCpu')}</button></div>
+<button class="lb-cancel" id="lbCancel">${lt('seekCancel')}</button></div></div>`;
+    $('lbBack').onclick=$('lbCancel').onclick=()=>olUnseek();
+    $('skCpu').onclick=()=>{olUnseek();if(window.startCpu)startCpu(cat,2)};
+    clearInterval(lbClock);lbClock=setInterval(tickLobby,1000);tickLobby();scrollTo(0,0);
+  }
   function hideLobby(toMenu){
     clearTimeout(lbShow);clearInterval(lbClock);lbRoom=null;
     if(!document.body.classList.contains('inlobby'))return;
@@ -115,7 +139,7 @@
     if(location.hash==='#sala')try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
   }
   window.addEventListener('popstate',()=>{if(document.body.classList.contains('inlobby'))olCancel()}); // botón Atrás = cancelar sala
-  const sl=window.setLang;window.setLang=function(l){sl(l);if(lbRoom)paintLobby()};
+  const sl=window.setLang;window.setLang=function(l){sl(l);if(lbRoom)lbRoom.seek?seekScreen(lbRoom.cat):paintLobby()};
 })();
 
 /* ===== CUENTAS Y RANKING ===== */
@@ -133,7 +157,8 @@
       e_badName:'El usuario debe tener de 3 a 16 letras o números (también . _ -), sin espacios.',e_badPass:'La contraseña debe tener al menos 6 caracteres.',
       e_taken:'Ese nombre de usuario ya existe.',e_wrong:'Usuario o contraseña incorrectos.',e_slow:'Demasiados intentos. Espera unos minutos.',
       e_net:'No se puede conectar con el servidor.',e_file:'Abre la web desde el servidor (http://localhost:3000) para usar las cuentas y el ranking.',
-      connecting:'Conectando con la sala…',rank:'Ranking',rankTitle:'Ranking',rkWeek:'Esta semana',rkAll:'Histórico',rkLoading:'Cargando…',
+      connecting:'Conectando con la sala…',play:'Jugar',psTitle:'¿Cómo quieres jugar?',seek:'Buscar partida',seekD:'Online contra otro jugador al azar · cuenta para el ranking',
+      cpu:'Contra la CPU',cpuD:'Partida rápida tú solo · elige la dificultad',lv1:'Fácil',lv2:'Normal',lv3:'Difícil',room:'Sala privada',roomD:'Crea una sala y pásale el código a un amigo',rank:'Ranking',rankTitle:'Ranking',rkWeek:'Esta semana',rkAll:'Histórico',rkLoading:'Cargando…',
       rkEmpty:'Todavía no se ha jugado ninguna partida online.',rkEmptyW:'Nadie ha jugado esta semana. ¡Sé el primero!',
       rkNoteW:'Puntos ganados (o perdidos) en las partidas online desde el lunes {0}. Se reinicia solo cada semana.',
       rkNoteA:'Puntuación total. Todos empiezan con 1000: ganar a alguien con más puntos da más y perder contra alguien con menos quita más. Solo cuentan las partidas online entre dos cuentas.',
@@ -146,7 +171,8 @@
       e_badName:'Usernames need 3 to 16 letters or numbers (. _ - also allowed), no spaces.',e_badPass:'The password needs at least 6 characters.',
       e_taken:'That username is already taken.',e_wrong:'Wrong username or password.',e_slow:'Too many attempts. Wait a few minutes.',
       e_net:'Cannot reach the server.',e_file:'Open the site from the server (http://localhost:3000) to use accounts and the ranking.',
-      connecting:'Connecting to the room…',rank:'Ranking',rankTitle:'Ranking',rkWeek:'This week',rkAll:'All time',rkLoading:'Loading…',
+      connecting:'Connecting to the room…',play:'Play',psTitle:'How do you want to play?',seek:'Find a match',seekD:'Online against a random player · counts for the ranking',
+      cpu:'Against the CPU',cpuD:'Quick solo game · pick the difficulty',lv1:'Easy',lv2:'Normal',lv3:'Hard',room:'Private room',roomD:'Create a room and send the code to a friend',rank:'Ranking',rankTitle:'Ranking',rkWeek:'This week',rkAll:'All time',rkLoading:'Loading…',
       rkEmpty:'No online games have been played yet.',rkEmptyW:'Nobody has played this week. Be the first!',
       rkNoteW:'Points won (or lost) in online games since Monday {0}. Resets on its own every week.',
       rkNoteA:'Total score. Everyone starts at 1000: beating someone with more points gives more, losing to someone with fewer takes more. Only online games between two accounts count.',
@@ -255,6 +281,12 @@
   const need=fn=>{if(me)fn();else{openLogin('in');pend=fn}}; // sin sesión: pide entrar (o crear cuenta) y luego sigue con lo que querías hacer
   const go=fn=>{openOnline('olConn');if(local)return;$('olName').value=me.name;fn()};
   window.mkRoom=cat=>{if(window.bvPreload)bvPreload(cat);need(()=>go(()=>olCreate(cat)))};
+  let psCat='anime';
+  window.playSheet=cat=>{psCat=cat;if(window.bvPreload)bvPreload(cat);$('psCat').textContent=u(cat==='ufc'?'cat2':cat==='futbol'?'cat3':'cat1');$('play').className='modal open ps-'+cat;setTimeout(()=>$('psSeek').focus(),50)};
+  window.closePlay=()=>$('play').classList.remove('open');
+  $('psSeek').onclick=()=>{closePlay();need(()=>{if(local){openOnline('olConn');return}olSeek(psCat)})};
+  $('psRoom').onclick=()=>{closePlay();mkRoom(psCat)};
+  document.querySelectorAll('#play [data-lv]').forEach(b=>b.onclick=()=>{closePlay();if(window.bvPreload)bvPreload(psCat);startCpu(psCat,+b.dataset.lv)});
   const join=()=>{const c=$('hCode').value.trim();if(!c){$('hCode').focus();return}need(()=>go(()=>{$('olCode').value=c.toUpperCase();olJoin()}))};
   $('hJoin').onclick=join;$('hCode').onkeydown=e=>{if(e.key==='Enter')join()};
   const m=/[?&]sala=([A-Za-z0-9]{5})/i.exec(location.search);

@@ -1,7 +1,7 @@
 // BidVerse · lógica del juego. Datos: data-anime.js (POOLS.anime) y data-ufc.js (UFC) · idiomas: lang/*.js (LANGS)
 POOLS.ufc=UFC;if(typeof FUT!=='undefined')POOLS.futbol=FUT;const FUTP=POOLS.futbol||[],FDIVS=typeof FUT_DIVS!=='undefined'?FUT_DIVS:[];
 const {MAXC,SECS}=BidEngine; // las reglas viven en engine.js; aquí solo se pinta
-let lastBid=0,G,net=null,cur,bid,leader,left,tick=0,P,skips,locked,cat,passed,free=-1,fp=false,bt=0,scTab='anime'; // net = datos de la partida online (null = partida local) // G = estado del motor; el resto es un espejo para pintar
+let CPU=null,lastBid=0,G,net=null,cur,bid,leader,left,tick=0,P,skips,locked,cat,passed,free=-1,fp=false,bt=0,scTab='anime'; // net = datos de la partida online (null = partida local) // G = estado del motor; el resto es un espejo para pintar
 const $=id=>document.getElementById(id),pad2=n=>String(n).padStart(2,'0');
 const byN=new Map([...POOLS.anime,...UFC,...FUTP].map(c=>[c.n,c])),imgOf=n=>(byN.get(n)||{}).img;
 /* ---------- IDIOMAS: u() = plantilla {0},{1}… de lang/xx.js · X = mensajes compuestos · t() = ambos ---------- */
@@ -15,7 +15,9 @@ const EXT={ // textos que no están en lang/*.js (fútbol); FUTX solo se usa dur
   scaleNoteFut:'Rated 40-99 like the video games: the 50 legends at their best season, everyone else at their 2026-27 level. Photos come from Wikipedia.'}};
 const FUTX={es:{paid:'{0}M',forPrice:'{0}M',errMoney:'Solo te quedan {0}M.',errOver:'Tienes que pujar más de {0}M.',bidPh:'Millones'},
  en:{paid:'{0}M',forPrice:'{0}M',errMoney:'You only have {0}M left.',errOver:'You must bid more than {0}M.',bidPh:'Millions'}};
-const u=(k,...a)=>k==='player'&&net&&net.names&&net.names[a[0]-1]?net.names[a[0]-1]:String((cat==='futbol'?(FUTX[lang]||FUTX.es)[k]:undefined)??LANGS[lang].ui[k]??(EXT[lang]||EXT.es)[k]??LANGS.en.ui[k]??EXT.en[k]??k).replace(/\{(\d+)\}/g,(m,i)=>a[i]??m);
+const NMS=()=>(net&&net.names)||(CPU&&CPU.names),WN={en:{wins:'{0} wins!',winsH:'{0} wins'},es:{wins:'¡Gana {0}!',winsH:'Gana {0}'}}; // con nombres (online o CPU): "Gana CPU" en vez de "Gana el Jugador 2"
+const youWin=k=>({en:{wins:'You win!',winsH:'You win'},es:{wins:'¡Ganas tú!',winsH:'Ganas tú'}}[lang]||{wins:'You win!',winsH:'You win'})[k];
+const u=(k,...a)=>(k==='wins'||k==='winsH')&&NMS()&&NMS()[a[0]-1]?(['You','Tú'].includes(NMS()[a[0]-1])?youWin(k):(WN[lang]||WN.en)[k].replace('{0}',NMS()[a[0]-1])):k==='player'&&NMS()&&NMS()[a[0]-1]?NMS()[a[0]-1]:String((cat==='futbol'?(FUTX[lang]||FUTX.es)[k]:undefined)??LANGS[lang].ui[k]??(EXT[lang]||EXT.es)[k]??LANGS.en.ui[k]??EXT.en[k]??k).replace(/\{(\d+)\}/g,(m,i)=>a[i]??m);
 const money=v=>cat==='futbol'?v+'M':'$'+v;
 const X={
 soldLine:(p,b)=>`${u('sold')}<br>${u('player',p)} · $${b}`,
@@ -111,18 +113,26 @@ function panel(p){const n=p+1;return `<section class="side" style="--c:var(--p${
 <button class="go" id="g${p}" onmousedown="event.preventDefault()" onclick="place(${p})">${t('bidBtn')}</button><button class="go plus" id="u${p}" onmousedown="event.preventDefault()" onclick="plus(${p})" title="${cat==='futbol'?'+1M':'+$1'}">${cat==='futbol'?'+1M':'+$1'}</button></div>
 <button class="skip" id="k${p}" onmousedown="event.preventDefault()" onclick="skip(${p})"><span class="sl" id="kl${p}">${t('skipLbl')}</span><span class="pips" id="kp${p}"></span></button>
 <div class="msg" id="e${p}"></div></section>`}
-function start(c){
-  closeLineup();gameBg(c);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
+function start(c,keepCpu){
+  if(!keepCpu)CPU=null;closeLineup();gameBg(c);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
   $('end').className='end';$('end').innerHTML='';
   net=null;cat=c;$('game').classList.toggle('ufc',c==='ufc');$('game').classList.toggle('fut',c==='futbol');
   G=BidEngine.create({cat:c,pool:POOLS[c],divs:c==='futbol'?FDIVS:UFC_DIVS});mirror();wantImg(G.deck);
   $('P1').innerHTML=panel(0);$('P2').innerHTML=panel(1);
   $('menu').style.display='none';$('game').style.display='block';$('end').style.display='none';
+  if(CPU)$('P1').firstElementChild.classList.add('me');
   apply(BidEngine.next(G));
+}
+// Jugar solo contra la CPU (cpu.js): el jugador es el 1; la CPU, el 2. lvl 1 fácil · 2 normal · 3 difícil
+function startCpu(c,lvl){
+  let me='';try{me=localStorage.getItem('bvuser')||localStorage.getItem('bvname')||''}catch(e){}
+  const L={es:['Fácil','Normal','Difícil'],en:['Easy','Normal','Hard']},lv=Math.max(1,Math.min(3,lvl||2)),pool=POOLS.anime.filter(x=>x.pw<900);
+  CPU={lvl:lv,names:[me||(lang==='es'?'Tú':'You'),'CPU · '+(L[lang]||L.en)[lv-1]],avs:[window.bvAv?bvAv():null,pool[Math.floor(Math.random()*pool.length)].n]};
+  start(c,true);
 }
 /* ---------- ONLINE: el servidor manda; aquí solo se prepara la pantalla y se pinta lo que llega ---------- */
 function startOnline(cat_,names,me,send,avs){
-  closeLineup();gameBg(cat_);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
+  CPU=null;closeLineup();gameBg(cat_);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
   $('end').className='end';$('end').innerHTML='';$('end').style.display='none';
   cat=cat_;net={names,me,send,avs:avs||[]};$('game').classList.toggle('ufc',cat==='ufc');$('game').classList.toggle('fut',cat==='futbol');
   G={cat,divs:cat==='futbol'?FDIVS:[],P:[{m:0,c:[]},{m:0,c:[]}],dv:'',phase:'idle',cur:null,bid:0,leader:-1,left:SECS,free:-1,fp:false,passed:[false,false],skips:[2,2],locked:true};mirror();
@@ -140,7 +150,7 @@ function netState(s,ev){if(unk([s.cur,...s.P.flatMap(p=>p.c.map(c=>c.n))]))retur
   for(const e of ev)onEv(e);
 }
 function netFight(f){closeLineup();const ns=[];JSON.stringify(f.script,(k,v)=>{if((k==='n'||k==='a'||k==='b')&&typeof v==='string')ns.push(v);return v});if(unk(ns))return;const tk=++bt,me=net&&net.me;(f.kind==='ufc'?night:f.kind==='futbol'?match:run)(tk,f.script).then(()=>{if(tk===bt&&f.pts&&window.bvPts)bvPts(f.pts,me)}).catch(er=>{if(er!==0)throw er})}
-function toMenu(){closeLineup();if(net){net.send({t:'leave'});net=null;if(window.olReset)olReset()}$('gbg').style.display='none';document.body.classList.remove('night','ingame');bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';$('game').style.display='none';$('menu').style.display='block'}
+function toMenu(){CPU=null;closeLineup();if(net){net.send({t:'leave'});net=null;if(window.olReset)olReset()}$('gbg').style.display='none';document.body.classList.remove('night','ingame');bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';$('game').style.display='none';$('menu').style.display='block'}
 const out=p=>BidEngine.out(G,p);
 function hint(){$('info').textContent=free<0?t('hintBase'):fp?t('hintPass',2-free,free+1):gives(free)?t('hintGift',2-free,free+1):t('hintFree',2-free,free+1,skips[free])}
 const gives=p=>BidEngine.gives(G,p); // pasar ahora le regala el lote al rival sin gastar saltos
@@ -151,6 +161,7 @@ function apply(res){
   for(const e of res.ev)onEv(e);
   if(G.phase==='bidding'){if(!tick)tick=setInterval(()=>apply(BidEngine.tick(G)),1000)}else{clearInterval(tick);tick=0}
   if(res.wait){const w=res.wait;setTimeout(()=>{if(tk===bt)apply(w.act==='close'?BidEngine.close(G,false):BidEngine.next(G))},w.ms)}
+  if(CPU&&window.cpuThink)cpuThink();
 }
 function onEv(e){switch(e.t){
   case 'lot':
@@ -186,7 +197,7 @@ function onEv(e){switch(e.t){
     clearInterval(tick);tick=0;render();$('info').textContent=t('auctionOver');
     if(net)break; // online: el servidor manda 'order' (anime) y luego 'fight'
     {const tk=++bt,go=()=>(cat==='ufc'?night:cat==='futbol'?match:run)(tk).catch(er=>{if(er!==0)throw er});
-     if(cat==='anime'&&P.some(p=>p.c.length>1))lineup({me:null}).then(o=>{if(tk!==bt)return;o.forEach((x,p)=>BidEngine.order(G,p,x));go()});else go()}break;
+     if(cat==='anime'&&P.some(p=>p.c.length>1))lineup(CPU?{me:0,cpu:window.cpuOrder?cpuOrder():P[1].c.map((_,i)=>i)}:{me:null}).then(o=>{if(tk!==bt)return;o.forEach((x,p)=>BidEngine.order(G,p,x));go()});else go()}break;
 }}
 /* ---------- FOTO DEL LOTE: si el recuadro y la foto tienen formas muy distintas (p. ej. foto vertical en un portátil,
    donde el recuadro queda ancho y bajo), se muestra la foto entera sobre una copia desenfocada en vez de recortarla ---------- */
@@ -230,7 +241,7 @@ function render(){
     $('kl'+p).textContent=leader>=0&&leader!==p?t('concede',leader+1):passed[p]?t(out(p)?'autoPass':'passed'):skipLocked(p)?t('noSkips'):t(free!==p?'skipLbl':fp?'passBoth':gives(p)?'passGift':'passFree');
     $('kp'+p).innerHTML=[0,1].map(i=>`<i class="${i<skips[p]?'on':''}"></i>`).join('');
     $('k'+p).classList.toggle('conc',leader>=0&&leader!==p&&!locked);
-    if(net&&p!==net.me)$('g'+p).disabled=$('u'+p).disabled=$('i'+p).disabled=$('k'+p).disabled=true; // el panel del rival no se toca
+    if((net&&p!==net.me)||(CPU&&p===1))$('g'+p).disabled=$('u'+p).disabled=$('i'+p).disabled=$('k'+p).disabled=true; // el panel del rival no se toca
   }
 }
 function err(p,t){$('e'+p).textContent=t;setTimeout(()=>{if($('e'+p).textContent===t)$('e'+p).textContent=''},2500)}
@@ -239,7 +250,7 @@ function plus(p){const v=bid+1;if(net){if(p===net.me)net.send({t:'bid',amount:v}
 function stamp(t,c){const s=$('stamp');$('st').className=c||'';$('st').innerHTML=t;s.style.display='grid'}
 const skipLocked=p=>skips[p]<=0&&!gives(p);
 function skip(p){if(net){if(p===net.me)net.send({t:'skip'});return}apply(BidEngine.skip(G,p))}
-function again(){if(net){net.send({t:'rematch'});const b=document.querySelector('.res button');if(b){b.disabled=true;b.textContent=u('olAgainWait')}}else start(cat)}
+function again(){if(net){net.send({t:'rematch'});const b=document.querySelector('.res button');if(b){b.disabled=true;b.textContent=u('olAgainWait')}}else start(cat,!!CPU)}
 
 /* ---------- ORDEN DE COMBATE (anime): antes de pelear cada jugador decide quién sale primero ----------
    Local: los dos ordenan en la misma pantalla. Online: solo ves tu equipo; el del rival sale sin orden hasta el combate. */
@@ -251,7 +262,7 @@ function closeLineup(){if(!LU)return;clearInterval(LU.clock);LU.el.remove();LU=n
 function lineup(o){ // o: { me: null (local) | 0 | 1, ms?, done?, send? } → en local devuelve una promesa con los dos órdenes
   closeLineup();
   return new Promise(res=>{
-    const ord=[0,1].map(p=>P[p].c.map((_,i)=>i)),ready=(o.done||[false,false]).slice(),mine=p=>o.me==null||o.me===p;
+    const ord=[0,1].map(p=>P[p].c.map((_,i)=>i)),ready=(o.done||[false,false]).slice(),mine=p=>o.me==null||o.me===p;if(o.cpu)ready[1]=true;
     const el=document.createElement('div');el.className='modal open lu';document.body.appendChild(el);
     const end=o.ms?Date.now()+o.ms:0;
     LU={el,ready,paint:null,clock:0};
@@ -261,7 +272,7 @@ function lineup(o){ // o: { me: null (local) | 0 | 1, ms?, done?, send? } → en
     const tm=()=>{const e=el.querySelector('#lutm');if(e)e.textContent=Math.max(0,Math.ceil((end-Date.now())/1000))+'s'};
     LU.paint=paint;if(end)LU.clock=setInterval(tm,250);
     el.onclick=ev=>{const b=ev.target.closest('button');if(!b||b.disabled)return;
-      if(b.dataset.go!=null){const p=+b.dataset.go;ready[p]=true;if(o.send)o.send(ord[p]);paint();if(o.me==null&&ready[0]&&ready[1]){closeLineup();res(ord)}return}
+      if(b.dataset.go!=null){const p=+b.dataset.go;ready[p]=true;if(o.send)o.send(ord[p]);paint();if((o.me==null||o.cpu)&&ready[0]&&ready[1]){closeLineup();res(o.cpu?[ord[0],o.cpu]:ord)}return}
       const p=+b.dataset.p,k=+b.dataset.k,j=k+(+b.dataset.d),a=ord[p];[a[k],a[j]]=[a[j],a[k]];paint()};
     paint();
   });
@@ -818,6 +829,7 @@ const VFX=(()=>{
       if(bk){bk.width=bk.height=1}fit();sync();last=now();on=true;requestAnimationFrame(loop)},
     enter(p){if(KN[p]){KN[p].cancel();KN[p]=null}if(!on)return;setTimeout(()=>{if(!live())return;const A=rect(p,.5);if(!A)return;const fy=A.y+A.h*1.02;craterAt(p,A.w*.75,EL(p).c);dust(A.cx-A.w*.2,fy,8,-1);dust(A.cx+A.w*.2,fy,8,1);chips(A.cx,fy-6,8,fy)},380)},
     dash(p){if(on)AU[p].trail=now()+260},
+    arche,
     charge(a){if(!live())return;AU[a].boost=Math.max(AU[a].boost,1);const A=rect(a,.5);if(A){const fy=A.y+A.h*1.02;dust(A.cx-A.w*.25,fy,5,-1);dust(A.cx+A.w*.25,fy,5,1)}},
     hit(d,big,col){if(!live())return;const D=rect(d,.42);if(!D)return;const e=EL(1-d),C=okc(col)||e.c,dir=d?1:-1,x=D.cx-dir*D.w*.16,y=D.cy;
       if(now()<QUIET[d]){flare(x,y,big?120:80,C,.18);return} // la técnica ya dibujó su impacto
@@ -866,22 +878,28 @@ const VFX=(()=>{
       return true}
   };
 })();
+// envuelve el 3D: un fallo en un efecto no puede cortar el combate
+const safe3=o=>new Proxy(o,{get:(t,k)=>typeof t[k]!=='function'?t[k]:(...a)=>{try{return t[k](...a)}catch(e){console.warn('F3D',k,e);return k==='screen'?{x:0,y:0}:k==='dissolve'}}});
 async function run(tk,script){
   const S0=script||BidEngine.resolveAnime(G);
   const z=async ms=>{await sleep(ms/ABS);if(tk!==bt)throw 0};
   $('gbg').classList.add('fight'); // se acabó la subasta: los martillos se apartan
   const E=await arenaIn(async ms=>{await sleep(ms);if(tk!==bt)throw 0},abArena());
   const AB=$('ab'),ST=$('abst'),FX=$('abfx'),WD=$('abw');
-  ABS=1;AB.style.setProperty('--k',1);VFX.start(ST);
+  ABS=1;AB.style.setProperty('--k',1);
   const T0=S0.ev[0]&&S0.ev[0].teams; // orden real de cada equipo (el motor lo manda; si no, el de la compra)
   const team=[0,1].map(p=>T0?T0[p]:(P[p]&&P[p].c||[]).map(c=>c.n)),ko=[[],[]],act=[-1,-1],cur=[null,null];let hpN=[1,1],HM=[1000,1000],lastDown='',lastL=null,dno=0;
+  // 3D (f3d/main.js) si el navegador puede; si no, las tarjetas y el lienzo 2D de siempre
+  let D3=false;try{D3=!!(window.F3D&&F3D.ok()&&F3D.start(ST,{charOf:n=>C(n),arche:VFX.arche,elOf:p=>{const k=cur[p]&&ELN[cur[p].n];return k?{c:ELC[k][0],c2:ELC[k][1]}:null}}))}catch(e){console.warn('F3D',e)}
+  const F3=D3?safe3(F3D):null,V=D3?F3:VFX; // si una llamada del 3D falla, el combate sigue
+  if(D3)AB.classList.add('d3');else VFX.start(ST);
   const roster=p=>$('abt'+p).innerHTML=team[p].map((n,k)=>{const c=C(n);return c?`<i class="ab-th${k===act[p]?' on':''}${ko[p][k]?' ko':''}" data-n="${n}" style="--h:${c.h}">${spr(c)}</i>`:''}).join('');
   roster(0);roster(1);
   const say=async(h,ms)=>{$('abdl').innerHTML='<span>'+h+'</span>';if(ms)await z(ms)};
   const re=(el,c)=>{el.classList.remove(c);void el.offsetWidth;el.classList.add(c)};
   const com=h=>{const c=$('abcom');c.innerHTML='<span>🎙 '+h+'</span>';re(c,'on')};
   const tmp=(html,ms)=>{const w=document.createElement('div');w.innerHTML=html;const el=w.firstElementChild;FX.appendChild(el);setTimeout(()=>el.remove(),ms/Math.min(ABS,2));return el};
-  const ctr=(p,f=.42)=>{const s=ST.getBoundingClientRect(),r=$('abc'+p).getBoundingClientRect();return{x:r.left+r.width/2-s.left,y:r.top+r.height*f-s.top}};
+  const ctr=(p,f=.42)=>{if(D3)return F3.screen(p,f);const s=ST.getBoundingClientRect(),r=$('abc'+p).getBoundingClientRect();return{x:r.left+r.width/2-s.left,y:r.top+r.height*f-s.top}};
   const hpS=[0,0],hpTw=[0,0]; // PS que se ven ahora y animación en curso de cada lado
   const hpNum=(p,to,now)=>{const el=$('abhp'+p),id=++hpTw[p],from=hpS[p],set=v=>{hpS[p]=v;el.textContent=hpF(v)};
     if(now||from===to||typeof requestAnimationFrame!=='function'){set(to);return}
@@ -892,31 +910,31 @@ async function run(tk,script){
   const num=(p,txt,k='')=>{const c=ctr(p,.22);tmp(`<span class="ab-num ${k}" style="left:${c.x+(Math.random()*40-20)}px;top:${c.y}px">${txt}</span>`,1200)};
   const elC=a=>{const e=cur[a]&&ELC[ELN[cur[a].n]];return e?e[0]:null};
   const at=(p,f,cls,inner='',ms=1200,st='')=>{const c=ctr(p,f);return tmp(`<span class="${cls}" style="left:${c.x}px;top:${c.y}px;${st}">${inner}</span>`,ms)};
-  const burst=(p,big,col)=>{VFX.hit(p,big,col);return at(p,.42,'ab-burst','',650,`--s:${big?180:100}px;--c:${col||`var(--p${2-p})`}`)};
+  const burst=(p,big,col)=>{V.hit(p,big,col);if(D3)return null;return at(p,.42,'ab-burst','',650,`--s:${big?180:100}px;--c:${col||`var(--p${2-p})`}`)};
   const pop=(txt,k='',col)=>tmp(`<b class="ab-pop ${k}" style="${col?'--pc:'+col:''}">${txt}</b>`,1000);
-  const shake=()=>re(ST,'shk'),flash=c=>{ST.style.setProperty('--fc',c||'#fff');re(ST,'fl')};
+  const shake=()=>D3?F3.shake(.32):re(ST,'shk'),flash=c=>{ST.style.setProperty('--fc',c||'#fff');re(ST,'fl')};
   const imp=()=>re(ST,'imp'); // marco de impacto: dos fotogramas en negativo, como en el anime
-  const zoom=p=>{const c=ctr(p,.5);WD.style.setProperty('--zx',c.x+'px');re(ST,'zm')}; // golpe de cámara hacia quien recibe
+  const zoom=p=>{if(D3){F3.punch(p);return}const c=ctr(p,.5);WD.style.setProperty('--zx',c.x+'px');re(ST,'zm')}; // golpe de cámara hacia quien recibe
   const speed=p=>{const c=ctr(p,.5),w=ST.getBoundingClientRect().width||1;ST.style.setProperty('--sx',c.x/w*100+'%');re(ST,'spd')};
-  const shield=p=>at(p,.5,'ab-shield','',800,`--c:var(--p${p+1})`);
+  const shield=p=>D3?F3.shield(p):at(p,.5,'ab-shield','',800,`--c:var(--p${p+1})`);
   const mark=(p,c,on=true)=>$('abf'+p).classList.toggle(c,on),stg=(c,on=true)=>ST.classList.toggle(c,on);
   const fa=(p,c)=>{const f=$('abf'+p);f.classList.remove('in','atk','hit','dodge');void f.offsetWidth;f.classList.add(c)};
-  const lunge=p=>{fa(p,'atk');speed(1-p);VFX.dash(p)},hurt=p=>{fa(p,'hit');re($('abfc'+p),'hit')},dodge=p=>fa(p,'dodge');
+  const lunge=(p,sp,o)=>{if(D3){if(!sp)F3.attack(p,o||{});speed(1-p);return}fa(p,'atk');speed(1-p);V.dash(p)},hurt=(p,big)=>{if(D3)F3.hurt(p,big);else fa(p,'hit');re($('abfc'+p),'hit')},dodge=p=>D3?F3.dodge(p):fa(p,'dodge');
   const sfx=k=>{if(ABS<=2)SND.fx(k)};
   const dmgT=(p,x)=>'-'+hpF(Math.max(1,Math.round(x*HM[p]))),healT=(p,x)=>'+'+hpF(Math.max(1,Math.round(x*HM[p]))); // daño y curas en PS de quien los recibe
   const badge=(p,k,cut)=>{$('abtr'+p).innerHTML=cut?`<span class="trx">${$('abtr'+p).innerHTML}</span>`:trB(k)};
-  const cutin=async(p,c,m)=>{VFX.charge(p);const el=tmp(`<div class="ab-cut${p?' r':''}" style="--c:var(--p${p+1});--on:var(--on${p+1})"><span class="ci" style="--h:${c.h}">${spr(c)}</span><span class="ct"><small>${dnh(c)}</small><b>${m}</b></span></div>`,1000);sfx('charge');await z(820);return el};
+  const cutin=async(p,c,m)=>{V.charge(p);const el=tmp(`<div class="ab-cut${p?' r':''}" style="--c:var(--p${p+1});--on:var(--on${p+1})"><span class="ci" style="--h:${c.h}">${spr(c)}</span><span class="ct"><small>${dnh(c)}</small><b>${m}</b></span></div>`,1000);sfx('charge');await z(820);return el};
   // cut-in de firma de las habilidades únicas: retrato enorme, banda del color de la habilidad y su nombre
-  const sig=async(a,k,name)=>{const c=cur[a];if(!c)return;sfx('sig');VFX.charge(a,SIGC[k]);
+  const sig=async(a,k,name)=>{const c=cur[a];if(!c)return;sfx('sig');V.charge(a,SIGC[k]);
     tmp(`<div class="ab-sig${a?' r':''}" style="--c:${SIGC[k]||`var(--p${a+1})`};--pc:var(--p${a+1})"><i class="sg-bg"></i><span class="sg-pic" style="--h:${c.h}">${spr(c)}</span><span class="sg-t"><small>★ ${abT('unique')} · ${dnh(c)}</small><b>${name||trT(k,0)}</b></span></div>`,1500);
     await z(1300)};
-  const beam=(a,big,col)=>{const A=ctr(a),D=ctr(1-a),l=Math.min(A.x,D.x),w=Math.abs(D.x-A.x),k=cur[a]&&ELN[cur[a].n],e=ELC[k];
-    tmp(`<i class="ab-beam${k&&!col?' el-'+k:''}" style="left:${l}px;width:${w}px;top:${(A.y+D.y)/2}px;--c:${col||(e?e[0]:`var(--p${a+1})`)};${e&&!col?`--core:${e[1]};`:''}--o:${a?'right':'left'};--bh:${big?42:28}px"></i>`,700);sfx('beam');VFX.beam(a,big,col)};
-  const drop=(p,kind,miss)=>{const c=ctr(p,.5);return tmp(`<i class="ab-drop ${kind}" style="left:${c.x+(miss?(p?-1:1)*80:0)}px;top:${c.y}px"></i>`,1150)};
-  const ghost=(a,d)=>{const A=ctr(a,.5),D=ctr(d,.5),c=cur[a];tmp(`<span class="ab-ghost" style="left:${A.x}px;top:${A.y}px;--dx:${D.x-A.x}px;--h:${c.h};--c:var(--p${a+1})">${spr(c)}</span>`,650);sfx('whiff')};
-  const slashes=(p,col,n=4)=>{let h='';for(let i=0;i<n;i++)h+=`<i style="--a:${rnd(-70,70)}deg;--dl:${i*70}ms;--y:${rnd(-40,40)}px"></i>`;at(p,.45,'ab-slash',h,900,`--c:${col||'#fff'}`)};
-  const shades=(a,n)=>{for(let i=0;i<n;i++)at(a,.98,'ab-shade','',1500,`--dx:${(i-(n-1)/2)*44}px;--dl:${i*90}ms`)};
-  const shadeHit=(a,d)=>{const A=ctr(a,.5),D=ctr(d,.5);tmp(`<span class="ab-shade go" style="left:${A.x}px;top:${A.y}px;--tx:${D.x-A.x}px"></span>`,600)};
+  const beam=(a,big,col)=>{if(D3){F3.beam(a,big,col);sfx('beam');return}const A=ctr(a),D=ctr(1-a),l=Math.min(A.x,D.x),w=Math.abs(D.x-A.x),k=cur[a]&&ELN[cur[a].n],e=ELC[k];
+    tmp(`<i class="ab-beam${k&&!col?' el-'+k:''}" style="left:${l}px;width:${w}px;top:${(A.y+D.y)/2}px;--c:${col||(e?e[0]:`var(--p${a+1})`)};${e&&!col?`--core:${e[1]};`:''}--o:${a?'right':'left'};--bh:${big?42:28}px"></i>`,700);sfx('beam');V.beam(a,big,col)};
+  const drop=(p,kind,miss)=>{if(D3&&kind==='meteor'){F3.meteor(p,miss);return}if(D3&&kind==='stomp'){F3.stomp(p);return}const c=ctr(p,.5);return tmp(`<i class="ab-drop ${kind}" style="left:${c.x+(miss?(p?-1:1)*80:0)}px;top:${c.y}px"></i>`,1150)};
+  const ghost=(a,d)=>{if(D3){F3.clone(a,d);sfx('whiff');return}const A=ctr(a,.5),D=ctr(d,.5),c=cur[a];tmp(`<span class="ab-ghost" style="left:${A.x}px;top:${A.y}px;--dx:${D.x-A.x}px;--h:${c.h};--c:var(--p${a+1})">${spr(c)}</span>`,650);sfx('whiff')};
+  const slashes=(p,col,n=4)=>{if(D3){F3.slash(p,col==='#0b0b0b'?'#9aff7a':col);return}let h='';for(let i=0;i<n;i++)h+=`<i style="--a:${rnd(-70,70)}deg;--dl:${i*70}ms;--y:${rnd(-40,40)}px"></i>`;at(p,.45,'ab-slash',h,900,`--c:${col||'#fff'}`)};
+  const shades=(a,n)=>{if(D3){F3.shades(a,n);return}for(let i=0;i<n;i++)at(a,.98,'ab-shade','',1500,`--dx:${(i-(n-1)/2)*44}px;--dl:${i*90}ms`)};
+  const shadeHit=(a,d)=>{if(D3){F3.shadeHit(a,d);return}const A=ctr(a,.5),D=ctr(d,.5);tmp(`<span class="ab-shade go" style="left:${A.x}px;top:${A.y}px;--tx:${D.x-A.x}px"></span>`,600)};
   const chain=(a,d)=>{const A=ctr(a,.45),D=ctr(d,.45);tmp(`<i class="ab-chain" style="left:${Math.min(A.x,D.x)}px;width:${Math.abs(D.x-A.x)}px;top:${A.y}px;--o:${a?'right':'left'}"></i>`,1500)};
   const book=(from,to)=>{const A=ctr(from,.3),D=ctr(to,.3);tmp(`<span class="ab-book" style="left:${A.x}px;top:${A.y}px;--dx:${D.x-A.x}px">📖</span>`,1000)};
   const note=d=>{const n=dn(cur[d]);tmp(`<div class="ab-dnote"><small>DEATH NOTE</small><b style="--n:${n.length}">${n}</b><em>${trT('dnote',4)}</em></div>`,2300)};
@@ -924,7 +942,7 @@ async function run(tk,script){
   const slot=()=>tmp(`<div class="ab-slot">${[0,1,2].map(i=>`<span style="--i:${i}"><i><b>💎</b><b>🍒</b><b>⭐</b><b>🔔</b><b>7</b></i></span>`).join('')}</div>`,1500);
   const crack=()=>tmp('<svg class="ab-crack" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><path d="M50 30L38 18L30 20L18 6M50 30L64 14L72 16L84 2M50 30L40 44L26 46L12 58M50 30L62 44L76 42L92 58M50 30L20 32L4 28M50 30L80 30L98 34"/></svg>',1300);
   // golpe final: viñeta y bandas de cine centradas en el que cae
-  const finisher=async t=>{const c=ctr(t,.5);tmp(`<div class="ab-fin" style="--fx:${c.x}px"></div>`,1600);ST.classList.add('fin');sfx('charge');VFX.slow(.28,640);await z(560)};
+  const finisher=async t=>{const c=ctr(t,.5);tmp(`<div class="ab-fin" style="--fx:${c.x}px"></div>`,1600);ST.classList.add('fin');sfx('charge');V.slow(.28,640);if(D3)F3.finisher(t);await z(560)};
   let combo={a:-1,n:0},first=false,behind=[0,0];
   const comboHit=a=>{if(combo.a===a)combo.n++;else combo={a,n:1};if(combo.n>=3){const c=ctr(a,.02);tmp(`<b class="ab-combo" style="left:${c.x}px;top:${c.y}px;--c:var(--p${a+1})">${abF(comT('combo'),{0:combo.n})}</b>`,900)}};
   const scene=h=>{ST.classList.toggle('dz0',!!(h.dz&&h.dz[0]));ST.classList.toggle('dz1',!!(h.dz&&h.dz[1]));if(!(h.dz&&(h.dz[0]||h.dz[1])))stg('shr',false);
@@ -932,13 +950,13 @@ async function run(tk,script){
   const pops=()=>(TR_T[lang]||TR_T.en).pops;
   // golpes definitivos de las habilidades únicas (no se esquivan)
   const ultHit=async(h,a,d,lethal,upd)=>{
-    const dmgFx=(big=true)=>{hurt(d);burst(d,big,SIGC[h.u]);num(d,dmgT(d,h.dmg),'crit');shake();zoom(d);imp();upd();if(h.u!=='hakai')VFX.knock(d,lethal?2:1)};
+    const dmgFx=(big=true)=>{hurt(d);burst(d,big,SIGC[h.u]);num(d,dmgT(d,h.dmg),'crit');shake();zoom(d);imp();upd();if(h.u!=='hakai')V.knock(d,lethal?2:1)};
     say(`<b>${dnh(cur[a])}</b>: «${(AB_T[lang]||AB_T.es).ult[h.u]||''}»`);
     if(lethal)await finisher(d);
-    if(h.u==='hakai'){at(d,.45,'ab-orb','',1300);VFX.hakai(d);sfx('time');await z(750);dmgFx();if(lethal)mark(d,'gone');flash('#a43cff');sfx('boom');await z(900)}
-    else if(h.u==='rumbling'){drop(d,'stomp');await z(520);dmgFx();VFX.boom(d,'#ffb27a',1.2);sfx('quake');await z(520)}
+    if(h.u==='hakai'){at(d,.45,'ab-orb','',1300);V.hakai(d);sfx('time');await z(750);dmgFx();if(lethal)mark(d,'gone');flash('#a43cff');sfx('boom');await z(900)}
+    else if(h.u==='rumbling'){drop(d,'stomp');await z(520);dmgFx();V.boom(d,'#ffb27a',1.2);sfx('quake');await z(520)}
     else if(h.u==='mugetsu'){tmp('<i class="ab-mug"></i>',1300);sfx('beam');await z(520);dmgFx();flash('#000');sfx('boom');await z(1000)}
-    else{lunge(a);beam(a,true,SIGC[h.u]);await z(260);dmgFx();flash(SIGC[h.u]);sfx('boom');await z(950)} // Night Guy
+    else{lunge(a,1);beam(a,true,SIGC[h.u]);await z(260);dmgFx();flash(SIGC[h.u]);sfx('boom');await z(950)} // Night Guy
   };
   const trait=async(h,a,d,An,Dn,upd)=>{ // animación de cada rasgo (a = dueño del rasgo, salvo 'stun' y 'self' = quien lo sufre)
     const k=h.tr,nm=trT(k,0),by=h.by==null?d:h.by,col=SIGC[k]||`var(--p${a+1})`;
@@ -973,7 +991,7 @@ async function run(tk,script){
       case 'burn':hurt(d);num(d,dmgT(d,h.dmg));sfx('hum');upd();await z(450);break;
       case 'meteor':await sig(a,k);break;
       case 'rock':if(h.miss){say(L(3));drop(d,'meteor',true);await z(520);dodge(d);num(d,abT('dodgePop'),'txt');sfx('boom');shake();await z(500);break}
-        say(line);drop(d,'meteor');await z(540);dmgOn(d,true);VFX.boom(d,'#ff7a2e',1.2);shake();imp();sfx('boom');upd();await z(520);break;
+        say(line);drop(d,'meteor');await z(540);dmgOn(d,true);V.boom(d,'#ff7a2e',1.2);shake();imp();sfx('boom');upd();await z(520);break;
       case 'tsukuyomi':await sig(a,k);stg('tsk');flash('#c4001a');sfx('charge');if(h.dmg){hurt(d);num(d,dmgT(d,h.dmg))}upd();await z(1300);stg('tsk',false);break;
       case 'kamui':lunge(by);await z(170);at(a,.45,'ab-vtx','',1100);sfx('time');pop(nm,'',col);upd();await z(950);break;
       case 'gates':mark(a,'gt');upd();await sig(a,k);break;
@@ -985,14 +1003,14 @@ async function run(tk,script){
       case 'kyoka':await sig(a,k);break;
       case 'mirage':lunge(by);await z(170);mark(a,'mir');num(a,abT('illusion'),'txt');sfx('whiff');await z(650);mark(a,'mir',false);break;
       case 'shrine':await sig(a,k);stg('shr');stg('dz'+a);sfx('domain');await z(300);break;
-      case 'slash':slashes(d,col);VFX.slash(d,'#ff1f3d');hurt(d);num(d,dmgT(d,h.dmg));sfx('slash');upd();await z(500);break;
+      case 'slash':slashes(d,col);V.slash(d,'#ff1f3d');hurt(d);num(d,dmgT(d,h.dmg));sfx('slash');upd();await z(500);break;
       case 'jackpot':slot();sfx('slot');await z(1350);mark(a,'jp');num(a,healT(a,h.heal||0),'heal');flash('#ffd23f');sfx('awake');upd();await z(500);break;
       case 'jpheal':lunge(by);await z(170);hurt(a);num(a,pops().regen,'heal');sfx('hit');await z(450);break;
       case 'rumbling':await sig(a,k);stg('rmb');break;
       case 'ackerman':pop(nm,'',col);sfx('charge');await z(800);break;
       case 'adult':await sig(a,k);mark(a,'adult');sfx('awake');break;
       case 'spent':mark(a,'adult',false);mark(a,'spent');sfx('whiff');await z(800);break;
-      case 'rose':at(d,.5,'ab-rose','',1700);VFX.nuke(d);flash('#fff');imp();shake();sfx('nuke');await z(700);dmgOn(d,true);shake();upd();await z(1000);break;
+      case 'rose':at(d,.5,'ab-rose','',1700);V.nuke(d);flash('#fff');imp();shake();sfx('nuke');await z(700);dmgOn(d,true);shake();upd();await z(1000);break;
       case 'steal':book(d,a);sfx('charge');await z(700);badge(a,h.s);badge(d,'',true);pop(trT(h.s,0),'',col);sfx('awake');await z(800);break;
       case 'anti':slashes(d,'#0b0b0b',3);mark(a,'anti');badge(d,'',true);sfx('slash');pop(nm,'',col);await z(950);break;
       case 'chain':if(h.ko){say(line);chain(a,d);sfx('chain');await z(750);hurt(d);imp();shake();num(d,dmgT(d,h.dmg),'crit');upd();await z(950)}
@@ -1005,7 +1023,7 @@ async function run(tk,script){
       case 'arise':await sig(a,k);shades(a,h.n||2);sfx('hum');await z(700);break;
       case 'shadow':shadeHit(a,d);await z(260);dmgOn(d,false);sfx('hit');upd();await z(380);break;
       case 'geass':await sig(a,k);mark(d,'gs');break;
-      case 'self':mark(a,'gs',false);fa(a,'hit');burst(a,false,'#ff2a55');num(a,dmgT(a,h.dmg));sfx('hit');upd();await z(700);break;
+      case 'self':mark(a,'gs',false);hurt(a);burst(a,false,'#ff2a55');num(a,dmgT(a,h.dmg));sfx('hit');upd();await z(700);break;
       case 'eclipse':stg('ecl');await sig(a,k);flash('#ff1f1f');num(a,healT(a,.6),'heal');sfx('awake');upd();await z(700);break;
       case 'dnote':note(d);sfx('write');await z(2100);mark(d,'dn');break;
       case 'heart':stg('dark');ecg();sfx('heart');await z(1750);mark(d,'dn',false);hurt(d);num(d,'♥','crit');flash('#ff2a3a');upd();await z(800);stg('dark',false);break;
@@ -1019,7 +1037,7 @@ async function run(tk,script){
       const c=C(e.n),p=e.p,f=$('abf'+p),card=$('abc'+p);act[p]=e.k;cur[p]=c;hpN[p]=e.f==null?1:e.f;HM[p]=e.hm||BidEngine.hpMax(e.st||BidEngine.stats(c));
       $('abn'+p).innerHTML=dnh(c);$('abtr'+p).innerHTML=trBadge(c);card.dataset.n=c.n;card.style.setProperty('--h',c.h);card.innerHTML=spr(c);
       const fc=$('abfc'+p);fc.className='ab-face';fc.dataset.n=c.n;fc.style.setProperty('--h',c.h);fc.innerHTML=spr(c);
-      f.className='ab-f a'+p;f.style.setProperty('--lv','');re(f,'in');VFX.enter(p);setB(p,hpN[p],e.e==null?1:e.e,true);$('abs'+p).innerHTML=stT(c,e.st);roster(p);
+      f.className='ab-f a'+p;f.style.setProperty('--lv','');re(f,'in');V.enter(p);setB(p,hpN[p],e.e==null?1:e.e,true);$('abs'+p).innerHTML=stT(c,e.st);roster(p);
       if(team[p].length>1&&e.k===team[p].length-1)com(abF(comT('last'),{a:dnh(c),p:t('player',p+1)}));
       await say(t('sends',p+1,dnh(c)),1150);
     }else if(e.t==='duel'){
@@ -1039,13 +1057,13 @@ async function run(tk,script){
         if(h.k==='hit'||h.k==='crit'||h.k==='ctr'){
           say(h.k==='ctr'?abF(abT(h.ui?'uctr':'ctr'),{a:An,d:Dn}):h.cl?abF(abT('clone'),{a:An,d:Dn}):h.rr?abF(abT('roller'),{a:An,d:Dn}):abF(abT(h.k==='crit'?'crit':'hit',v),{a:An,d:Dn}));
           if(lethal)await finisher(d);
-          if(h.rr){drop(d,'roller');await z(560)}else if(h.cl){ghost(a,d);await z(220)}else{lunge(a);await z(h.ts?110:170)}
+          if(h.rr){drop(d,'roller');await z(560)}else if(h.cl){ghost(a,d);await z(220)}else{lunge(a,0,{big:h.crit||lethal,ts:h.ts});await z(h.ts?110:170)}
           const big=h.crit||lethal||h.bf||h.rr;
-          hurt(d);burst(d,big,h.bf?'#ff1f3d':h.as?'#7dff8a':null);num(d,dmgT(d,dm(d)),big?'crit':'');sfx(big?'crit':'hit');
-          if(h.bf){at(d,.45,'ab-bfl','<b>黒閃</b>',950);VFX.bf(d);pop(abT('bfPop'),'','#ff1f3d');imp()}
+          hurt(d,big);burst(d,big,h.bf?'#ff1f3d':h.as?'#7dff8a':null);num(d,dmgT(d,dm(d)),big?'crit':'');sfx(big?'crit':'hit');
+          if(h.bf){at(d,.45,'ab-bfl','<b>黒閃</b>',950);V.bf(d);pop(abT('bfPop'),'','#ff1f3d');imp()}
           else if(h.as){slashes(d,'#7dff8a',3);pop(abT('asPop'),'','#7dff8a')}
           else if(h.ui)pop(abT('uiPop'),'','#dfe7ff');
-          if(big){shake();zoom(d);if(!lethal&&!h.bf&&!h.as&&!h.ui&&!h.rr)pop(abT('critPop'));VFX.knock(d,lethal?2:1)}if(lethal){flash();imp();VFX.boom(d,elC(a),1.4)}
+          if(big){shake();zoom(d);if(!lethal&&!h.bf&&!h.as&&!h.ui&&!h.rr)pop(abT('critPop'));V.knock(d,lethal?2:1)}if(lethal){flash();imp();V.boom(d,elC(a),1.4)}
           comboHit(a);upd();await z(lethal?950:h.ts?380:big?720:520);
         }else if(h.k==='sp'||h.k==='spc'){
           if(h.u)await ultHit(h,a,d,lethal,upd);
@@ -1054,23 +1072,23 @@ async function run(tk,script){
             say(h.cp!=null?abF(abT('copied'),{a:An,m}):h.fc!=null?abF(abT('fc'),{a:An,d:Dn,m}):abF(abT(h.k),{a:An,m}));if(h.en)setB(a,null,h.en[a]);
             if(h.fc==null)await cutin(a,cur[a],m);if(lethal)await finisher(d);
             const big=h.k==='spc'||lethal,bc=h.cp!=null?elC(d):h.fc!=null?SIGC.counter:null;
-            lunge(a);const tw=VFX.tech(a,h.cp!=null?mvEn(cur[d],h.cp):h.fc!=null?mvEn(cur[d],h.fc):mvEn(cur[a],v),big,bc,{snd:()=>sfx('hit')}); // cada técnica famosa con su animación
+            lunge(a,1);const tw=V.tech(a,h.cp!=null?mvEn(cur[d],h.cp):h.fc!=null?mvEn(cur[d],h.fc):mvEn(cur[a],v),big,bc,{snd:()=>sfx('hit')}); // cada técnica famosa con su animación
             if(tw){sfx('beam');await Promise.race([tw,sleep(2600)]);if(tk!==bt)throw 0}else{beam(a,big,bc);await z(240)}
-            hurt(d);burst(d,true,elC(a));shake();zoom(d);flash(elC(a));num(d,dmgT(d,dm(d)),'crit');if(h.k==='spc'&&!lethal)pop(abT('critPop'));if(h.k==='spc'||lethal)imp();if(lethal)VFX.boom(d,elC(a),1.6);VFX.knock(d,lethal?2:1);
+            hurt(d,true);burst(d,true,elC(a));shake();zoom(d);flash(elC(a));num(d,dmgT(d,dm(d)),'crit');if(h.k==='spc'&&!lethal)pop(abT('critPop'));if(h.k==='spc'||lethal)imp();if(lethal)V.boom(d,elC(a),1.6);V.knock(d,lethal?2:1);
             sfx('boom');comboHit(a);upd();await z(lethal?1050:760);
           }
         }else if(h.k==='miss'){
           combo={a:-1,n:0};
           say(h.sp?abF(abT('missSp'),{a:An,d:Dn,m:mvOf(cur[a],v)}):abF(abT('miss',v),{a:An,d:Dn}));
-          lunge(a);await z(150);dodge(d);num(d,abT('dodgePop'),'txt');sfx('whiff');upd();await z(470);
+          lunge(a,0,{miss:1});await z(150);dodge(d);num(d,abT('dodgePop'),'txt');sfx('whiff');upd();await z(470);
         }else if(h.k==='clash'){
           const w=h.w==null?a:h.w,l=1-w,m1=mvOf(cur[a],v),m2=mvOf(cur[d],h.vw||0);combo={a:-1,n:0};
           say(abF(abT('clash'),{m1,m2}));if(h.en){setB(0,null,h.en[0]);setB(1,null,h.en[1])}
           const c0=ctr(0),c1=ctr(1),cl=tmp(`<div class="ab-clash" style="left:${c0.x}px;width:${c1.x-c0.x}px;top:${(c0.y+c1.y)/2}px;--x:.5"><i class="l"></i><i class="r"></i><b></b></div>`,4000);
-          VFX.clash();pop(abT('clashPop'),'',`var(--p${a+1})`);sfx('beam');shake();await z(600);
-          for(const x of (h.fr||[.45,.55,l?1:0])){cl.style.setProperty('--x',x);VFX.clashX(x);if(x===0||x===1)break;sfx('hum');await z(330)}
+          V.clash();pop(abT('clashPop'),'',`var(--p${a+1})`);sfx('beam');shake();await z(600);
+          for(const x of (h.fr||[.45,.55,l?1:0])){cl.style.setProperty('--x',x);V.clashX(x);if(x===0||x===1)break;sfx('hum');await z(330)}
           if(lethal)await finisher(l);
-          await z(260);cl.remove();VFX.clashEnd(l);VFX.knock(l,lethal?2:1);hurt(l);burst(l,true,elC(w));shake();zoom(l);imp();flash(elC(w));if(h.dmg>0)num(l,dmgT(l,dm(l)),'crit');sfx('boom');upd();
+          await z(260);cl.remove();V.clashEnd(l);V.knock(l,lethal?2:1);hurt(l,true);burst(l,true,elC(w));shake();zoom(l);imp();flash(elC(w));if(h.dmg>0)num(l,dmgT(l,dm(l)),'crit');sfx('boom');upd();
           await say(abF(abT('clashWin'),{w:dnh(cur[w])}),lethal?1100:900);
         }else if(h.k==='awake'){
           say(abF(abT('awake'),{a:An}));mark(a,'aw');flash(`var(--p${a+1})`); // VFX detecta la clase 'aw' y hace estallar el aurapop(abT('awakePop'),'',`var(--p${a+1})`);sfx('awake');
@@ -1086,7 +1104,7 @@ async function run(tk,script){
       await say(abF(abT('sac'),{0:dnh(s)}),1000);
     }else if(e.t==='down'){
       ko[e.p][e.k]=true;lastL=C(e.n);lastDown=dn(lastL);pop('K.O.','ko');sfx('ko');shake();STAGE_FX.filter(c=>c!=='ecl').forEach(c=>stg(c,false));
-      await say(t('down',dnh(lastL)),250);if(VFX.dissolve(e.p))$('abf'+e.p).classList.add('dust');$('abf'+e.p).classList.add('ko');$('abfc'+e.p).classList.add('ko');roster(e.p);await z(1300);
+      await say(t('down',dnh(lastL)),250);if(V.dissolve(e.p))$('abf'+e.p).classList.add('dust');$('abf'+e.p).classList.add('ko');$('abfc'+e.p).classList.add('ko');roster(e.p);await z(1300);
       $('abc'+e.p).innerHTML='';delete $('abc'+e.p).dataset.n;
     }else if(e.t==='dko'){
       pop(abT('dko'),'ko');sfx('ko');shake();
@@ -1441,7 +1459,7 @@ function wantImg(list,front){
 }
 // FOTO DE PERFIL: siempre un personaje del juego (su foto o, mientras no hay, su emoji). Nunca fotos subidas por usuarios.
 function avInner(n){const c=n&&byN.get(n);return c?(c.img?`<img src="${c.img}" alt="${c.n}" loading="lazy">`:c.e):''}
-function padAv(p){const n=net&&net.avs&&net.avs[p];return n&&byN.has(n)?`<div class="pad pav" data-n="${n}">${avInner(n)}</div>`:''}
+function padAv(p){const n=(net&&net.avs&&net.avs[p])||(CPU&&CPU.avs&&CPU.avs[p]);return n&&byN.has(n)?`<div class="pad pav" data-n="${n}">${avInner(n)}</div>`:''}
 function imgShown(c){
   if(cur&&cur.n===c.n){const e=$('pic').querySelector('.e');if(e)e.outerHTML=lotImg(c)}
   if(P&&P.some(p=>p.c.some(x=>x.n===c.n)))render();
