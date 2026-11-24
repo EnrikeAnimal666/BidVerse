@@ -16,7 +16,8 @@ const EXT={ // textos que no están en lang/*.js (fútbol); FUTX solo se usa dur
 const FUTX={es:{paid:'{0}M',forPrice:'{0}M',errMoney:'Solo te quedan {0}M.',errOver:'Tienes que pujar más de {0}M.',bidPh:'Millones'},
  en:{paid:'{0}M',forPrice:'{0}M',errMoney:'You only have {0}M left.',errOver:'You must bid more than {0}M.',bidPh:'Millions'}};
 const NMS=()=>(net&&net.names)||(CPU&&CPU.names),WN={en:{wins:'{0} wins!',winsH:'{0} wins'},es:{wins:'¡Gana {0}!',winsH:'Gana {0}'}}; // con nombres (online o CPU): "Gana CPU" en vez de "Gana el Jugador 2"
-const u=(k,...a)=>(k==='wins'||k==='winsH')&&NMS()&&NMS()[a[0]-1]?(WN[lang]||WN.en)[k].replace('{0}',NMS()[a[0]-1]):k==='player'&&NMS()&&NMS()[a[0]-1]?NMS()[a[0]-1]:String((cat==='futbol'?(FUTX[lang]||FUTX.es)[k]:undefined)??LANGS[lang].ui[k]??(EXT[lang]||EXT.es)[k]??LANGS.en.ui[k]??EXT.en[k]??k).replace(/\{(\d+)\}/g,(m,i)=>a[i]??m);
+const youWin=k=>({en:{wins:'You win!',winsH:'You win'},es:{wins:'¡Ganas tú!',winsH:'Ganas tú'}}[lang]||{wins:'You win!',winsH:'You win'})[k];
+const u=(k,...a)=>(k==='wins'||k==='winsH')&&NMS()&&NMS()[a[0]-1]?(['You','Tú'].includes(NMS()[a[0]-1])?youWin(k):(WN[lang]||WN.en)[k].replace('{0}',NMS()[a[0]-1])):k==='player'&&NMS()&&NMS()[a[0]-1]?NMS()[a[0]-1]:String((cat==='futbol'?(FUTX[lang]||FUTX.es)[k]:undefined)??LANGS[lang].ui[k]??(EXT[lang]||EXT.es)[k]??LANGS.en.ui[k]??EXT.en[k]??k).replace(/\{(\d+)\}/g,(m,i)=>a[i]??m);
 const money=v=>cat==='futbol'?v+'M':'$'+v;
 const X={
 soldLine:(p,b)=>`${u('sold')}<br>${u('player',p)} · $${b}`,

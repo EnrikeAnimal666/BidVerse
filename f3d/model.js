@@ -2,6 +2,8 @@
    hecha con piezas articuladas. Mira hacia +z; las articulaciones (J) son las que mueve f3d/anim.js. */
 import * as THREE from 'three';
 import { drawFace, FACE } from './face.js';
+import { buildHair } from './hair.js';
+import { paintTorso, paintCoat } from './paint.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 export const GRAD = (() => { const t = new THREE.DataTexture(new Uint8Array([72, 150, 255]), 3, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true; return t; })();
@@ -21,9 +23,17 @@ const hsh = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^=
 const rng0 = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 const dirOf = (az, el) => new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)); // az 0 = delante (+z)
 
+// Cráneo de anime: redondo arriba y la mitad de abajo se estrecha hacia una barbilla en punta (se aplica igual a la cabeza y a la cara)
+function animeHead(g, R) {
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); if (y >= 0) continue;
+    const t = Math.min(1, -y / R), front = Math.max(0, z / R), k = 1 - .34 * t * t;
+    p.setXYZ(i, x * k, y * (1 + .16 * t * front), z * (1 - .1 * t) + R * .07 * t * t * front); }
+  g.computeVertexNormals(); return g;
+}
 export function buildFighter(name, lk) {
   const [S, SW, LW, HD] = BUILD[lk.b] || BUILD.m, rnd = rng0(hsh(name));
-  const F = { name, look: lk, root: new THREE.Group(), J: {}, mats: [], geos: new Set(), ol: outlineMat(), tails: [], kag: [], extra: {} };
+  const F = { name, look: lk, root: new THREE.Group(), J: {}, mats: [], geos: new Set(), texs: [], ol: outlineMat(), tails: [], kag: [], extra: {} };
   const matC = new Map();
   F.mat = (col, o = {}) => {
     const k = col + (o.glow || 0) + (o.side || 0); let m = matC.get(k);
@@ -34,96 +44,76 @@ export function buildFighter(name, lk) {
     }
     return m;
   };
+  const texMat = (canvas, rep, off, side) => { // material con una textura pintada (ropa)
+    const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = THREE.RepeatWrapping; if (rep) { t.repeat.set(rep[0], rep[1]); t.offset.set(off[0], off[1]); }
+    const m = new THREE.MeshToonMaterial({ color: 0xffffff, map: t, gradientMap: GRAD, side: side ? THREE.DoubleSide : THREE.FrontSide });
+    if (lk.glow) { m.emissive = new THREE.Color(lk.t || '#ffffff'); m.emissiveIntensity = .3; }
+    F.mats.push(m); F.texs.push(t); return m;
+  };
   const part = (geo, col, parent, pos, rot, scl, o = {}) => {
     const m = new THREE.Mesh(geo, o.mat || F.mat(col, o));
     if (pos) m.position.set(pos[0], pos[1], pos[2]); if (rot) m.rotation.set(rot[0], rot[1], rot[2]); if (scl) m.scale.set(scl[0], scl[1], scl[2]);
     if (!o.noOl) { const ol = new THREE.Mesh(geo, F.ol); ol.userData.ol = 1; m.add(ol); }
-    parent.add(m); F.geos.add(geo); return m;
+    parent.add(m); if (!o.shared) F.geos.add(geo); return m;
   };
-  const cap = (r, len) => new THREE.CapsuleGeometry(r, len, 6, 14), sph = (r, w = 22, h = 14) => new THREE.SphereGeometry(r, w, h);
+  const cap = (r, len) => new THREE.CapsuleGeometry(r, len, 6, 16), sph = (r, w = 22, h = 14) => new THREE.SphereGeometry(r, w, h);
   const joint = (k, parent, x, y, z) => { const j = new THREE.Group(); j.position.set(x, y, z); parent.add(j); F.J[k] = j; return j; };
   const limb = (j, len, r, col, o) => part(cap(r, Math.max(.01, len - r * .6)), col, j, [0, -len / 2, 0], null, null, o);
 
   const sk = lk.sk || '#f3c9a4', top = lk.t || '#555566', pants = lk.p || '#2a2a33', shoes = lk.sh || '#1b1b1b', hands = lk.g || sk;
   const slv = lk.sl == null ? 1 : lk.sl, armU = slv >= 1 ? top : sk, armL = slv >= 2 ? top : sk;
-  const hipY = .92, R = .29 * HD;
-  F.root.scale.setScalar(S); F.S = S; F.H = (hipY + .05 + .22 + .34 + .12 + R * .85 + R) * S;
+  const hipY = 1.02, R = .225 * HD; // proporciones de anime (~5 cabezas), no chibi
+  F.hipY = hipY; F.root.scale.setScalar(S); F.S = S;
+  // ropa pintada: el mismo lienzo para el pecho (mitad de arriba) y el abdomen (mitad de abajo)
+  const tc = paintTorso(lk, name), chestM = texMat(tc, [1, .5], [0, .5]), absM = texMat(tc, [1, .5], [0, 0]);
   const body = joint('body', F.root, 0, hipY, 0);
-  part(sph(.17), pants, body, [0, -.02, 0], null, [1.3 * SW, .9, .95]);
+  part(sph(.15), pants, body, [0, -.02, 0], null, [1.28 * SW, .9, .95]);
   const spine = joint('spine', body, 0, .05, 0);
-  part(cap(.15 * Math.sqrt(SW), .14), top, spine, [0, .12, 0], null, [1.18 * SW, 1, .82]);
-  if (lk.bl) part(new THREE.CylinderGeometry(.165 * Math.sqrt(SW) * 1.18, .17 * Math.sqrt(SW) * 1.18, .06, 20), lk.bl, spine, [0, .0, 0], null, [1, 1, .74]);
-  const chest = joint('chest', spine, 0, .22, 0);
-  part(cap(.19, .17), top, chest, [0, .16, 0], null, [1.36 * SW, 1, .82]);
-  if (lk.t2) part(cap(.1, .1), lk.t2, chest, [0, .2, .1], null, [1.1, 1, .7], { noOl: true }); // camiseta interior / cuello
-  const neck = joint('neck', chest, 0, .34, 0);
-  part(new THREE.CylinderGeometry(.06, .07, .16, 12), sk, neck, [0, .04, 0]);
-  const head = joint('head', neck, 0, .12, 0), HC = R * .85;
+  part(cap(.135 * Math.sqrt(SW), .16), null, spine, [0, .13, 0], [0, Math.PI, 0], [1.15 * SW, 1, .8], { mat: absM });
+  if (lk.bl) part(new THREE.CylinderGeometry(.158 * SW, .162 * SW, .055, 22), lk.bl, spine, [0, .0, 0], null, [1, 1, .74]);
+  const chest = joint('chest', spine, 0, .24, 0);
+  part(cap(.17, .2), null, chest, [0, .17, 0], [0, Math.PI, 0], [1.42 * SW, 1, .78], { mat: chestM });
+  const neck = joint('neck', chest, 0, .38, 0);
+  part(new THREE.CylinderGeometry(.046, .056, .15, 12), sk, neck, [0, .04, 0]);
+  const head = joint('head', neck, 0, .1, 0), HC = R * .92;
   F.headC = new THREE.Vector3(0, HC, 0); F.R = R;
-  const skull = part(sph(R, 28, 20), sk, head, [0, HC, 0], null, [1, 1.03, .97]);
+  const skull = part(animeHead(sph(R, 32, 24), R), sk, head, [0, HC, 0], null, [.95, 1.04, .98]);
   // cara
   const fc = document.createElement('canvas'); fc.width = FACE.W; fc.height = FACE.H; const fg = fc.getContext('2d');
   const tex = new THREE.CanvasTexture(fc); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   F.faceMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-  const fgeo = new THREE.SphereGeometry(R * 1.012, 40, 20, Math.PI / 2 - 1.15, 2.3, 1.0, 1.4); // la cara cubre ~130° × 80° de la cabeza F.geos.add(fgeo);
-  const face = new THREE.Mesh(fgeo, F.faceMat); face.scale.set(1, 1.03, .97); face.position.y = HC; head.add(face); F.face = face;
+  const fgeo = animeHead(new THREE.SphereGeometry(R * 1.012, 40, 20, Math.PI / 2 - 1.15, 2.3, 1.0, 1.4), R); F.geos.add(fgeo); // la cara cubre ~130° × 80° de la cabeza
+  const face = new THREE.Mesh(fgeo, F.faceMat); face.scale.set(.95, 1.04, .98); face.position.y = HC; head.add(face); F.face = face;
   F.expr = '';
   F.setExpr = e => { if (e === F.expr) return; F.expr = e; drawFace(fg, lk, e); tex.needsUpdate = true; };
   F.setExpr('n');
-  // pelo
-  const hc = lk.hc || '#151515', hairG = new THREE.Group(); hairG.position.y = HC; head.add(hairG);
-  const capH = (th, tilt = -.3, k = 1.06, col = hc) => part(new THREE.SphereGeometry(R * k, 26, 14, 0, Math.PI * 2, 0, th), col, hairG, [0, 0, 0], [tilt, 0, 0]);
-  const spike = (base, dir, len, rad, col = hc) => { const g = new THREE.ConeGeometry(rad, len, 8); g.translate(0, len / 2, 0); const m = part(g, col, hairG); m.quaternion.setFromUnitVectors(UP, dir.clone().normalize()); m.position.copy(base).multiplyScalar(R * .84); return m; };
-  const ball = (az, el, r, d = .95, col = hc) => part(sph(r, 14, 10), col, hairG, dirOf(az, el).multiplyScalar(R * d).toArray());
-  const bangs = (n, len, spread = .5, down = -.45) => { for (let i = 0; i < n; i++) { const az = (i / (n - 1 || 1) - .5) * spread * 2, b = dirOf(az, .62); spike(b, dirOf(az * 1.2, down).add(new THREE.Vector3(0, 0, .3)), len * (.8 + rnd() * .4), .07); } };
-  const back = (len = .55, w = 1.5, col = hc) => part(cap(.16, len), col, hairG, [0, -R * .2 - len * .45, -R * .62], [.12, 0, 0], [w, 1, .55]);
-  const hs = lk.hs || 'short';
-  if (hs !== 'bald') {
-    if (hs === 'dome') capH(1.25, -.2, 1.03);
-    else if (hs === 'buzz') capH(1.3, -.25, 1.03);
-    else if (hs === 'bowl') { capH(1.55, -.32, 1.08); }
-    else if (hs === 'bob') { capH(1.15, -.25, 1.07); part(new THREE.SphereGeometry(R * 1.09, 26, 14, Math.PI / 2 + .85, Math.PI * 2 - 1.7, .4, 1.55), hc, hairG, [0, 0, 0], null, null, { side: 1 }); bangs(4, .16, .55, -.7); }
-    else capH(hs === 'topknot' ? .95 : 1.22, hs === 'slick' ? -.42 : -.3);
-    if (hs === 'spiky') { for (let i = 0; i < 11; i++) { const az = 1.05 + (i / 10) * 4.2 + (rnd() - .5) * .2, el = .3 + rnd() * .65; spike(dirOf(az, el * .8), dirOf(az, el + .25), .3 + rnd() * .18, .1 + rnd() * .03); }
-      for (let i = 0; i < 3; i++) spike(dirOf((i - 1) * .5, 1.15), dirOf((i - 1) * .9, 1.3), .32 + rnd() * .1, .1); bangs(3, .2, .45); }
-    else if (hs === 'tall') { for (let i = 0; i < 5; i++) { const az = (i / 4) * 6.28, el = 1.25 + rnd() * .2; spike(dirOf(az, 1.2), dirOf(az, el), .5 + rnd() * .25, .1 + rnd() * .04); } spike(dirOf(0, 1.5), UP, .7, .13); bangs(3, .18, .4); }
-    else if (hs === 'flame') { for (let i = 0; i < 8; i++) { const az = 2.2 + (i / 7) * 1.9, el = .9 + rnd() * .4; spike(dirOf(az, 1), dirOf(az, el).add(new THREE.Vector3(0, .4, 0)), .42 + rnd() * .18, .11); } spike(dirOf(0, 1.25), dirOf(Math.PI, 1.2), .5, .14); }
-    else if (hs === 'messy') { for (let i = 0; i < 14; i++) { const az = rnd() * 6.28, el = .35 + rnd() * .9; if (Math.cos(az) > .7 && el < .9) continue; spike(dirOf(az, el * .85), dirOf(az, el + .1), .16 + rnd() * .12, .085); } bangs(4, .2, .5); }
-    else if (hs === 'wild') { for (let i = 0; i < 16; i++) { const az = 1 + rnd() * 4.3, el = -.2 + rnd() * 1.1; spike(dirOf(az, el * .7), dirOf(az, el - .1), .35 + rnd() * .25, .12); } back(.7, 1.9); bangs(3, .2, .5); }
-    else if (hs === 'long') { back(.62, 1.6); for (const s of [-1, 1]) part(cap(.06, .34), hc, hairG, [s * R * .8, -R * .55, R * .15], [0, 0, s * .08]); bangs(3, .17, .45); }
-    else if (hs === 'pony') { part(cap(.07, .42), hc, hairG, [0, -R * .35, -R * 1.05], [.55, 0, 0]); bangs(3, .17, .45); }
-    else if (hs === 'bun') { ball(Math.PI, .7, .12, 1.02); bangs(3, .16, .45); }
-    else if (hs === 'twinbun') { ball(Math.PI * .72, .75, .1, 1); ball(-Math.PI * .72, .75, .1, 1); bangs(3, .15, .45); }
-    else if (hs === 'twin') { for (const s of [-1, 1]) part(cap(.07, .45), hc, hairG, [s * R * .72, -R * .55, -R * .55], [.2, 0, s * .15]); bangs(3, .16, .45); }
-    else if (hs === 'fluffy' || hs === 'curly') { const n = hs === 'curly' ? 18 : 13; for (let i = 0; i < n; i++) { const az = rnd() * 6.28, el = .15 + rnd() * 1.2; if (Math.cos(az) > .75 && el < .8) continue; ball(az, el, (hs === 'curly' ? .085 : .11) + rnd() * .03, 1); } if (hs === 'fluffy') for (let i = 0; i < 6; i++) { const az = 1.4 + rnd() * 3.4, el = .3 + rnd() * .8; spike(dirOf(az, el), dirOf(az, el), .17, .09); } bangs(3, .15, .45); }
-    else if (hs === 'pomp') { part(cap(.15, .32), hc, hairG, [0, R * .78, R * .38], [Math.PI / 2 - .35, 0, 0], [1.1, 1, .8]); }
-    else if (hs === 'crest') { const g = new THREE.ConeGeometry(.2, .55, 4); g.translate(0, .27, 0); const m = part(g, hc, hairG, [0, R * .7, -R * .2], [-.9, 0, 0], [.35, 1, 1]); for (const s of [-1, 1]) part(g, hc, hairG, [s * R * .55, R * .5, -R * .1], [-.8, 0, s * .6], [.25, .7, .8]); }
-    else if (hs === 'topknot') { ball(Math.PI, 1.2, .1, 1.08); }
-    else if (hs === 'side') { part(cap(.09, .26), hc, hairG, [R * .25, R * .42, R * .82], [.3, 0, 1.05], [1, 1, .45]); bangs(2, .15, .3); }
-    else if (hs === 'undercut') { for (const s of [-1, 1]) part(cap(.08, .2), hc, hairG, [s * R * .32, R * .55, R * .72], [.5, 0, s * 1.2], [1, 1, .5]); }
-    else if (hs === 'slick') { for (let i = 0; i < 4; i++) { const az = Math.PI + (i - 1.5) * .45; spike(dirOf(az, .5), dirOf(az, -.3), .18, .09); } }
-    else if (hs === 'short') bangs(4, .15, .5);
-  }
+  // pelo (f3d/hair.js)
+  const hairG = new THREE.Group(); hairG.position.y = HC; head.add(hairG);
+  buildHair({ part, g: hairG, R, rnd, name }, lk);
+  // abrigo / haori: tela pintada que cubre espalda y hombros (y las mangas si tiene dibujo)
+  const coatC = lk.x && lk.x.coat ? paintCoat(lk) : null, coatM = coatC ? texMat(coatC, null, null, 1) : null, sleeve = coatM && lk.cp ? { mat: coatM } : undefined;
+  if (lk.x && lk.x.coat) part(new THREE.CylinderGeometry(.205 * SW, .19 * SW, .44, 24, 1, true, .95, Math.PI * 2 - 1.9), lk.x.coat === true ? '#f2f2f2' : lk.x.coat, chest, [0, .18, -.005], null, [1.2, 1, .86], coatM ? { mat: coatM } : { side: 1 });
   // brazos y piernas
   for (const [s, k] of [[1, 'L'], [-1, 'R']]) {
-    const sh = joint('sh' + k, chest, s * .25 * SW, .28, 0);
-    part(sph(.1 * LW), armU, sh, [0, -.02, 0]);
-    limb(sh, .3, .075 * LW, armU);
-    const el = joint('el' + k, sh, 0, -.3, 0);
-    limb(el, .28, .066 * LW, armL);
-    const hd = joint('hd' + k, el, 0, -.28, 0);
-    part(sph(.082 * LW, 16, 12), hands, hd, [0, -.02, 0], null, [1, 1.1, 1.05]);
-    const hp = joint('hp' + k, body, s * .11 * SW, -.05, 0);
-    limb(hp, .44, .1 * LW, pants);
-    const kn = joint('kn' + k, hp, 0, -.44, 0);
-    limb(kn, .42, .086 * LW, pants);
-    const ft = joint('ft' + k, kn, 0, -.42, 0);
-    part(cap(.068 * Math.sqrt(LW), .13), shoes, ft, [0, -.02, .06], [Math.PI / 2, 0, 0]);
+    const sh = joint('sh' + k, chest, s * .24 * SW, .31, 0);
+    part(sph(.072 * LW), armU, sh, [0, -.01, 0], null, [1.05, 1, 1], sleeve);
+    limb(sh, .32, .062 * LW, armU, sleeve);
+    const el = joint('el' + k, sh, 0, -.32, 0);
+    limb(el, .3, .053 * LW, armL, slv >= 2 || sleeve ? sleeve : undefined);
+    const hd = joint('hd' + k, el, 0, -.3, 0);
+    part(sph(.068 * LW, 16, 12), hands, hd, [0, -.02, 0], null, [1, 1.12, 1.05]);
+    const hp = joint('hp' + k, body, s * .1 * SW, -.05, 0);
+    limb(hp, .5, .088 * LW, pants);
+    const kn = joint('kn' + k, hp, 0, -.5, 0);
+    limb(kn, .48, .07 * LW, pants);
+    const ft = joint('ft' + k, kn, 0, -.48, 0);
+    part(cap(.055 * Math.sqrt(LW), .14), shoes, ft, [0, -.02, .06], [Math.PI / 2, 0, 0]);
   }
+  F.H = (hipY + .05 + .24 + .38 + .1 + HC + R) * S;
   const J = F.J, X = lk.x || {}, ex = (k, d) => X[k] === true ? d : X[k] || d;
   // extras
-  if (X.cape) { const g = new THREE.BoxGeometry(.62 * SW, 1.2, .025); g.translate(0, -.6, 0); const p = joint('cape', chest, 0, .36, -.17); part(g, ex('cape', '#f2f2f2'), p, null, [.12, 0, 0]); F.cape = p; }
-  if (X.coat) { const g = new THREE.CylinderGeometry(.25 * SW, .38 * SW, .86, 22, 1, true, .7, Math.PI * 2 - 1.4); g.translate(0, -.43, 0); const p = joint('coat', spine, 0, .2, 0); part(g, ex('coat', '#f2f2f2'), p, null, null, [1, 1, .85], { side: 1 }); F.coat = p;
+  if (X.cape) { const g = new THREE.BoxGeometry(.62 * SW, 1.2, .025); g.translate(0, -.6, 0); const p = joint('cape', chest, 0, .34, -.14); part(g, ex('cape', '#f2f2f2'), p, null, [.12, 0, 0]); F.cape = p; }
+  if (X.coat) { const g = new THREE.CylinderGeometry(.25 * SW, .38 * SW, .86, 22, 1, true, .7, Math.PI * 2 - 1.4); g.translate(0, -.43, 0); const p = joint('coat', spine, 0, .2, 0); part(g, ex('coat', '#f2f2f2'), p, null, null, [1, 1, .85], coatM ? { mat: coatM } : { side: 1 }); F.coat = p;
     part(cap(.11 * LW, .05), ex('coat', '#f2f2f2'), J.shL, [0, -.06, 0], null, [1.15, 1, 1.15], { noOl: true }); part(cap(.11 * LW, .05), ex('coat', '#f2f2f2'), J.shR, [0, -.06, 0], null, [1.15, 1, 1.15], { noOl: true }); }
   if (X.scarf) { part(new THREE.TorusGeometry(.12, .05, 8, 20), ex('scarf', '#c41e2a'), neck, [0, 0, 0], [Math.PI / 2, 0, 0]); part(cap(.045, .3), ex('scarf', '#c41e2a'), neck, [.06, -.15, -.12], [.4, 0, .1]); }
   if (X.band) { part(new THREE.CylinderGeometry(R * 1.05, R * 1.05, .075, 26, 1, true), ex('band', '#2c3e70'), head, [0, HC + R * .38, 0], [-.18, 0, 0], null, { side: 1 }); part(new THREE.BoxGeometry(.2, .065, .02), '#c8ccd4', head, [0, HC + R * .42, R * .98], [-.25, 0, 0], null, { noOl: true }); }
@@ -139,7 +129,8 @@ export function buildFighter(name, lk) {
   if (X.kagune) for (let i = 0; i < 4; i++) { const t = joint('kg' + i, body, (i - 1.5) * .07, .1, -.15); t.rotation.set(-.9 + (i % 2) * .3, 0, (i - 1.5) * .55); const g = new THREE.ConeGeometry(.07, 1.3, 10); g.translate(0, .65, 0); part(g, ex('kagune', '#d1132b'), t, null, null, null, { glow: .5 }); F.kag.push(t); }
   if (X.gourd) { part(sph(.17, 16, 12), ex('gourd', '#c8a165'), chest, [.05, .05, -.28]); part(sph(.12, 14, 10), ex('gourd', '#c8a165'), chest, [.05, .33, -.27]); }
   if (X.glasses) for (const s of [-1, 1]) part(new THREE.TorusGeometry(.055, .009, 6, 18), ex('glasses', '#1b1b1b'), head, [s * R * .32, HC + R * .1, R * .98], [0, s * .25, 0], null, { noOl: true });
-  if (X.mustache) for (const s of [-1, 1]) part(cap(.03, lk.b === 'huge' ? .2 : .1), ex('mustache', '#f2f2f2'), head, [s * R * .2, HC - R * .28, R * .93], [0, 0, s * (lk.b === 'huge' ? 1.1 : 1.35)]);
+  if (X.mustache) { const big = lk.b === 'huge', L = R * (big ? 1.05 : .5), a = big ? 1.0 : 1.3; // media luna: cada mitad sale del centro hacia fuera y arriba
+    for (const s of [-1, 1]) part(cap(R * (big ? .1 : .07), L), ex('mustache', '#f2f2f2'), head, [s * Math.sin(a) * L * .5, HC - R * .36 + Math.cos(a) * L * .5, R * .86], [0, 0, -s * a]); }
   if (X.beard) part(sph(R * .55, 16, 12), ex('beard', '#f2f2f2'), head, [0, HC - R * .72, R * .5], [.3, 0, 0], [1, 1.25, .7]);
   if (X.flower) part(sph(.06, 10, 8), ex('flower', '#f2f2f2'), head, [R * .7, HC + R * .5, R * .2]);
   if (X.tentacles) for (let i = 0; i < 6; i++) { const a = (i / 5 - .5) * 2.4; part(cap(.035, .2), ex('tentacles', '#8a2a2a'), head, [Math.sin(a) * R * .8, HC - R * .75, Math.cos(a) * R * .55], [.2, 0, Math.sin(a) * .3]); }
@@ -151,9 +142,11 @@ export function buildFighter(name, lk) {
       const c = h === 'straw' ? '#e8c86a' : h === 'cow' ? '#e8862a' : h === 'hokage' ? '#f2f2f2' : '#2b1a1a', br = h === 'wide' || h === 'hokage' ? R * 2.1 : R * 1.85;
       if (h === 'hokage') part(new THREE.ConeGeometry(br, R * .9, 28, 1, true), c, hg, [0, R * .35, 0], null, null, { side: 1 });
       else { part(new THREE.CylinderGeometry(br, br, .02, 32), c, hg); part(sph(R * 1.04, 22, 12), c, hg, [0, .02, 0], null, [1, .8, 1]); if (h === 'straw') part(new THREE.CylinderGeometry(R * 1.02, R * 1.05, .07, 24), '#c8202a', hg, [0, .06, 0], null, null, { noOl: true }); }
+    } else if (h === 'fedora') { const c = X.hatc || '#f2f2f2'; part(new THREE.CylinderGeometry(R * 1.6, R * 1.6, .02, 32), c, hg, [0, -.01, 0]); part(new THREE.CylinderGeometry(R * .9, R * 1.02, R * .62, 24), c, hg, [0, R * .28, 0]); part(new THREE.CylinderGeometry(R * 1.03, R * 1.03, R * .14, 24), '#1b1b1b', hg, [0, R * .06, 0], null, null, { noOl: true });
     } else if (h === 'law') { part(new THREE.CylinderGeometry(R * 1.12, R * 1.08, R * .95, 24), '#f2f2f2', hg, [0, R * .3, 0]); for (let i = 0; i < 5; i++) { const a = i * 1.25; part(sph(.04, 8, 6), '#3a2a1a', hg, [Math.sin(a) * R * 1.12, R * .3 + (i % 2) * .08, Math.cos(a) * R * 1.12], null, null, { noOl: true }); } }
     else { part(new THREE.CylinderGeometry(R * 1.1, R * 1.05, R * .45, 24), '#1b1b26', hg, [0, R * .05, 0]); part(new THREE.BoxGeometry(R * 1.3, .03, R * .7), '#1b1b26', hg, [0, -R * .12, R * 1.05], [.25, 0, 0]); part(new THREE.BoxGeometry(.12, .07, .02), '#d4af37', hg, [0, R * .05, R * 1.1], null, null, { noOl: true }); }
   }
+  if (X.hood) part(new THREE.SphereGeometry(R * 1.22, 26, 16, Math.PI / 2 + .95, Math.PI * 2 - 1.9, 0, 2.2), X.hood, head, [0, HC + R * .04, -R * .06], null, null, { side: 1 }); // capucha
   // armas (en la mano derecha, apuntando hacia delante de la mano: +z)
   const blade = (hd, col, len, wide) => { const g = new THREE.Group(); hd.add(g); g.position.set(0, -.03, 0);
     part(new THREE.CylinderGeometry(.026, .026, .24, 8), '#2a1f1f', g, [0, 0, .02], [Math.PI / 2, 0, 0]);
@@ -181,7 +174,7 @@ export function buildFighter(name, lk) {
   F.pole = !!(X.staff || X.spear || X.axe || X.hammer || X.club);
   // opacidad (desintegración, ilusiones) y limpieza
   F.opacity = o => { const t = o < .999; for (const m of F.mats) { m.transparent = t; m.opacity = o; m.depthWrite = !t || o > .5; } F.ol.uniforms.op.value = o; F.ol.transparent = t; F.faceMat.opacity = o; };
-  F.dispose = () => { F.geos.forEach(g => g.dispose()); F.mats.forEach(m => m.dispose()); F.ol.dispose(); F.faceMat.dispose(); tex.dispose(); };
+  F.dispose = () => { F.geos.forEach(g => g.dispose()); F.mats.forEach(m => m.dispose()); F.texs.forEach(t => t.dispose()); F.ol.dispose(); F.faceMat.dispose(); tex.dispose(); };
   return F;
 }
 // Copia fantasma (estelas, clones de Naruto, sombras de Sung Jin-Woo): misma pose, un solo material translúcido

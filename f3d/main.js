@@ -16,7 +16,7 @@ import { makeTech } from './tech.js';
 const V3 = THREE.Vector3, now = () => performance.now();
 let SUP = null, failed = false, R = null, composer = null, bloom = null, scene = null, cam = null, fx = null, cv = null, ro = null;
 let stage = null, opts = {}, on = false, gen = 0, last = 0, W = 1, H = 1, PR = 1, lagT = 0, okT = 0;
-let HS = 0, slowK = 1, slowU = 0, actor = -1, T = 0, PAUSE = false;
+let HS = 0, slowK = 1, slowU = 0, actor = -1, T = 0, PAUSE = false, sizeT = 0;
 const FT = [null, null], LATER = [], WHITE = new THREE.Color(1, 1, 1), tmp = new V3(), tmp2 = new V3();
 const RM = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const dir = p => p ? -1 : 1, homeX = p => (W / H < 1.3 ? 1.75 : 2.3) * (p ? 1 : -1);
@@ -183,7 +183,7 @@ function shake(k) { if (RM) k *= .3; CAM.trauma = Math.min(1, CAM.trauma + k); }
 function camUpdate(dt) {
   const asp = W / H, tanH = Math.tan(THREE.MathUtils.degToRad(CAM.fov / 2));
   const x0 = FT[0] ? FT[0].A.R.x : homeX(0), x1 = FT[1] ? FT[1].A.R.x : homeX(1), mx = (x0 + x1) / 2;
-  const half = Math.abs(x1 - x0) / 2 + (asp < 1.3 ? 1.15 : 1.75), dist = Math.max(6.2, half / (tanH * asp), 1.75 / tanH);
+  const half = Math.abs(x1 - x0) / 2 + (asp < 1.3 ? 1.15 : 1.75), dist = Math.min(30, Math.max(6.6, half / (tanH * asp), 2.3 / tanH));
   const yaw = Math.sin(T * .21) * .15 + Math.sin(T * .13) * .06;
   let k = 2.6, sh = T < CAM.until ? CAM.shot : null;
   if (sh) { const p = sh.p, fxp = FT[p] ? FT[p].A.R.x : homeX(p), d = dir(p), Hh = FT[p] ? FT[p].F.H : 2.2;
@@ -193,7 +193,8 @@ function camUpdate(dt) {
     else if (sh.kind === 'hit') { CAM.tPos.set(fxp * .6 + mx * .4, 1.8, dist * .78); CAM.tLook.set(fxp * .7 + mx * .3, 1.4, 0); k = 5; }
     else if (sh.kind === 'ko') { const a = (T - sh.t0) * .55 + .3; CAM.tPos.set(fxp + Math.sin(a) * 4.8, 1.5, Math.cos(a) * 4.8 + .6); CAM.tLook.set(fxp, .55, 0); k = 3; }
     else if (sh.kind === 'wide') { CAM.tPos.set(mx + Math.sin(yaw) * dist * 1.2, 2.6, Math.cos(yaw) * dist * 1.2); CAM.tLook.set(mx, 1.4, 0); k = 3; }
-  } else { CAM.tPos.set(mx + Math.sin(yaw) * dist, 1.95 + Math.sin(T * .17) * .1, Math.cos(yaw) * dist); CAM.tLook.set(mx, 1.38, 0); } // mirando algo alto: el HUD tapa la parte de arriba
+  } else { CAM.tPos.set(mx + Math.sin(yaw) * dist, 2.1 + Math.sin(T * .17) * .1, Math.cos(yaw) * dist); CAM.tLook.set(mx, 1.6, 0); } // mirando algo alto: el HUD tapa la parte de arriba
+  if (CAM.snap) { CAM.snap = 0; CAM.pos.copy(CAM.tPos); CAM.look.copy(CAM.tLook); }
   CAM.pos.lerp(CAM.tPos, 1 - Math.exp(-dt * k)); CAM.look.lerp(CAM.tLook, 1 - Math.exp(-dt * (k + 2)));
   CAM.trauma = Math.max(0, CAM.trauma - dt * 1.7); CAM.kick *= Math.exp(-dt * 7);
   const s = CAM.trauma * CAM.trauma * .32, n = T * 38;
@@ -217,8 +218,8 @@ function init() {
   ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => resize()) : null;
 }
 function resize() {
-  if (!stage || !R) return; const r = stage.getBoundingClientRect(), w = Math.max(2, Math.round(r.width)), h = Math.max(2, Math.round(r.height));
-  if (w === W && h === H) return; W = w; H = h;
+  if (!stage || !R) return; const w = Math.max(2, stage.clientWidth), h = Math.max(2, stage.clientHeight);
+  if (w === W && h === H) return; const jump = !W || W < 50 || H < 50; W = w; H = h; if (jump) CAM.snap = 1; // tamaño de verdad por primera vez: la cámara se coloca sin viaje
   R.setSize(w, h, false); composer.setPixelRatio(PR); composer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); OL_U.asp.value = w / h;
   cv.style.width = '100%'; cv.style.height = '100%';
 }
@@ -230,9 +231,13 @@ function loop(g) {
   if (!on || g !== gen) return;
   if (!cv.isConnected) { stop(); return; }
   requestAnimationFrame(() => loop(g));
+  frame();
+}
+function frame(fixed) { // un fotograma (fixed = segundos simulados, para depurar con la pestaña oculta)
   try {
-    const t = now(), rdt = Math.min(.05, (t - last) / 1000); last = t; if (PAUSE) { composer.render(); return; } T += rdt; quality(rdt);
+    const t = now(), rdt = fixed != null ? fixed : Math.min(.05, (t - last) / 1000); last = t; if (PAUSE && fixed == null) { composer.render(); return; } T += rdt; if (fixed == null) quality(rdt);
     if (stage.offsetParent === null) return;
+    if ((sizeT -= rdt) <= 0) { sizeT = .5; if (stage.clientWidth !== W || stage.clientHeight !== H) resize(); } // por si el ResizeObserver no avisa (pestaña en segundo plano)
     let wdt = rdt; if (HS > 0) { HS -= rdt; wdt = 0; }
     const tstop = stage.classList.contains('tstop'), fdt = wdt * (t < slowU ? slowK : 1) * (tstop ? .02 : 1);
     for (let i = LATER.length - 1; i >= 0; i--) { const o = LATER[i]; o.t -= wdt; if (o.t <= 0) { LATER.splice(i, 1); try { o.fn(); } catch (e) { console.warn('F3D', e); } } }
@@ -297,7 +302,7 @@ const API = {
     stop(); if (!API.ok()) return false;
     try { if (!R) init(); } catch (e) { failed = true; console.warn('F3D', e); return false; }
     stage = st; opts = o || {}; readPC(); (st.querySelector('.ab-world') || st).appendChild(cv); W = H = 0; resize(); if (ro) ro.observe(st);
-    actor = -1; HS = 0; slowU = 0; CAM.shot = null; CAM.until = 0; CAM.trauma = 0; T = 0;
+    actor = -1; HS = 0; slowU = 0; CAM.shot = null; CAM.until = 0; CAM.trauma = 0; CAM.snap = 1; T = 0;
     on = true; last = now(); const g = ++gen; requestAnimationFrame(() => loop(g)); return true;
   },
   stop,
@@ -350,6 +355,7 @@ const API = {
   finisher(t) { shot('hit', t, 900); X.kick(4); },
   pause(v) { PAUSE = !!v; }, // congela la escena (para depurar y hacer capturas)
   _dbg() { return { FT, scene, cam, R, CAM }; },
+  _tick(n = 1, dt = 1 / 30) { if (!on) return; for (let i = 0; i < n; i++) frame(dt); }, // avanza la escena a mano (pestaña oculta)
   shake(k) { shake(k); }, punch(p) { shot('hit', p, 400); X.kick(2); },
 };
 const QUIET = [0, 0];

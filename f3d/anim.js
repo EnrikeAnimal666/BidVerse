@@ -91,7 +91,7 @@ export class Anim {
     for (let i = 0; i < JK.length; i++) { const j = J[JK[i]]; if (j) j.rotation.set(c[i * 3], c[i * 3 + 1], c[i * 3 + 2]); }
     J.chest.rotation.x += br * .035 * w; J.head.rotation.x -= br * .02 * w;
     J.shL.rotation.z += br * .03 * w; J.shR.rotation.z -= br * .03 * w;
-    J.body.position.y = .92 + c[NJ * 3] - bob * .03 * w; J.body.position.z = c[NJ * 3 + 1];
+    J.body.position.y = (F.hipY || .92) + c[NJ * 3] - bob * .03 * w; J.body.position.z = c[NJ * 3 + 1];
     J.knL.rotation.x += bob * .12 * w; J.knR.rotation.x += bob * .1 * w; J.hpL.rotation.x -= bob * .06 * w; J.hpR.rotation.x -= bob * .05 * w;
     // capa y faldón: se levantan con la velocidad y se mecen
     const sp = Math.min(1, Math.abs(this.R.vx) / 14), tgt = .12 + sp * 1.1 + Math.sin(T * 5.3) * .04 + (this.R.y > .2 ? .4 : 0);

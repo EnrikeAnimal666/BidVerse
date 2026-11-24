@@ -5,9 +5,9 @@ const KX = 1.15, W = 256, H = 128, EX = 40, EY = 50;
 const has = (lk, k) => (' ' + (lk.f || '') + ' ').includes(' ' + k + ' ');
 function ell(g, x, y, rx, ry, rot = 0) { g.beginPath(); g.ellipse(x, y, Math.max(.5, rx * KX), Math.max(.5, ry), rot, 0, Math.PI * 2); }
 function line(g, pts, w, col) { g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.lineWidth = w; g.strokeStyle = col; g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke(); }
-const INK = '#1a1016';
+const INK = '#1a1016', big0 = lk => lk.b === 'kid' || lk.fem;
 function eye(g, lk, x, side, expr, ic) { // side: -1 = ojo de la izquierda de la imagen, 1 = derecha
-  const kid = lk.b === 'kid', fem = lk.fem, big = kid || fem || has(lk, 'zeno'), ry = expr === 'a' ? 12 : big ? 19 : 16, rx = big ? 15 : 14, y = EY;
+  const kid = lk.b === 'kid', fem = lk.fem, sharp = lk.es === 's' && !big0(lk), big = kid || fem || has(lk, 'zeno'), ry = expr === 'a' ? (sharp ? 9 : 12) : big ? 19 : sharp ? 11 : 16, rx = big ? 15 : sharp ? 15 : 14, y = EY + (sharp ? 2 : 0);
   if (expr === 'h') { line(g, [[x + 11 * side, y - 9], [x - 9 * side, y], [x + 11 * side, y + 9]], 4.5, INK); return; }
   if (expr === 'k') { line(g, [[x - 11, y - 9], [x + 11, y + 9]], 4.5, INK); line(g, [[x + 11, y - 9], [x - 11, y + 9]], 4.5, INK); return; }
   if (expr === 'b' || has(lk, 'closed')) { line(g, [[x - 14, y + 2], [x, y + 6], [x + 14, y + 2]], 4, INK); return; }
@@ -31,7 +31,8 @@ function eye(g, lk, x, side, expr, ic) { // side: -1 = ojo de la izquierda de la
   g.restore();
   const lid = has(lk, 'dead') || has(lk, 'tired') ? 6 : 0, lw = fem ? 5.5 : 4.5; // párpado y pestañas
   if (lid) { g.fillStyle = lk.sk; g.fillRect(x - 17 * KX, y - ry - 2, 34 * KX, ry * .55 + 2); }
-  line(g, [[x - side * 15 * KX, y - ry * .55 + lid], [x - side * 2, y - ry - 1 + lid], [x + side * 13 * KX, y - ry * .7 + lid], [x + side * 19 * KX, y - ry * .3 + lid]], lw, INK);
+  const sl = sharp ? 5 : 0; // ojos afilados: el párpado sube hacia fuera
+  line(g, [[x - side * 15 * KX, y - ry * .55 + lid + sl], [x - side * 2, y - ry - 1 + lid + sl * .3], [x + side * 13 * KX, y - ry * .7 + lid - sl * .4], [x + side * 19 * KX, y - ry * .3 + lid - sl]], lw + (sharp ? 1 : 0), INK);
   line(g, [[x - side * 11 * KX, y + ry * .9], [x + side * 9 * KX, y + ry * .85]], 1.6, 'rgba(26,16,22,.6)');
   if (fem) line(g, [[x + side * 16 * KX, y - ry * .5], [x + side * 22 * KX, y - ry * .9]], 3, INK);
 }
