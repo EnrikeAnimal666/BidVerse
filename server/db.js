@@ -182,6 +182,18 @@ async function open({ url = process.env.DATABASE_URL, file = process.env.DB_PATH
       const strip = r => r && { pos: r.pos, name: r.name, av: r.av, pts: r.pts, w: r.w, l: r.l, d: r.d, games: r.games, me: r.id === uid };
       return { period: week ? 'week' : 'all', since: week ? since : null, players: rows.length, rows: rows.slice(0, 50).map(strip), me: mine && mine.pos > 50 ? strip(mine) : null };
     },
+    // Estadísticas de una cuenta: victorias/derrotas/empates por categoría, racha actual y sus últimas partidas
+    async stats(uid) {
+      const rows = await db.all(`SELECT m.cat, m.winner, m.reason, m.played_at, CASE WHEN m.p1 = ? THEN m.d1 ELSE m.d2 END AS d, o.name AS opp, o.av AS oav
+        FROM matches m JOIN users o ON o.id = CASE WHEN m.p1 = ? THEN m.p2 ELSE m.p1 END
+        WHERE m.p1 = ? OR m.p2 = ? ORDER BY m.played_at DESC, m.id DESC LIMIT 500`, [uid, uid, uid, uid]);
+      const res = r => r.winner == null ? 'd' : r.winner === uid ? 'w' : 'l';
+      const cats = {}, total = { w: 0, l: 0, d: 0 };
+      for (const r of rows) { const c = cats[r.cat] || (cats[r.cat] = { w: 0, l: 0, d: 0 }), x = res(r); c[x]++; total[x]++; }
+      let streak = 0; const first = rows.length ? res(rows[0]) : null; // racha: + victorias seguidas, - derrotas seguidas
+      if (first && first !== 'd') for (const r of rows) { if (res(r) !== first) break; streak += first === 'w' ? 1 : -1; }
+      return { total, cats, streak, recent: rows.slice(0, 10).map(r => ({ cat: r.cat, res: res(r), d: r.d, opp: r.opp, oav: r.oav || null, at: r.played_at, reason: r.reason })) };
+    },
     close: () => db.close(),
   };
 }

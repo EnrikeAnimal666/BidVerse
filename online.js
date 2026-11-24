@@ -22,6 +22,7 @@
 
   function name(){const n=$('olName').value.trim();myName=n;try{localStorage.setItem('bvname',n)}catch(e){}return n}
   window.olCreate=function(cat){pending={t:'create',cat};lastCat=cat;iCreated=true;say('olErr','');flush()};
+  window.olQuick=function(cat){pending={t:'quick',cat};lastCat=cat;iCreated=true;say('olErr','');flush()}; // buscar rival
   window.olJoin=function(){const c=$('olCode').value.trim().toUpperCase();if(!c)return;pending={t:'join',code:c};iCreated=false;say('olErr','');flush()};
   window.olCancel=function(){pending=null;send({t:'leave'});olReset();closeOnline();hideLobby(true)};
   window.olCopy=function(){const url=location.origin+location.pathname+'?sala='+room.code;
@@ -70,10 +71,10 @@
   /* ---------- PANTALLA DE ESPERA: al crear una sala te lleva aquí hasta que entra el rival ---------- */
   const LB={es:{title:'Sala creada',sub:'Pásale el código o el enlace a tu rival. La partida empieza sola en cuanto entre.',code:'Código de sala',link:'Copiar enlace',copy:'Copiar código',share:'Compartir',copied:'¡Copiado!',
       cat3:'Fútbol',you:'Tú',ready:'Listo',wait:'Esperando rival',notYet:'Todavía no ha entrado',waiting:'Esperando',cancel:'Cancelar sala',back:'← Menú',player:'Jugador',
-      anime:['3 personajes por jugador','$20 para pujar','10 s por puja','Combate por equipos'],ufc:['1 peleador por categoría','8 categorías','$40 para pujar','Noche de combates'],futbol:['11 jugadores · 4-3-3','100M para fichar','50 leyendas + 250 actuales','Partido simulado'],shareTxt:'¡Únete a mi sala de BidVerse! Código: '},
+      anime:['3 personajes por jugador','$20 para pujar','10 s por puja','Combate por equipos'],ufc:['1 peleador por categoría','8 categorías','$40 para pujar','Noche de combates'],futbol:['11 jugadores · 4-3-3','100M para fichar','50 leyendas + 250 actuales','Partido simulado'],shareTxt:'¡Únete a mi sala de BidVerse! Código: ',qTitle:'Buscando rival',qSub:'Te emparejamos con el primer jugador que busque partida de esta categoría. Empieza sola en cuanto aparezca.',qWait:'Buscando',qCancel:'Dejar de buscar',qTip:'Si no aparece nadie, prueba contra la IA desde el menú.'},
     en:{title:'Room created',sub:'Send the code or the link to your rival. The game starts on its own as soon as they join.',code:'Room code',link:'Copy link',copy:'Copy code',share:'Share',copied:'Copied!',
       cat3:'Football',you:'You',ready:'Ready',wait:'Waiting for rival',notYet:'Not here yet',waiting:'Waiting',cancel:'Cancel room',back:'← Menu',player:'Player',
-      anime:['3 characters per player','$20 to bid','10 s per bid','Team battle'],ufc:['1 fighter per division','8 divisions','$40 to bid','Fight night'],futbol:['11 players · 4-3-3','100M to sign','50 legends + 250 current','Simulated match'],shareTxt:'Join my BidVerse room! Code: '}};
+      anime:['3 characters per player','$20 to bid','10 s per bid','Team battle'],ufc:['1 fighter per division','8 divisions','$40 to bid','Fight night'],futbol:['11 players · 4-3-3','100M to sign','50 legends + 250 current','Simulated match'],shareTxt:'Join my BidVerse room! Code: ',qTitle:'Finding a rival',qSub:'We match you with the first player looking for a game in this category. It starts on its own as soon as someone shows up.',qWait:'Searching',qCancel:'Stop searching',qTip:'If nobody shows up, try playing the CPU from the menu.'}};
   const lt=k=>(LB[typeof lang!=='undefined'&&LB[lang]?lang:'es'])[k];
   let lbClock=0,lbT0=0,lbRoom=null;
   const url=c=>location.origin+location.pathname+'?sala='+c;
@@ -83,18 +84,18 @@
     el.className='lobby lb-'+cat;
     el.innerHTML=`<div class="lb-card">
 <div class="lb-band"><button class="lb-back" id="lbBack">${lt('back')}</button><span class="lb-cat">${cat==='ufc'?'UFC':cat==='futbol'?(lt('cat3')||'Fútbol'):'Anime'}</span></div>
-<div class="lb-body"><h2 class="lb-h">${lt('title')}</h2><p class="lb-sub">${lt('sub')}</p>
-<small class="lb-lbl">${lt('code')}</small><div class="lb-code" aria-label="${m.code}">${String(m.code).split('').map(c=>`<b>${c}</b>`).join('')}</div>
+<div class="lb-body"><h2 class="lb-h">${lt(m.quick?'qTitle':'title')}</h2><p class="lb-sub">${lt(m.quick?'qSub':'sub')}</p>
+${m.quick?`<p class="lb-tip">${lt('qTip')}</p>`:`<small class="lb-lbl">${lt('code')}</small><div class="lb-code" aria-label="${m.code}">${String(m.code).split('').map(c=>`<b>${c}</b>`).join('')}</div>
 <div class="lb-acts"><button class="lb-btn p" id="lbLink">${lt('link')}</button><button class="lb-btn" id="lbCopy">${lt('copy')}</button>${navigator.share?`<button class="lb-btn" id="lbShare">${lt('share')}</button>`:''}</div>
-<p class="lb-ok" id="lbOk" aria-live="polite"></p>
+<p class="lb-ok" id="lbOk" aria-live="polite"></p>`}
 <div class="lb-vs"><div class="lb-pl me">${myAv()&&window.bvAvTag?bvAvTag(myAv(),'lb-n'):'<span class="lb-n">1</span>'}<div><b>${nm.replace(/[<>&]/g,'')}</b><small>${lt('you')} · ${lt('ready')}</small></div></div>
 <i class="lb-x">VS</i>
-<div class="lb-pl wait"><span class="lb-n">2</span><div><b>${lt('wait')}<em class="lb-dots"><i></i><i></i><i></i></em></b><small>${lt('notYet')} · <span id="lbTime">0:00</span></small></div></div></div>
+<div class="lb-pl wait"><span class="lb-n">2</span><div><b>${lt(m.quick?'qWait':'wait')}<em class="lb-dots"><i></i><i></i><i></i></em></b><small>${lt('notYet')} · <span id="lbTime">0:00</span></small></div></div></div>
 <ul class="lb-rules">${lt(cat==='ufc'||cat==='futbol'?cat:'anime').map(r=>`<li>${r}</li>`).join('')}</ul>
-<button class="lb-cancel" id="lbCancel">${lt('cancel')}</button></div></div>`;
+<button class="lb-cancel" id="lbCancel">${lt(m.quick?'qCancel':'cancel')}</button></div></div>`;
     $('lbBack').onclick=$('lbCancel').onclick=()=>olCancel();
-    $('lbLink').onclick=()=>copy(url(m.code));$('lbCopy').onclick=()=>copy(m.code);
-    if($('lbShare'))$('lbShare').onclick=()=>navigator.share({title:'BidVerse',text:lt('shareTxt')+m.code,url:url(m.code)}).catch(()=>{});
+    if(!m.quick){$('lbLink').onclick=()=>copy(url(m.code));$('lbCopy').onclick=()=>copy(m.code)}
+    if(!m.quick&&$('lbShare'))$('lbShare').onclick=()=>navigator.share({title:'BidVerse',text:lt('shareTxt')+m.code,url:url(m.code)}).catch(()=>{});
     tickLobby();
   }
   function tickLobby(){const e=$('lbTime');if(!e)return;const s=Math.floor((Date.now()-lbT0)/1000);e.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
@@ -137,7 +138,9 @@
       rkEmpty:'Todavía no se ha jugado ninguna partida online.',rkEmptyW:'Nadie ha jugado esta semana. ¡Sé el primero!',
       rkNoteW:'Puntos ganados (o perdidos) en las partidas online desde el lunes {0}. Se reinicia solo cada semana.',
       rkNoteA:'Puntuación total. Todos empiezan con 1000: ganar a alguien con más puntos da más y perder contra alguien con menos quita más. Solo cuentan las partidas online entre dos cuentas.',
-      rkWLD:'{0} V · {1} D · {2} E',rkYou:'Tú',ptsLine:'{0} puntos de ranking · ahora tienes {1}',ptsLeft:'Ganas por abandono: {0} puntos.'},
+      rkWLD:'{0} V · {1} D · {2} E',rkYou:'Tú',ptsLine:'{0} puntos de ranking · ahora tienes {1}',ptsLeft:'Ganas por abandono: {0} puntos.',
+      stTitle:'Tus estadísticas',stOnline:'Online',stBot:'Contra la IA',stNone:'Aún no has jugado online con esta cuenta.',stBotNone:'Aún no has jugado contra la IA en este navegador.',stRecent:'Últimas partidas',stStreakW:'Racha: {0} victorias seguidas',stStreakL:'Racha: {0} derrotas seguidas',stVs:'contra {0}',stLeave:'abandono',stTimeout:'no volvió',stLoad:'Cargando…',
+      vsAi:'¿Sin rival? Juega contra la IA',quick:'Buscar rival online',botRec:'Contra la IA: {0}',w:'V',l:'D',d:'E',cats:{anime:'Anime',ufc:'UFC',futbol:'Fútbol'}},
     en:{have:'Got a room code?',codePh:'CODE',join:'Join',create:'Create room',login:'Log in',edit:'My profile',
       signIn:'Log in',signUp:'Create account',profile:'Your profile',user:'Username',pass:'Password',avatar:'Profile picture',
       avSearch:'Search a character or an anime…',avNone:'No picture',avEmpty:'No character matches',avPick:'Picked: ',hi:'Hi, ',
@@ -150,7 +153,9 @@
       rkEmpty:'No online games have been played yet.',rkEmptyW:'Nobody has played this week. Be the first!',
       rkNoteW:'Points won (or lost) in online games since Monday {0}. Resets on its own every week.',
       rkNoteA:'Total score. Everyone starts at 1000: beating someone with more points gives more, losing to someone with fewer takes more. Only online games between two accounts count.',
-      rkWLD:'{0} W · {1} L · {2} D',rkYou:'You',ptsLine:'{0} ranking points · you now have {1}',ptsLeft:'You win by forfeit: {0} points.'}};
+      rkWLD:'{0} W · {1} L · {2} D',rkYou:'You',ptsLine:'{0} ranking points · you now have {1}',ptsLeft:'You win by forfeit: {0} points.',
+      stTitle:'Your stats',stOnline:'Online',stBot:'Vs the CPU',stNone:'No online games with this account yet.',stBotNone:'No games against the CPU in this browser yet.',stRecent:'Recent games',stStreakW:'Streak: {0} wins in a row',stStreakL:'Streak: {0} losses in a row',stVs:'vs {0}',stLeave:'forfeit',stTimeout:'timed out',stLoad:'Loading…',
+      vsAi:'No rival? Play the CPU',quick:'Find a rival online',botRec:'Vs the CPU: {0}',w:'W',l:'L',d:'D',cats:{anime:'Anime',ufc:'UFC',futbol:'Football'}}};
   const NAME_RE=/^[\p{L}\p{N}][\p{L}\p{N}._-]{2,15}$/u; // la misma regla que el servidor (server/db.js)
   const dict=()=>M[typeof lang!=='undefined'&&M[lang]?lang:'es'];
   const fmt=(s,...a)=>s.replace(/\{(\d+)\}/g,(m,i)=>a[i]??m);
@@ -200,8 +205,27 @@
     $('lgOut').style.display=mode==='me'?'':'none';
     $('lgSwP').style.display=mode==='me'?'none':'';$('lgSwT').textContent=mode==='up'?x.toIn:x.toUp;$('lgSw').textContent=mode==='up'?x.toInB:x.toUpB;
     $('lgPass').autocomplete=mode==='up'?'new-password':'current-password';
+    $('lgStats').style.display=mode==='me'?'':'none';if(mode==='me')stats();
     if(mode!=='in')grid()}
   const err=t=>{$('lgErr').textContent=t||''};
+  // ---- estadísticas (perfil): online desde el servidor + contra la IA guardado en este navegador ----
+  const wld=(o,x)=>o?`${o.w} ${x.w} · ${o.l} ${x.l} · ${o.d} ${x.d}`:'';
+  const botAll=()=>{let r={};try{r=JSON.parse(localStorage.getItem('bvbot')||'{}')||{}}catch(e){}const t={w:0,l:0,d:0};for(const k in r)for(const z of ['w','l','d'])t[z]+=+r[k][z]||0;return {r,t,n:t.w+t.l+t.d}};
+  const catRows=(cs,x)=>['anime','ufc','futbol'].filter(k=>cs[k]).map(k=>`<li><span>${x.cats[k]}</span><b>${wld(cs[k],x)}</b></li>`).join('');
+  let stReq=0;
+  async function stats(){const x=dict(),el=$('lgStats'),id=++stReq,b=botAll();
+    const bot=`<h4>${x.stBot}</h4>${b.n?`<p class="st-tot">${wld(b.t,x)}</p><ul class="st-cats">${catRows(b.r,x)}</ul>`:`<p class="st-none">${x.stBotNone}</p>`}`;
+    el.innerHTML=`<h3 class="st-h">${x.stTitle}</h3><div class="st-on"><h4>${x.stOnline}</h4><p class="st-none">${x.stLoad}</p></div><div class="st-bot">${bot}</div>`;
+    if(local)return;
+    const r=await api('stats').catch(()=>null);if(id!==stReq||!r||!r.total)return;
+    const n=r.total.w+r.total.l+r.total.d,on=el.querySelector('.st-on');
+    if(!n){on.innerHTML=`<h4>${x.stOnline}</h4><p class="st-none">${x.stNone}</p>`;return}
+    const st=r.streak>1?`<p class="st-streak ${'w'}">${fmt(x.stStreakW,r.streak)}</p>`:r.streak<-1?`<p class="st-streak l">${fmt(x.stStreakL,-r.streak)}</p>`:'';
+    const rec=r.recent.map(g=>`<li class="st-g ${g.res}"><i>${x[g.res]}</i><span>${esc(fmt(x.stVs,g.opp))}<small>${x.cats[g.cat]||g.cat}${g.reason==='leave'?' · '+x.stLeave:g.reason==='timeout'?' · '+x.stTimeout:''}</small></span><b>${g.d>0?'+':''}${g.d}</b></li>`).join('');
+    on.innerHTML=`<h4>${x.stOnline}</h4><p class="st-tot">${wld(r.total,x)}</p>${st}<ul class="st-cats">${catRows(r.cats,x)}</ul><h4>${x.stRecent}</h4><ol class="st-rec">${rec}</ol>`;
+  }
+  // récord contra la IA en el menú (game.js lo llama al acabar cada partida contra la IA)
+  window.bvBotRec=()=>{const e=$('botRec');if(!e)return;const b=botAll();e.textContent=b.n?fmt(dict().botRec,wld(b.t,dict())):''};
   window.openLogin=m=>{mode=me?'me':(m==='up'?'up':'in');sel=me&&me.av||'';$('avQ').value='';err('');if(!me)$('lgPass').value='';
     paintModal();$('login').classList.add('open');setTimeout(()=>(mode==='me'?$('lgGo'):$('lgName')).focus(),50)};
   window.closeLogin=()=>{$('login').classList.remove('open');pend=null};
@@ -249,11 +273,12 @@
       `<span class="rk-nm"><b>${esc(p.name)}${p.me?` <em>${x.rkYou}</em>`:''}</b><small>${fmt(x.rkWLD,p.w,p.l,p.d)}</small></span><strong class="rk-pt">${rkTab==='week'&&p.pts>0?'+':''}${p.pts}</strong></li>`;
     L.innerHTML=`<ol class="rkl">${r.rows.map(row).join('')}</ol>${r.me?`<ol class="rkl rk-me">${row(r.me)}</ol>`:''}`;
     if(typeof wantImg==='function')wantImg(r.rows.concat(r.me||[]).map(p=>ANIME.find(c=>c.n===p.av)).filter(Boolean))};
-  const sw=window.setLang;window.setLang=function(l){sw(l);paint()};paint();
+  const sw=window.setLang;window.setLang=function(l){sw(l);paint();bvBotRec()};paint();bvBotRec();
   if(tok&&!local)api('me').then(r=>{if(r.user){me=r.user;save();paint()}else if(r.status===401)dropLocal()}).catch(()=>{}); // comprueba la sesión guardada
   // ---- salas: para jugar online hace falta haber iniciado sesión ----
   const need=fn=>{if(me)fn();else{openLogin('in');pend=fn}}; // sin sesión: pide entrar (o crear cuenta) y luego sigue con lo que querías hacer
   const go=fn=>{openOnline('olConn');if(local)return;$('olName').value=me.name;fn()};
+  window.findRival=cat=>{if(window.bvPreload)bvPreload(cat);need(()=>go(()=>olQuick(cat)))};
   window.mkRoom=cat=>{if(window.bvPreload)bvPreload(cat);need(()=>go(()=>olCreate(cat)))};
   const join=()=>{const c=$('hCode').value.trim();if(!c){$('hCode').focus();return}need(()=>go(()=>{$('olCode').value=c.toUpperCase();olJoin()}))};
   $('hJoin').onclick=join;$('hCode').onkeydown=e=>{if(e.key==='Enter')join()};

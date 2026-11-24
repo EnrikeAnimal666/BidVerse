@@ -3,7 +3,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title translate="no">BidVerse</title>
+<meta name="description" content="Bid on anime characters, UFC fighters or footballers and battle with your team. Online 1v1, against the CPU and with a ranking.">
+<meta name="theme-color" content="#0a0a0b">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="BidVerse">
+<meta property="og:title" content="BidVerse · Bid, build your team, fight">
+<meta property="og:description" content="Bid on anime characters, UFC fighters or footballers and battle with your team. Online 1v1, against the CPU and with a ranking.">
+<meta property="og:image" content="{{ORIGIN}}/pics/LogoBidVerse.png">
+<meta property="og:url" content="{{ORIGIN}}/">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" href="pics/logo-icon.png">
+<link rel="apple-touch-icon" href="pics/logo-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Big+Shoulders+Display:wght@800;900&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head><body>
@@ -25,7 +36,12 @@
 <li><button class="mode m-ufc" onclick="mkRoom('ufc')"><div class="fx fx-ufc"><i></i><b></b></div><span class="tt" data-i="cat2">ufc</span><span class="ds" data-i="cat2d"></span><span class="ft"><em class="cn" id="ch-ufc"></em><strong data-m="create"></strong></span></button></li>
 <li><button class="mode m-foot" onclick="mkRoom('futbol')"><div class="fx fx-foot"><i></i><b></b></div><span class="tt" data-i="cat3">Fútbol</span><span class="ds" data-i="cat3d"></span><span class="ft"><em class="cn" id="ch-foot"></em><strong data-m="create"></strong></span></button></li>
 </ul>
-<div class="joinbar"><span data-m="have"></span><input id="hCode" maxlength="5" autocapitalize="characters" spellcheck="false" data-mph="codePh"><button class="cta" id="hJoin" data-m="join"></button></div>
+<div class="joinbar"><span data-m="have"></span><input id="hCode" maxlength="5" autocapitalize="characters" spellcheck="false" data-mph="codePh" aria-label="Código de sala"><button class="cta" id="hJoin" data-m="join"></button></div>
+<div class="playbar">
+<div class="pb-row"><span data-m="quick"></span><div class="pb-btns"><button class="cta s" onclick="findRival('anime')">Anime</button><button class="cta s" onclick="findRival('ufc')">UFC</button><button class="cta s" onclick="findRival('futbol')" data-i="cat3">Fútbol</button></div></div>
+<div class="pb-row"><span data-m="vsAi"></span><div class="pb-btns"><button class="cta s" onclick="playBot('anime')">Anime</button><button class="cta s" onclick="playBot('ufc')">UFC</button><button class="cta s" onclick="playBot('futbol')" data-i="cat3">Fútbol</button></div><small class="pb-rec" id="botRec" aria-live="polite"></small></div>
+</div>
+<footer class="foot"><button type="button" class="lnk" onclick="openCredits()" data-x="credits">Créditos</button><span class="foot-sep">·</span><button type="button" class="lnk" id="pwaBtn" onclick="pwaInstall()" data-x="install" hidden>Instalar app</button></footer>
 </div>
 
 <div class="game" id="game">
@@ -47,8 +63,8 @@
 <div class="end" id="end"></div>
 </div>
 </div>
-<div class="modal" id="scale" onclick="if(event.target===this)closeScale()"><div class="mbox"><div class="mh"><h3 data-i="scaleTitle">Escala de poder</h3><button onclick="closeScale()">✕</button></div><div class="tabs"><button data-k="anime" data-i="tabAnime" onclick="scaleTab('anime')">Anime</button><button data-k="ufc" data-i="tabUfc" onclick="scaleTab('ufc')">UFC</button><button data-k="futbol" data-i="tabFut" onclick="scaleTab('futbol')">Fútbol</button></div><p class="mnote" id="scn">Escala de 0 a 1000 basada en lo que cada personaje demuestra en el canon (manga/anime), no en opiniones de fans: sobre todo su capacidad de destrucción, ajustada por velocidad, resistencia, habilidades y técnica. Cada 250 puntos equivalen a 10 veces más poder. Las fotos se descargan de MyAnimeList la primera vez (pueden tardar unos minutos).</p><div id="scl"></div></div></div>
-<div class="modal" id="online" onclick="if(event.target===this)closeOnline()"><div class="mbox ol"><div class="mh"><h3 data-i="olTitle">Partida online</h3><button onclick="closeOnline()">✕</button></div>
+<div class="modal" id="scale" onclick="if(event.target===this)closeScale()"><div class="mbox"><div class="mh"><h3 data-i="scaleTitle">Escala de poder</h3><button onclick="closeScale()" aria-label="Cerrar">✕</button></div><div class="tabs"><button data-k="anime" data-i="tabAnime" onclick="scaleTab('anime')">Anime</button><button data-k="ufc" data-i="tabUfc" onclick="scaleTab('ufc')">UFC</button><button data-k="futbol" data-i="tabFut" onclick="scaleTab('futbol')">Fútbol</button></div><p class="mnote" id="scn">Escala de 0 a 1000 basada en lo que cada personaje demuestra en el canon (manga/anime), no en opiniones de fans: sobre todo su capacidad de destrucción, ajustada por velocidad, resistencia, habilidades y técnica. Cada 250 puntos equivalen a 10 veces más poder. Las fotos se descargan de MyAnimeList la primera vez (pueden tardar unos minutos).</p><div id="scl"></div></div></div>
+<div class="modal" id="online" onclick="if(event.target===this)closeOnline()"><div class="mbox ol"><div class="mh"><h3 data-i="olTitle">Partida online</h3><button onclick="closeOnline()" aria-label="Cerrar">✕</button></div>
 <div id="olForm"><label class="olf"><span data-i="olName">Tu nombre</span><input id="olName" maxlength="16" autocomplete="nickname" data-ph="olNamePh"></label>
 <div class="olrow"><button class="go" onclick="olCreate('anime')" data-i="olCreateAnime">Crear sala · Anime</button><button class="go" onclick="olCreate('ufc')" data-i="olCreateUfc">Crear sala · UFC</button><button class="go" onclick="olCreate('futbol')" data-i="olCreateFutbol">Crear sala · Fútbol</button></div>
 <p class="olor" data-i="olOr">o entra en la sala de un amigo</p>
@@ -56,9 +72,10 @@
 <div id="olWait" style="display:none"><p data-i="olWaitText">Pasa este código…</p><div class="olcode" id="olCodeBig"></div><div class="olrow"><button class="go" onclick="olCopy()" data-i="olCopy">Copiar enlace</button><button class="skip" onclick="olCancel()" data-i="olCancel">Cancelar</button></div><p class="olok" id="olCopyOk"></p></div>
 <div id="olConn" style="display:none"><p data-m="connecting"></p><div class="olrow"><button class="skip" onclick="olCancel()" data-i="olCancel">Cancelar</button></div></div>
 <p class="olerr" id="olErr"></p></div></div>
-<div class="modal" id="login" onclick="if(event.target===this)closeLogin()"><div class="mbox ol prof"><div class="mh"><h3 id="lgTitle"></h3><button type="button" onclick="closeLogin()">✕</button></div>
+<div class="modal" id="login" onclick="if(event.target===this)closeLogin()"><div class="mbox ol prof"><div class="mh"><h3 id="lgTitle"></h3><button type="button" onclick="closeLogin()" aria-label="Cerrar">✕</button></div>
 <form id="lgForm" onsubmit="event.preventDefault();doLogin()">
 <p class="lgme" id="lgMe"></p>
+<div class="lgstats" id="lgStats" style="display:none"></div>
 <label class="olf" id="lgUserF"><span data-m="user"></span><input id="lgName" name="username" maxlength="16" autocomplete="username" autocapitalize="off" spellcheck="false"></label>
 <label class="olf" id="lgPassF"><span data-m="pass"></span><input id="lgPass" name="password" type="password" maxlength="72" autocomplete="current-password"></label>
 <div class="olf avf" id="lgAvF"><span data-m="avatar"></span><input id="avQ" type="search" autocomplete="off" spellcheck="false" data-mph="avSearch" onkeydown="if(event.key==='Enter')event.preventDefault()"><div class="avgrid" id="avGrid"></div><small class="avcur" id="avCur" aria-live="polite"></small></div>
@@ -66,9 +83,10 @@
 <div class="olrow"><button class="go" id="lgGo" type="submit"></button><button class="skip" id="lgOut" type="button" onclick="doLogout()" data-m="logout"></button></div>
 <p class="lgsw" id="lgSwP"><span id="lgSwT"></span> <button type="button" class="lnk" id="lgSw" onclick="lgSwitch()"></button></p>
 </form></div></div>
-<div class="modal" id="rank" onclick="if(event.target===this)closeRank()"><div class="mbox rk"><div class="mh"><h3 data-m="rankTitle"></h3><button onclick="closeRank()">✕</button></div>
+<div class="modal" id="rank" onclick="if(event.target===this)closeRank()"><div class="mbox rk"><div class="mh"><h3 data-m="rankTitle"></h3><button onclick="closeRank()" aria-label="Cerrar">✕</button></div>
 <div class="tabs"><button data-rk="week" onclick="rankTab('week')" data-m="rkWeek"></button><button data-rk="all" onclick="rankTab('all')" data-m="rkAll"></button></div>
 <p class="mnote" id="rkNote"></p><div id="rkList"></div></div></div>
+<div class="modal" id="credits" onclick="if(event.target===this)closeCredits()"><div class="mbox cr"><div class="mh"><h3 data-x="credits">Créditos</h3><button type="button" onclick="closeCredits()" aria-label="Cerrar">✕</button></div><div id="crBody"></div></div></div>
 <div id="netbar"></div>
 <div class="wipe" id="wipe"><span data-i="fightWipe">¡Combate!</span></div>
 <script src="data-anime.js"></script>
@@ -80,6 +98,8 @@
 <script src="lang/online.js"></script>
 <script>if(!window.LANGS||!LANGS.en)document.body.innerHTML='<p style="padding:24px;font:16px sans-serif">Faltan lang/en.js y lang/es.js: ponlos en una carpeta llamada <b>lang</b> junto a index.html.</p>'</script>
 <script src="engine.js"></script>
+<script src="bot.js"></script>
 <script src="game.js"></script>
 <script src="online.js"></script>
+<script src="extras.js"></script>
 </body></html>

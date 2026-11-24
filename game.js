@@ -1,6 +1,7 @@
 // BidVerse · lógica del juego. Datos: data-anime.js (POOLS.anime) y data-ufc.js (UFC) · idiomas: lang/*.js (LANGS)
 POOLS.ufc=UFC;if(typeof FUT!=='undefined')POOLS.futbol=FUT;const FUTP=POOLS.futbol||[],FDIVS=typeof FUT_DIVS!=='undefined'?FUT_DIVS:[];
 const {MAXC,SECS}=BidEngine; // las reglas viven en engine.js; aquí solo se pinta
+let BOT=null; // partida contra la IA: { p: 1, names, avs, mem, tm, sig } (null = no)
 let lastBid=0,G,net=null,cur,bid,leader,left,tick=0,P,skips,locked,cat,passed,free=-1,fp=false,bt=0,scTab='anime'; // net = datos de la partida online (null = partida local) // G = estado del motor; el resto es un espejo para pintar
 const $=id=>document.getElementById(id),pad2=n=>String(n).padStart(2,'0');
 const byN=new Map([...POOLS.anime,...UFC,...FUTP].map(c=>[c.n,c])),imgOf=n=>(byN.get(n)||{}).img;
@@ -15,7 +16,10 @@ const EXT={ // textos que no están en lang/*.js (fútbol); FUTX solo se usa dur
   scaleNoteFut:'Rated 40-99 like the video games: the 50 legends at their best season, everyone else at their 2026-27 level. Photos come from Wikipedia.'}};
 const FUTX={es:{paid:'{0}M',forPrice:'{0}M',errMoney:'Solo te quedan {0}M.',errOver:'Tienes que pujar más de {0}M.',bidPh:'Millones'},
  en:{paid:'{0}M',forPrice:'{0}M',errMoney:'You only have {0}M left.',errOver:'You must bid more than {0}M.',bidPh:'Millions'}};
-const u=(k,...a)=>k==='player'&&net&&net.names&&net.names[a[0]-1]?net.names[a[0]-1]:String((cat==='futbol'?(FUTX[lang]||FUTX.es)[k]:undefined)??LANGS[lang].ui[k]??(EXT[lang]||EXT.es)[k]??LANGS.en.ui[k]??EXT.en[k]??k).replace(/\{(\d+)\}/g,(m,i)=>a[i]??m);
+const pName=i=>(net&&net.names&&net.names[i])||(BOT&&!net&&BOT.names[i])||'';
+// con nombres (online o contra la IA), "Player 2" / "el Jugador 2" de los textos pasa a ser el nombre: "CPU wins", "Gana Ana"
+const withNames=(s,a)=>pName(0)||pName(1)?s.replace(/(?:[Ee]l )?Jugador \{(\d+)\}|Player \{(\d+)\}/g,(m,i,j)=>pName(+a[i??j]-1)||m):s;
+const u=(k,...a)=>k==='player'&&pName(a[0]-1)?pName(a[0]-1):withNames(String((cat==='futbol'?(FUTX[lang]||FUTX.es)[k]:undefined)??LANGS[lang].ui[k]??(EXT[lang]||EXT.es)[k]??LANGS.en.ui[k]??EXT.en[k]??k),a).replace(/\{(\d+)\}/g,(m,i)=>a[i]??m);
 const money=v=>cat==='futbol'?v+'M':'$'+v;
 const X={
 soldLine:(p,b)=>`${u('sold')}<br>${u('player',p)} · $${b}`,
@@ -111,17 +115,20 @@ function panel(p){const n=p+1;return `<section class="side" style="--c:var(--p${
 <button class="go" id="g${p}" onmousedown="event.preventDefault()" onclick="place(${p})">${t('bidBtn')}</button><button class="go plus" id="u${p}" onmousedown="event.preventDefault()" onclick="plus(${p})" title="${cat==='futbol'?'+1M':'+$1'}">${cat==='futbol'?'+1M':'+$1'}</button></div>
 <button class="skip" id="k${p}" onmousedown="event.preventDefault()" onclick="skip(${p})"><span class="sl" id="kl${p}">${t('skipLbl')}</span><span class="pips" id="kp${p}"></span></button>
 <div class="msg" id="e${p}"></div></section>`}
-function start(c){
+function start(c,vsBot){
+  if(vsBot===undefined)vsBot=!!BOT;botStop();BOT=vsBot?botNew():null;
   closeLineup();gameBg(c);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
   $('end').className='end';$('end').innerHTML='';
   net=null;cat=c;$('game').classList.toggle('ufc',c==='ufc');$('game').classList.toggle('fut',c==='futbol');
   G=BidEngine.create({cat:c,pool:POOLS[c],divs:c==='futbol'?FDIVS:UFC_DIVS});mirror();wantImg(G.deck);
   $('P1').innerHTML=panel(0);$('P2').innerHTML=panel(1);
   $('menu').style.display='none';$('game').style.display='block';$('end').style.display='none';
+  if(BOT)$('P'+(1-BOT.p+1)).firstElementChild.classList.add('me');
   apply(BidEngine.next(G));
 }
 /* ---------- ONLINE: el servidor manda; aquí solo se prepara la pantalla y se pinta lo que llega ---------- */
 function startOnline(cat_,names,me,send,avs){
+  botStop();BOT=null;
   closeLineup();gameBg(cat_);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
   $('end').className='end';$('end').innerHTML='';$('end').style.display='none';
   cat=cat_;net={names,me,send,avs:avs||[]};$('game').classList.toggle('ufc',cat==='ufc');$('game').classList.toggle('fut',cat==='futbol');
@@ -140,7 +147,7 @@ function netState(s,ev){if(unk([s.cur,...s.P.flatMap(p=>p.c.map(c=>c.n))]))retur
   for(const e of ev)onEv(e);
 }
 function netFight(f){closeLineup();const ns=[];JSON.stringify(f.script,(k,v)=>{if((k==='n'||k==='a'||k==='b')&&typeof v==='string')ns.push(v);return v});if(unk(ns))return;const tk=++bt,me=net&&net.me;(f.kind==='ufc'?night:f.kind==='futbol'?match:run)(tk,f.script).then(()=>{if(tk===bt&&f.pts&&window.bvPts)bvPts(f.pts,me)}).catch(er=>{if(er!==0)throw er})}
-function toMenu(){closeLineup();if(net){net.send({t:'leave'});net=null;if(window.olReset)olReset()}$('gbg').style.display='none';document.body.classList.remove('night','ingame');bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';$('game').style.display='none';$('menu').style.display='block'}
+function toMenu(){closeLineup();botStop();BOT=null;if(net){net.send({t:'leave'});net=null;if(window.olReset)olReset()}$('gbg').style.display='none';document.body.classList.remove('night','ingame');bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';$('game').style.display='none';$('menu').style.display='block'}
 const out=p=>BidEngine.out(G,p);
 function hint(){$('info').textContent=free<0?t('hintBase'):fp?t('hintPass',2-free,free+1):gives(free)?t('hintGift',2-free,free+1):t('hintFree',2-free,free+1,skips[free])}
 const gives=p=>BidEngine.gives(G,p); // pasar ahora le regala el lote al rival sin gastar saltos
@@ -151,6 +158,7 @@ function apply(res){
   for(const e of res.ev)onEv(e);
   if(G.phase==='bidding'){if(!tick)tick=setInterval(()=>apply(BidEngine.tick(G)),1000)}else{clearInterval(tick);tick=0}
   if(res.wait){const w=res.wait;setTimeout(()=>{if(tk===bt)apply(w.act==='close'?BidEngine.close(G,false):BidEngine.next(G))},w.ms)}
+  botPoke();
 }
 function onEv(e){switch(e.t){
   case 'lot':
@@ -186,7 +194,7 @@ function onEv(e){switch(e.t){
     clearInterval(tick);tick=0;render();$('info').textContent=t('auctionOver');
     if(net)break; // online: el servidor manda 'order' (anime) y luego 'fight'
     {const tk=++bt,go=()=>(cat==='ufc'?night:cat==='futbol'?match:run)(tk).catch(er=>{if(er!==0)throw er});
-     if(cat==='anime'&&P.some(p=>p.c.length>1))lineup({me:null}).then(o=>{if(tk!==bt)return;o.forEach((x,p)=>BidEngine.order(G,p,x));go()});else go()}break;
+     if(cat==='anime'&&P.some(p=>p.c.length>1))lineup(BOT?{me:1-BOT.p,done:BOT.p?[false,true]:[true,false],ord:{[BOT.p]:BidBot.order(G,BOT.p)}}:{me:null}).then(o=>{if(tk!==bt)return;o.forEach((x,p)=>BidEngine.order(G,p,x));go()});else go()}break;
 }}
 /* ---------- FOTO DEL LOTE: si el recuadro y la foto tienen formas muy distintas (p. ej. foto vertical en un portátil,
    donde el recuadro queda ancho y bajo), se muestra la foto entera sobre una copia desenfocada en vez de recortarla ---------- */
@@ -230,7 +238,7 @@ function render(){
     $('kl'+p).textContent=leader>=0&&leader!==p?t('concede',leader+1):passed[p]?t(out(p)?'autoPass':'passed'):skipLocked(p)?t('noSkips'):t(free!==p?'skipLbl':fp?'passBoth':gives(p)?'passGift':'passFree');
     $('kp'+p).innerHTML=[0,1].map(i=>`<i class="${i<skips[p]?'on':''}"></i>`).join('');
     $('k'+p).classList.toggle('conc',leader>=0&&leader!==p&&!locked);
-    if(net&&p!==net.me)$('g'+p).disabled=$('u'+p).disabled=$('i'+p).disabled=$('k'+p).disabled=true; // el panel del rival no se toca
+    if(net?p!==net.me:BOT&&p===BOT.p)$('g'+p).disabled=$('u'+p).disabled=$('i'+p).disabled=$('k'+p).disabled=true; // el panel del rival no se toca
   }
 }
 function err(p,t){$('e'+p).textContent=t;setTimeout(()=>{if($('e'+p).textContent===t)$('e'+p).textContent=''},2500)}
@@ -240,6 +248,36 @@ function stamp(t,c){const s=$('stamp');$('st').className=c||'';$('st').innerHTML
 const skipLocked=p=>skips[p]<=0&&!gives(p);
 function skip(p){if(net){if(p===net.me)net.send({t:'skip'});return}apply(BidEngine.skip(G,p))}
 function again(){if(net){net.send({t:'rematch'});const b=document.querySelector('.res button');if(b){b.disabled=true;b.textContent=u('olAgainWait')}}else start(cat)}
+
+/* ---------- CONTRA LA IA: el jugador 2 lo maneja bot.js. Piensa un poco antes de cada jugada, como una persona ---------- */
+const BOT_T={es:{you:'Tú',cpu:'IA'},en:{you:'You',cpu:'CPU'}},botT=k=>(BOT_T[lang]||BOT_T.en)[k];
+function playBot(c){if(window.bvPreload)bvPreload(c);start(c,true);scrollTo(0,0)}
+function botNew(){
+  let me='';try{me=localStorage.getItem('bvuser')||''}catch(e){}
+  const rivals=POOLS.anime.filter(c=>c.pw>=600&&c.pw<900),rv=rivals[Math.floor(Math.random()*rivals.length)];
+  return {p:1,names:[me||botT('you'),botT('cpu')],avs:[(window.bvAv&&bvAv())||null,rv?rv.n:null],mem:{},tm:0,sig:'',done:null};
+}
+function botStop(){if(BOT){clearTimeout(BOT.tm);BOT.tm=0;BOT.sig=''}}
+function botPoke(){
+  if(!BOT||net||!G)return;
+  if(G.phase!=='bidding'||G.locked){botStop();return}
+  const sig=[G.idx,G.bid,G.leader,G.free,G.passed.join()].join('|');
+  if(sig===BOT.sig)return; // el segundero no cuenta: solo piensa cuando pasa algo
+  BOT.sig=sig;clearTimeout(BOT.tm);
+  const tk=bt,fresh=G.leader<0,ms=(fresh?1300:650)+Math.random()*(fresh?1700:1500);
+  BOT.tm=setTimeout(()=>{BOT.tm=0;if(!BOT||net||tk!==bt)return;
+    const d=BidBot.decide(G,BOT.p,BOT.mem);if(!d)return;const p=BOT.p;
+    apply(d.act==='bid'?BidEngine.place(G,p,d.amount):d.act==='take'?BidEngine.place(G,p,''):BidEngine.skip(G,p));
+  },Math.max(0,Math.min(ms,(G.left-1.5)*1000)));
+}
+// Récord contra la IA (en este navegador): { anime: {w,l,d}, ufc: …, futbol: … }
+function botRec(){try{return JSON.parse(localStorage.getItem('bvbot')||'{}')||{}}catch(e){return {}}}
+function botEnd(w){ // se llama al pintar el resultado final; devuelve '' para poder ir dentro de las plantillas
+  if(!BOT||net||BOT.done===G)return '';BOT.done=G;
+  const me=1-BOT.p,r=botRec(),c=r[cat]||(r[cat]={w:0,l:0,d:0});c[w<0?'d':w===me?'w':'l']++;
+  try{localStorage.setItem('bvbot',JSON.stringify(r))}catch(e){}
+  if(window.bvBotRec)bvBotRec();return '';
+}
 
 /* ---------- ORDEN DE COMBATE (anime): antes de pelear cada jugador decide quién sale primero ----------
    Local: los dos ordenan en la misma pantalla. Online: solo ves tu equipo; el del rival sale sin orden hasta el combate. */
@@ -251,7 +289,7 @@ function closeLineup(){if(!LU)return;clearInterval(LU.clock);LU.el.remove();LU=n
 function lineup(o){ // o: { me: null (local) | 0 | 1, ms?, done?, send? } → en local devuelve una promesa con los dos órdenes
   closeLineup();
   return new Promise(res=>{
-    const ord=[0,1].map(p=>P[p].c.map((_,i)=>i)),ready=(o.done||[false,false]).slice(),mine=p=>o.me==null||o.me===p;
+    const ord=[0,1].map(p=>o.ord&&o.ord[p]||P[p].c.map((_,i)=>i)),ready=(o.done||[false,false]).slice(),mine=p=>o.me==null||o.me===p;
     const el=document.createElement('div');el.className='modal open lu';document.body.appendChild(el);
     const end=o.ms?Date.now()+o.ms:0;
     LU={el,ready,paint:null,clock:0};
@@ -261,7 +299,7 @@ function lineup(o){ // o: { me: null (local) | 0 | 1, ms?, done?, send? } → en
     const tm=()=>{const e=el.querySelector('#lutm');if(e)e.textContent=Math.max(0,Math.ceil((end-Date.now())/1000))+'s'};
     LU.paint=paint;if(end)LU.clock=setInterval(tm,250);
     el.onclick=ev=>{const b=ev.target.closest('button');if(!b||b.disabled)return;
-      if(b.dataset.go!=null){const p=+b.dataset.go;ready[p]=true;if(o.send)o.send(ord[p]);paint();if(o.me==null&&ready[0]&&ready[1]){closeLineup();res(ord)}return}
+      if(b.dataset.go!=null){const p=+b.dataset.go;ready[p]=true;if(o.send)o.send(ord[p]);paint();if(!o.send&&ready[0]&&ready[1]){closeLineup();res(ord)}return}
       const p=+b.dataset.p,k=+b.dataset.k,j=k+(+b.dataset.d),a=ord[p];[a[k],a[j]]=[a[j],a[k]];paint()};
     paint();
   });
@@ -1103,7 +1141,7 @@ async function run(tk,script){
       await say(e.w<0?t('tie'):t('wins',e.w+1),200);
       const sv=(e.sv||[]).map(s=>{const c=C(s.n);return `<span class="ab-svc"><i class="ab-th" data-n="${s.n}" style="--h:${c.h}">${spr(c)}</i><b>${dnh(c)}</b><small>${hpF(Math.max(1,Math.ceil(s.f*(s.hm||BidEngine.hpMax(BidEngine.stats(c))))))} ${u('ps')}</small></span>`}).join('');
       const mv=e.mvp&&C(e.mvp.n)?`<div class="ab-mvp" style="--c:var(--p${e.mvp.p+1})"><em>${abT('mvp')}</em><i class="ab-th" data-n="${e.mvp.n}" style="--h:${C(e.mvp.n).h}">${spr(C(e.mvp.n))}</i><span><b>${dnh(C(e.mvp.n))}</b><small>${t('player',e.mvp.p+1)} · ${e.mvp.ko===1?abT('kos1'):abF(abT('kos'),{0:e.mvp.ko})}</small></span></div>`:'';
-      E.insertAdjacentHTML('beforeend',`<div class="res ab-res"${e.w>=0?` style="--c:var(--p${e.w+1})"`:''}><h2>${e.w<0?t('tie'):t('winsH',e.w+1)}</h2><p class="ab-note"></p><div class="ab-sv">${sv||`<small>${t('nobody')}</small>`}</div>${mv}<button onclick="again()">${t('again')}</button></div>`);
+      E.insertAdjacentHTML('beforeend',`${botEnd(e.w)}<div class="res ab-res"${e.w>=0?` style="--c:var(--p${e.w+1})"`:''}><h2>${e.w<0?t('tie'):t('winsH',e.w+1)}</h2><p class="ab-note"></p><div class="ab-sv">${sv||`<small>${t('nobody')}</small>`}</div>${mv}<button onclick="again()">${t('again')}</button></div>`);
       E.querySelector('.ab-res').scrollIntoView({behavior:'smooth',block:'nearest'});
     }
   }
@@ -1142,7 +1180,7 @@ async function night(tk,script){ // sin saltar ni acelerar: la velada se ve ente
   }
   const r=F.result,msg=r.w<0?u('fnDrawCard',r.sc[0],r.sc[1]):u('fnWinsCard',r.w+1,r.sc[r.w],r.sc[1-r.w])+(r.tb?' · '+u('fnTieBreak'):'');
   $('dlg').innerHTML=r.w<0?u('tie'):u('wins',r.w+1);
-  E.insertAdjacentHTML('beforeend',`<div class="res"><h2>${r.w<0?u('tie'):u('winsH',r.w+1)}</h2><p>${msg}</p><button onclick="again()">${u('again')}</button></div>`);
+  E.insertAdjacentHTML('beforeend',`${botEnd(r.w)}<div class="res"><h2>${r.w<0?u('tie'):u('winsH',r.w+1)}</h2><p>${msg}</p><button onclick="again()">${u('again')}</button></div>`);
 }
 
 /* ---------- PARTIDO DE FÚTBOL: el motor devuelve el partido ya jugado (guion minuto a minuto); aquí se anima sobre un campo ----------
@@ -1336,7 +1374,7 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
       say(w<0?t('tie'):t('wins',w+1));
       const bar=(k,suf,i)=>{const v=st[k]||[0,0],a=+v[0],b=+v[1],tot=a+b||1;return `<div class="fm-st"><span>${a}${suf}</span><div><small>${fmT('stats',i)}</small><i><u style="width:${a/tot*100}%"></u></i></div><span>${b}${suf}</span></div>`};
       const m=e.motm,mc=m&&C(m.n);
-      E.insertAdjacentHTML('beforeend',`<div class="res fm-res"${w>=0?` style="--c:var(--p${w+1})"`:''}><h2>${w<0?t('tie'):t('winsH',w+1)}</h2><p class="ab-note"></p>
+      E.insertAdjacentHTML('beforeend',`${botEnd(w)}<div class="res fm-res"${w>=0?` style="--c:var(--p${w+1})"`:''}><h2>${w<0?t('tie'):t('winsH',w+1)}</h2><p class="ab-note"></p>
 <div class="fm-fin"><b>${e.sc[0]}</b><i>–</i><b>${e.sc[1]}</b>${e.pens?`<small>${fmT('pens')} ${e.pens[0]} – ${e.pens[1]}</small>`:''}</div>
 <div class="fm-sts">${rows.map(([k,s],i)=>bar(k,s,i)).join('')}</div>
 ${mc?`<div class="ab-mvp" style="--c:var(--p${m.p+1})"><em>${fmT('motm')}</em><i class="ab-th" data-n="${mc.n}" style="--h:${mc.h}">${spr(mc)}</i><span><b>${dnh(mc)}</b><small>${P_(m.p)} · ${m.r.toFixed(1)}</small></span></div>`:''}
@@ -1441,7 +1479,7 @@ function wantImg(list,front){
 }
 // FOTO DE PERFIL: siempre un personaje del juego (su foto o, mientras no hay, su emoji). Nunca fotos subidas por usuarios.
 function avInner(n){const c=n&&byN.get(n);return c?(c.img?`<img src="${c.img}" alt="${c.n}" loading="lazy">`:c.e):''}
-function padAv(p){const n=net&&net.avs&&net.avs[p];return n&&byN.has(n)?`<div class="pad pav" data-n="${n}">${avInner(n)}</div>`:''}
+function padAv(p){const n=net?net.avs&&net.avs[p]:BOT&&BOT.avs[p];return n&&byN.has(n)?`<div class="pad pav" data-n="${n}">${avInner(n)}</div>`:''}
 function imgShown(c){
   if(cur&&cur.n===c.n){const e=$('pic').querySelector('.e');if(e)e.outerHTML=lotImg(c)}
   if(P&&P.some(p=>p.c.some(x=>x.n===c.n)))render();

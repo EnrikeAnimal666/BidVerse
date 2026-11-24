@@ -30,7 +30,7 @@ class Room {
   avs() { return this.players.map(s => (s && s.av) || null); } // avatar = nombre de un personaje de anime (nunca una foto subida)
   send(i, msg) { const s = this.players[i]; if (s && s.conn) s.conn.send(msg); }
   all(msg) { this.send(0, msg); this.send(1, msg); }
-  info() { return { t: 'room', code: this.code, cat: this.cat, names: this.names(), avs: this.avs(), phase: this.phase, connected: this.players.map(s => !!(s && s.conn)) }; }
+  info() { return { t: 'room', code: this.code, cat: this.cat, quick: !!this.quick, names: this.names(), avs: this.avs(), phase: this.phase, connected: this.players.map(s => !!(s && s.conn)) }; }
 
   startGame() {
     this.g = BE.create({ cat: this.cat, pool: this.hub.pools[this.cat], divs: this.cat === 'futbol' ? (this.hub.futDivs || BE.FUT_DIVS) : this.hub.divs, rng: this.hub.rng });
@@ -151,7 +151,8 @@ class Room {
 class Hub {
   // users = base de datos de cuentas (server/db.js). Con ella, para crear o entrar en una sala hay que haber iniciado sesión.
   constructor({ pools, divs, futDivs, rng, speed = 1, maxRooms = 300, abandonMs = 90000, orderMs = 25000, users = null }) {
-    Object.assign(this, { pools, divs, futDivs, rng, speed, maxRooms, abandonMs, orderMs, users, rooms: new Map(), sessions: new Map(), real: 0, sweep: 0 });
+    Object.assign(this, { pools, divs, futDivs, rng, speed, maxRooms, abandonMs, orderMs, users, rooms: new Map(), sessions: new Map(), queue: {}, real: 0, sweep: 0 });
+    // queue[cat] = código de la sala de "buscar rival" que espera a alguien en esa categoría (se comprueba al usarla: puede haberse cerrado)
     this.avNames = new Set(((pools && pools.anime) || []).map(c => c.n)); // solo se aceptan avatares de esta lista
   }
   cleanAv(v) { return typeof v === 'string' && this.avNames.has(v) ? v : null; }
@@ -203,6 +204,21 @@ class Hub {
         if (this.rooms.size >= this.maxRooms) return conn.send({ t: 'err', code: 'busy' });
         const code = this.newCode(); if (!code) return conn.send({ t: 'err', code: 'busy' });
         const r = new Room(this, code, msg.cat); r.players[0] = s; s.room = r; s.idx = 0; this.rooms.set(code, r);
+        return conn.send(r.info());
+      }
+      case 'quick': { // BUSCAR RIVAL: entra en la sala de alguien que ya espera en esa categoría, o crea una y espera
+        if (s.room) return conn.send({ t: 'err', code: 'inRoom' });
+        if (this.users && !s.uid) return conn.send({ t: 'err', code: 'needLogin' });
+        if (!CATS.includes(msg.cat)) return conn.send({ t: 'err', code: 'badCat' });
+        const w = this.rooms.get(this.queue[msg.cat]), host = w && w.players[0];
+        if (w && w.quick && w.phase === 'lobby' && !w.players[1] && host && host.conn && host !== s && !(s.uid && host.uid === s.uid)) {
+          delete this.queue[msg.cat];
+          w.players[1] = s; s.room = w; s.idx = 1; w.startGame(); return;
+        }
+        if (this.rooms.size >= this.maxRooms) return conn.send({ t: 'err', code: 'busy' });
+        const code = this.newCode(); if (!code) return conn.send({ t: 'err', code: 'busy' });
+        const r = new Room(this, code, msg.cat); r.quick = true; r.players[0] = s; s.room = r; s.idx = 0; this.rooms.set(code, r);
+        this.queue[msg.cat] = code;
         return conn.send(r.info());
       }
       case 'join': {

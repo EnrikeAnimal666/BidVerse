@@ -8,9 +8,9 @@ const http = require('http'), fs = require('fs'), path = require('path'), os = r
 const ws = require('./ws.js'), { Hub } = require('./rooms.js'), DB = require('./db.js'), { makeApi } = require('./api.js');
 
 const ROOT = path.resolve(__dirname, '..');
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.mp4': 'video/mp4', '.webm': 'video/webm', '.ico': 'image/x-icon' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.mp4': 'video/mp4', '.webm': 'video/webm', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json; charset=utf-8' };
 // Solo se sirve esto: nada de server/, tests/, .git, node_modules…
-const FILES = new Set(['index.html', 'styles.css', 'game.js', 'engine.js', 'online.js', 'data-anime.js', 'data-ufc.js', 'data-futbol.js', 'data-imgs.js']);
+const FILES = new Set(['index.html', 'styles.css', 'game.js', 'engine.js', 'bot.js', 'online.js', 'extras.js', 'sw.js', 'manifest.webmanifest', 'data-anime.js', 'data-ufc.js', 'data-futbol.js', 'data-imgs.js']);
 const DIRS = new Set(['lang', 'pics', 'bg']);
 
 function loadPools() { // los datos son scripts de navegador: se evalúan aquí para tener los mismos personajes que el cliente
@@ -18,6 +18,23 @@ function loadPools() { // los datos son scripts de navegador: se evalúan aquí 
   const out = {};
   new Function('out', read('data-anime.js') + read('data-ufc.js') + read('data-futbol.js') + ';out.anime=POOLS.anime;out.ufc=UFC;out.divs=UFC_DIVS;out.futbol=FUT;out.futDivs=FUT_DIVS')(out);
   return { pools: { anime: out.anime, ufc: out.ufc, futbol: out.futbol }, divs: out.divs, futDivs: out.futDivs };
+}
+
+// index.html lleva {{ORIGIN}} en las etiquetas para compartir (og:image necesita una URL completa): se rellena con la dirección de esta web
+let indexCache = null;
+function sendIndex(req, res, file, head) {
+  fs.stat(file, (err, st) => {
+    if (err) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No encontrado'); }
+    if (!indexCache || indexCache.mtime !== st.mtimeMs) indexCache = { mtime: st.mtimeMs, html: fs.readFileSync(file, 'utf8') };
+    const xf = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim(), proto = /^https?$/.test(xf) ? xf : req.socket.encrypted ? 'https' : 'http';
+    const host = /^[a-z0-9.-]+(:\d+)?$/i.test(req.headers.host || '') ? req.headers.host : '';
+    const body = Buffer.from(indexCache.html.replace(/\{\{ORIGIN\}\}/g, host ? proto + '://' + host : ''), 'utf8');
+    const etag = '"' + crypto.createHash('sha1').update(body).digest('base64url').slice(0, 16) + '"';
+    head = Object.assign({}, head, { ETag: etag, 'Cache-Control': 'no-cache' });
+    if (req.headers['if-none-match'] === etag) { res.writeHead(304, head); return res.end(); }
+    res.writeHead(200, Object.assign({ 'Content-Type': MIME['.html'], 'Content-Length': body.length }, head));
+    res.end(req.method === 'HEAD' ? undefined : body);
+  });
 }
 
 function staticHandler(req, res) {
@@ -29,6 +46,7 @@ function staticHandler(req, res) {
     ((parts.length === 1 && FILES.has(parts[0])) || (parts.length === 2 && DIRS.has(parts[0])));
   const file = ok ? path.join(ROOT, ...parts) : null, type = file && MIME[path.extname(file).toLowerCase()];
   if (!file || !type || !file.startsWith(ROOT + path.sep)) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No encontrado'); }
+  if (parts.length === 1 && parts[0] === 'index.html') return sendIndex(req, res, file, { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY' });
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No encontrado'); }
     // ETag: el navegador solo vuelve a descargar un archivo si ha cambiado; las imágenes además se guardan 1 día
