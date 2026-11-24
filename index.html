@@ -32,15 +32,15 @@
 </div>
 
 <div id="menu"><ul class="modes">
-<li><button class="mode m-anime" onclick="mkRoom('anime')"><div class="fx fx-anime"><i></i><b></b></div><span class="tt" data-i="cat1">anime</span><span class="ds" data-i="cat1d"></span><span class="ft"><em class="cn" id="ch-anime"></em><strong data-m="create"></strong></span></button></li>
-<li><button class="mode m-ufc" onclick="mkRoom('ufc')"><div class="fx fx-ufc"><i></i><b></b></div><span class="tt" data-i="cat2">ufc</span><span class="ds" data-i="cat2d"></span><span class="ft"><em class="cn" id="ch-ufc"></em><strong data-m="create"></strong></span></button></li>
-<li><button class="mode m-foot" onclick="mkRoom('futbol')"><div class="fx fx-foot"><i></i><b></b></div><span class="tt" data-i="cat3">Fútbol</span><span class="ds" data-i="cat3d"></span><span class="ft"><em class="cn" id="ch-foot"></em><strong data-m="create"></strong></span></button></li>
+<li><button class="mode m-anime" onclick="pickMode('anime')"><div class="fx fx-anime"><i></i><b></b></div><span class="tt" data-i="cat1">anime</span><span class="ds" data-i="cat1d"></span><span class="ft"><em class="cn" id="ch-anime"></em><strong data-m="play"></strong></span></button></li>
+<li><button class="mode m-ufc" onclick="pickMode('ufc')"><div class="fx fx-ufc"><i></i><b></b></div><span class="tt" data-i="cat2">ufc</span><span class="ds" data-i="cat2d"></span><span class="ft"><em class="cn" id="ch-ufc"></em><strong data-m="play"></strong></span></button></li>
+<li><button class="mode m-foot" onclick="pickMode('futbol')"><div class="fx fx-foot"><i></i><b></b></div><span class="tt" data-i="cat3">Fútbol</span><span class="ds" data-i="cat3d"></span><span class="ft"><em class="cn" id="ch-foot"></em><strong data-m="play"></strong></span></button></li>
 </ul>
-<div class="joinbar"><span data-m="have"></span><input id="hCode" maxlength="5" autocapitalize="characters" spellcheck="false" data-mph="codePh" aria-label="Código de sala"><button class="cta" id="hJoin" data-m="join"></button></div>
 <div class="playbar">
 <div class="pb-row"><span data-m="quick"></span><div class="pb-btns"><button class="cta s" onclick="findRival('anime')">Anime</button><button class="cta s" onclick="findRival('ufc')">UFC</button><button class="cta s" onclick="findRival('futbol')" data-i="cat3">Fútbol</button></div></div>
 <div class="pb-row"><span data-m="vsAi"></span><div class="pb-btns"><button class="cta s" onclick="playBot('anime')">Anime</button><button class="cta s" onclick="playBot('ufc')">UFC</button><button class="cta s" onclick="playBot('futbol')" data-i="cat3">Fútbol</button></div><small class="pb-rec" id="botRec" aria-live="polite"></small></div>
 </div>
+<div class="joinbar"><span data-m="have"></span><input id="hCode" maxlength="5" autocapitalize="characters" spellcheck="false" data-mph="codePh" aria-label="Código de sala"><button class="cta" id="hJoin" data-m="join"></button></div>
 <footer class="foot"><button type="button" class="lnk" onclick="openCredits()" data-x="credits">Créditos</button><span class="foot-sep">·</span><button type="button" class="lnk" id="pwaBtn" onclick="pwaInstall()" data-x="install" hidden>Instalar app</button></footer>
 </div>
 
@@ -87,6 +87,13 @@
 <div class="tabs"><button data-rk="week" onclick="rankTab('week')" data-m="rkWeek"></button><button data-rk="all" onclick="rankTab('all')" data-m="rkAll"></button></div>
 <p class="mnote" id="rkNote"></p><div id="rkList"></div></div></div>
 <div class="modal" id="credits" onclick="if(event.target===this)closeCredits()"><div class="mbox cr"><div class="mh"><h3 data-x="credits">Créditos</h3><button type="button" onclick="closeCredits()" aria-label="Cerrar">✕</button></div><div id="crBody"></div></div></div>
+<div class="modal" id="playm" onclick="if(event.target===this)closePlay()"><div class="mbox pm" role="dialog" aria-modal="true" aria-labelledby="pmT"><div class="mh"><h3 id="pmT"></h3><button type="button" onclick="closePlay()" aria-label="Cerrar">✕</button></div>
+<p class="mnote" data-m="pmSub"></p>
+<div class="pm-opts">
+<button type="button" class="pm-o pm-cpu" onclick="pmGo('cpu')"><i aria-hidden="true">⚔</i><span><b data-m="pmCpu"></b><small data-m="pmCpuD"></small><em id="pmRec"></em></span></button>
+<button type="button" class="pm-o pm-on" onclick="pmGo('quick')"><i aria-hidden="true">⚡</i><span><b data-m="pmQuick"></b><small data-m="pmQuickD"></small></span></button>
+<button type="button" class="pm-o pm-room" onclick="pmGo('room')"><i aria-hidden="true">🔑</i><span><b data-m="pmRoom"></b><small data-m="pmRoomD"></small></span></button>
+</div></div></div>
 <div id="netbar"></div>
 <div class="wipe" id="wipe"><span data-i="fightWipe">¡Combate!</span></div>
 <script src="data-anime.js"></script>

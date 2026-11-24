@@ -140,7 +140,7 @@ ${m.quick?`<p class="lb-tip">${lt('qTip')}</p>`:`<small class="lb-lbl">${lt('cod
       rkNoteA:'Puntuación total. Todos empiezan con 1000: ganar a alguien con más puntos da más y perder contra alguien con menos quita más. Solo cuentan las partidas online entre dos cuentas.',
       rkWLD:'{0} V · {1} D · {2} E',rkYou:'Tú',ptsLine:'{0} puntos de ranking · ahora tienes {1}',ptsLeft:'Ganas por abandono: {0} puntos.',
       stTitle:'Tus estadísticas',stOnline:'Online',stBot:'Contra la IA',stNone:'Aún no has jugado online con esta cuenta.',stBotNone:'Aún no has jugado contra la IA en este navegador.',stRecent:'Últimas partidas',stStreakW:'Racha: {0} victorias seguidas',stStreakL:'Racha: {0} derrotas seguidas',stVs:'contra {0}',stLeave:'abandono',stTimeout:'no volvió',stLoad:'Cargando…',
-      vsAi:'¿Sin rival? Juega contra la IA',quick:'Buscar rival online',botRec:'Contra la IA: {0}',w:'V',l:'D',d:'E',cats:{anime:'Anime',ufc:'UFC',futbol:'Fútbol'}},
+      vsAi:'¿Sin rival? Juega contra la IA',quick:'Buscar rival online',botRec:'Contra la IA: {0}',play:'Jugar',pmSub:'¿Cómo quieres jugar?',pmCpu:'Contra la CPU',pmCpuD:'Al momento, sin cuenta. Puja y pelea contra la IA.',pmQuick:'Buscar rival online',pmQuickD:'Te emparejamos con otro jugador. Suma puntos de ranking.',pmRoom:'Sala privada',pmRoomD:'Crea una sala y pásale el código a un amigo.',w:'V',l:'D',d:'E',cats:{anime:'Anime',ufc:'UFC',futbol:'Fútbol'}},
     en:{have:'Got a room code?',codePh:'CODE',join:'Join',create:'Create room',login:'Log in',edit:'My profile',
       signIn:'Log in',signUp:'Create account',profile:'Your profile',user:'Username',pass:'Password',avatar:'Profile picture',
       avSearch:'Search a character or an anime…',avNone:'No picture',avEmpty:'No character matches',avPick:'Picked: ',hi:'Hi, ',
@@ -155,7 +155,7 @@ ${m.quick?`<p class="lb-tip">${lt('qTip')}</p>`:`<small class="lb-lbl">${lt('cod
       rkNoteA:'Total score. Everyone starts at 1000: beating someone with more points gives more, losing to someone with fewer takes more. Only online games between two accounts count.',
       rkWLD:'{0} W · {1} L · {2} D',rkYou:'You',ptsLine:'{0} ranking points · you now have {1}',ptsLeft:'You win by forfeit: {0} points.',
       stTitle:'Your stats',stOnline:'Online',stBot:'Vs the CPU',stNone:'No online games with this account yet.',stBotNone:'No games against the CPU in this browser yet.',stRecent:'Recent games',stStreakW:'Streak: {0} wins in a row',stStreakL:'Streak: {0} losses in a row',stVs:'vs {0}',stLeave:'forfeit',stTimeout:'timed out',stLoad:'Loading…',
-      vsAi:'No rival? Play the CPU',quick:'Find a rival online',botRec:'Vs the CPU: {0}',w:'W',l:'L',d:'D',cats:{anime:'Anime',ufc:'UFC',futbol:'Football'}}};
+      vsAi:'No rival? Play the CPU',quick:'Find a rival online',botRec:'Vs the CPU: {0}',play:'Play',pmSub:'How do you want to play?',pmCpu:'Vs the CPU',pmCpuD:'Right now, no account needed. Bid and fight the AI.',pmQuick:'Find a rival online',pmQuickD:'We match you with another player. Earns ranking points.',pmRoom:'Private room',pmRoomD:'Create a room and send the code to a friend.',w:'W',l:'L',d:'D',cats:{anime:'Anime',ufc:'UFC',futbol:'Football'}}};
   const NAME_RE=/^[\p{L}\p{N}][\p{L}\p{N}._-]{2,15}$/u; // la misma regla que el servidor (server/db.js)
   const dict=()=>M[typeof lang!=='undefined'&&M[lang]?lang:'es'];
   const fmt=(s,...a)=>s.replace(/\{(\d+)\}/g,(m,i)=>a[i]??m);
@@ -280,6 +280,14 @@ ${m.quick?`<p class="lb-tip">${lt('qTip')}</p>`:`<small class="lb-lbl">${lt('cod
   const go=fn=>{openOnline('olConn');if(local)return;$('olName').value=me.name;fn()};
   window.findRival=cat=>{if(window.bvPreload)bvPreload(cat);need(()=>go(()=>olQuick(cat)))};
   window.mkRoom=cat=>{if(window.bvPreload)bvPreload(cat);need(()=>go(()=>olCreate(cat)))};
+  // ---- elegir cómo jugar al pulsar una categoría: contra la CPU, buscar rival online o sala privada ----
+  let pmCat='anime';
+  window.pickMode=cat=>{pmCat=cat;const x=dict(),r=botAll().r[cat];if(window.bvPreload)bvPreload(cat);
+    $('pmT').textContent=x.cats[cat]||cat;$('pmRec').textContent=r&&(+r.w||+r.l||+r.d)?fmt(x.botRec,wld({w:+r.w||0,l:+r.l||0,d:+r.d||0},x)):'';
+    $('playm').classList.add('open');setTimeout(()=>{const b=$('playm').querySelector('.pm-o');if(b)b.focus()},50)};
+  window.closePlay=()=>$('playm').classList.remove('open');
+  window.pmGo=k=>{closePlay();if(k==='cpu')playBot(pmCat);else if(k==='quick')findRival(pmCat);else mkRoom(pmCat)};
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closePlay()});
   const join=()=>{const c=$('hCode').value.trim();if(!c){$('hCode').focus();return}need(()=>go(()=>{$('olCode').value=c.toUpperCase();olJoin()}))};
   $('hJoin').onclick=join;$('hCode').onkeydown=e=>{if(e.key==='Enter')join()};
   const m=/[?&]sala=([A-Za-z0-9]{5})/i.exec(location.search);

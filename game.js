@@ -35,7 +35,9 @@ infoSold:(p,nm,pr,m)=>cat==='futbol'?(lang==='es'?`${u('player',p)} ficha a ${nm
 passGift:()=>lang==='es'?'Pasar · se lo queda el rival (no gasta saltos)':'Pass · your rival gets it (no skip cost)',
 stampRand:(p,nm,broke)=>`<small>${u(broke?'noMoney':'nobodyBids')}</small><strong>${u('player',p)}</strong><u>${u('takes','<b>'+nm+'</b>')}</u><em>${lang==='es'?'Al azar':'Random'}</em>`,
 randInfo:(p,nm,broke)=>lang==='es'?`${broke?'Nadie tiene dinero':'Nadie ha pujado'} por ${nm}: se lo lleva ${u('player',p)} al azar. La subasta sigue.`:`${broke?'Nobody has money':'Nobody bid'} for ${nm}: ${u('player',p)} gets it at random. The auction goes on.`};
-const t=(k,...a)=>X[k]?X[k](...a):u(k,...a);
+// contra la IA, cuando ganas tú: "You win!" / "¡Has ganado!" (no "You wins!" / "¡Gana Tú!")
+const YOU_W={es:['¡Has ganado!','Has ganado'],en:['You win!','You win']};
+const t=(k,...a)=>(k==='wins'||k==='winsH')&&BOT&&!net&&a[0]-1===1-BOT.p?(YOU_W[lang]||YOU_W.en)[k==='wins'?0:1]:X[k]?X[k](...a):u(k,...a);
 const dn=c=>LANGS[lang].names?.[c.n]||c.n,dnh=c=>`<span translate="no">${dn(c)}</span>`,an=a=>LANGS[lang].animes?.[a]||a,fe=c=>LANGS[lang].feats?.[c.n]||c.f;
 /* ---------- SONIDO (generado con el navegador, sin archivos) ---------- */
 const SND=(()=>{
@@ -356,7 +358,7 @@ const AB_T={
   log:'<b>{0}</b> derrota a {1} · le quedan {2} PS',kos:'{0} K.O.',kos1:'1 K.O.',mvp:'MVP',
   uctr:'¡El cuerpo de <b>{a}</b> esquiva y contraataca solo!',uiPop:'Ultra Instinto',bfPop:'¡Destello Negro!',asPop:'¡Asura!',
   clone:'¡Un clon de <b>{a}</b> golpea a {d}!',roller:'¡<b>{a}</b> aplasta a {d} con una apisonadora!',copied:'<b>{a}</b> devuelve «{m}»',
-  fc:'«{m}» vuelve contra {d} con el doble de fuerza',dko:'¡Doble K.O.!',dkoLog:'<b>{0}</b> y <b>{1}</b> caen a la vez',
+  fc:'«{m}» vuelve contra {d} con el doble de fuerza',dko:'¡Doble K.O.!',fight:'¡LUCHA!',dkoLog:'<b>{0}</b> y <b>{1}</b> caen a la vez',
   sac:'<b>{0}</b> ha sido sacrificado',sacLog:'{0} cae sacrificado en el Eclipse',unique:'Habilidad única',illusion:'¡Ilusión!',erased:'Borrado',
   ult:{hakai:'Hakai',gates:'Night Guy',mugetsu:'Mugetsu',rumbling:'El Retumbar',makanko:'Makankosappo'}},
  en:{duel:'Duel',ki:'KI',skip:'Skip animation',special:'Special technique',
@@ -369,7 +371,7 @@ const AB_T={
   log:'<b>{0}</b> defeats {1} · {2} HP left',kos:'{0} K.O.s',kos1:'1 K.O.',mvp:'MVP',
   uctr:'<b>{a}</b>’s body dodges and counters on its own!',uiPop:'Ultra Instinct',bfPop:'Black Flash!',asPop:'Asura!',
   clone:'A clone of <b>{a}</b> hits {d}!',roller:'<b>{a}</b> crushes {d} with a road roller!',copied:'<b>{a}</b> fires back “{m}”',
-  fc:'“{m}” hits {d} back at double power',dko:'Double K.O.!',dkoLog:'<b>{0}</b> and <b>{1}</b> fall together',
+  fc:'“{m}” hits {d} back at double power',dko:'Double K.O.!',fight:'FIGHT!',dkoLog:'<b>{0}</b> and <b>{1}</b> fall together',
   sac:'<b>{0}</b> has been sacrificed',sacLog:'{0} is sacrificed in the Eclipse',unique:'Unique ability',illusion:'Illusion!',erased:'Erased',
   ult:{hakai:'Hakai',gates:'Night Guy',mugetsu:'Mugetsu',rumbling:'The Rumbling',makanko:'Special Beam Cannon'}}};
 // Rasgos: [nombre, qué hace, frase al activarse, frase alternativa]. Las reglas están en engine.js (RASGOS).
@@ -570,7 +572,7 @@ function abArena(){
   // .ab-bd = el cuerpo que mueve el motor de golpes (embestidas, retrocesos, saltos); la sombra se queda en el suelo y encoge al saltar
   const fighter=p=>`<div class="ab-f a${p}" id="abf${p}" style="--c:var(--p${p+1})"><i class="ab-shd" id="abs${p}"></i><div class="ab-bd" id="abb${p}"><i class="ab-aura"></i><div class="ab-card" id="abc${p}"></div></div></div>`;
   return `<div class="ab" id="ab">
-<div class="ab-stage" id="abst"><div class="ab-world" id="abw"><div class="ab-sky"></div><div class="ab-neb"></div><div class="ab-alt"></div><div class="ab-floor"></div><div class="ab-emb">${emb}</div><canvas class="ab-bk" aria-hidden="true"></canvas>${fighter(0)}${fighter(1)}</div>
+<div class="ab-stage" id="abst"><div class="ab-world" id="abw"><div class="ab-sky"></div><div class="ab-neb"></div><div class="ab-alt"></div><div class="ab-floor"></div><div class="ab-emb">${emb}</div><div class="ab-dim"></div><canvas class="ab-bk" aria-hidden="true"></canvas>${fighter(0)}${fighter(1)}</div>
 <div class="ab-spl"></div><div class="ab-vig"></div><canvas class="ab-cv" aria-hidden="true"></canvas><div class="ab-fx" id="abfx"></div>
 <div class="ab-hud">${plate(0)}<div class="ab-c"><small>${abT('duel')}</small><b id="abdn">1</b></div>${plate(1)}</div>
 <div class="ab-sub"><div class="ab-com" id="abcom" aria-live="polite"></div><div class="ab-dlg" id="abdl"></div></div></div>
@@ -629,10 +631,13 @@ const VFX=(()=>{
   const grad=stops=>{const e=mkc(64,64),g=e.getContext('2d'),gr=g.createRadialGradient(32,32,0,32,32,32);stops.forEach(([o,cc])=>gr.addColorStop(o,cc));g.fillStyle=gr;g.fillRect(0,0,64,64);return e};
   const spr=col=>{let e=SPR.get(col);if(!e){e=grad([[0,'rgba(255,255,255,.9)'],[.2,rgba(col,.95)],[.55,rgba(col,.3)],[1,rgba(col,0)]]);SPR.set(col,e)}return e};
   const smk=col=>{let e=SMK.get(col);if(!e){e=grad([[0,rgba(col,.6)],[.5,rgba(col,.28)],[1,rgba(col,0)]]);SMK.set(col,e)}return e};
-  const pcol=p=>{try{return okc(getComputedStyle(document.body).getPropertyValue('--p'+(p+1)))||(p?'#4aa3ff':'#ffb02e')}catch(e){return p?'#4aa3ff':'#ffb02e'}};
+  // colores del jugador y posiciones de las cartas: se leen una vez por fotograma (antes cada efecto forzaba un recálculo del layout)
+  const PC=[null,null],pcol=p=>{if(PC[p])return PC[p];let v=null;try{v=okc(getComputedStyle(document.body).getPropertyValue('--p'+(p+1)))}catch(e){}return PC[p]=v||(p?'#4aa3ff':'#ffb02e')};
   const EL=p=>{const cd=document.getElementById('abc'+p),n=cd&&cd.dataset.n,k=n&&ELN[n];return k?{k,c:ELC[k][0],c2:ELC[k][1]}:{k:'',c:pcol(p),c2:'#ffffff'}};
-  const sync=()=>{if(cv){const r=cv.getBoundingClientRect();cr={left:r.left,top:r.top,k:1}}if(bk){const r=bk.getBoundingClientRect();br={left:r.left,top:r.top,k:r.width/(bk.offsetWidth||r.width||1)||1}}};
-  const box=(p,f,o)=>{const e=document.getElementById('abc'+p);if(!e||!e.firstElementChild)return null;const r=e.getBoundingClientRect();if(!r.width)return null;
+  const RC=[undefined,undefined];
+  const sync=()=>{RC[0]=RC[1]=undefined;if(cv){const r=cv.getBoundingClientRect();cr={left:r.left,top:r.top,k:1}}if(bk){const r=bk.getBoundingClientRect();br={left:r.left,top:r.top,k:r.width/(bk.offsetWidth||r.width||1)||1}}};
+  const raw=p=>{if(RC[p]!==undefined)return RC[p];const e=document.getElementById('abc'+p);let r=null;if(e&&e.firstElementChild){const b=e.getBoundingClientRect();if(b.width)r={left:b.left,top:b.top,width:b.width,height:b.height}}return RC[p]=r};
+  const box=(p,f,o)=>{const r=raw(p);if(!r)return null;
     const k=o.k||1,x=(r.left-o.left)/k,y=(r.top-o.top)/k,w=r.width/k,h=r.height/k;return {x,y,w,h,cx:x+w/2,cy:y+h*(f==null?.45:f)}};
   const rect=(p,f)=>box(p,f,cr),brect=(p,f)=>box(p,f,br);
   const rate=(n,dt)=>{const x=n*dt;return Math.floor(x)+(Math.random()<x%1?1:0)};
@@ -687,12 +692,13 @@ const VFX=(()=>{
      modelo de "trauma" (cuanto más fuerte el golpe, más tiembla, y se calma sola), da un golpe de zoom hacia el impacto y se
      inclina en los críticos. Hit-stop: al impactar todo se congela unas centésimas salvo la chispa y el temblor del que recibe. */
   const eOut=t=>1-Math.pow(1-t,3),eIn=t=>t*t*t,eExp=t=>t>=1?1:1-Math.pow(2,-10*t);
-  const mkBody=()=>({x:0,y:0,r:0,sx:1,sy:1,op:1,vx:0,vy:0,vr:0,vsx:0,vsy:0,fl:0,ca:0,jit:0,kx:60,hold:0,hs:0,down:0,downT:0,lim:1e4,rt:false,tw:null,css:'',fcss:'',scss:'',ocss:''});
+  const mkBody=()=>({x:0,y:0,r:0,sx:1,sy:1,op:1,vx:0,vy:0,vr:0,vsx:0,vsy:0,fl:0,ca:0,jit:0,kx:60,hold:0,hs:0,down:0,downT:0,lim:1e4,rt:false,tw:null,yw:0,vyw:0,idl:0,css:'',fcss:'',scss:'',ocss:''});
   const BD=[mkBody(),mkBody()],LAST=[null,null],SPEND=new Set();
-  const CAM={x:0,y:0,r:0,z:1,vx:0,vy:0,vr:0,vz:0,tr:0,ox:50,oy:62,oxT:50,oyT:62,css:'',ph:[rr(0,9),rr(0,9),rr(0,9)]};
+  // fz/fr/fT: plano cinematográfico (acercarse a un luchador con la cámara algo inclinada) hasta el instante fT
+  const CAM={x:0,y:0,r:0,z:1,vx:0,vy:0,vr:0,vz:0,tr:0,ox:50,oy:62,oxT:50,oyT:62,fz:1,fr:0,fT:0,css:'',ph:[rr(0,9),rr(0,9),rr(0,9)]};
   const bodyEl=p=>document.getElementById('abb'+p);
   function resetBody(p){Object.assign(BD[p],mkBody());const e=bodyEl(p),s=document.getElementById('abs'+p);if(e){e.style.transform='';e.style.filter='';e.style.opacity=''}if(s){s.style.transform='';s.style.opacity=''}}
-  function resetCam(){Object.assign(CAM,{x:0,y:0,r:0,z:1,vx:0,vy:0,vr:0,vz:0,tr:0,css:''});const w=st&&st.querySelector('.ab-world');if(w){w.style.transform='';w.style.transformOrigin=''}}
+  function resetCam(){Object.assign(CAM,{x:0,y:0,r:0,z:1,vx:0,vy:0,vr:0,vz:0,tr:0,fT:0,css:''});const w=st&&st.querySelector('.ab-world');if(w){w.style.transform='';w.style.transformOrigin=''}}
   // tramos: [{d, to:{x,y,r,sx,sy,op}, e, go(), end()}], cada uno parte de donde acabó el anterior
   function tween(p,segs,done){const B=BD[p];B.tw={segs,i:-1,t:0,from:null,done};nextSeg(B)}
   function setTo(B,to,k,fr){for(const key in to)B[key]=fr[key]+(to[key]-fr[key])*k}
@@ -716,8 +722,14 @@ const VFX=(()=>{
       const kr=B.down?55:140;if(!held){B.vr+=(-kr*(B.r-B.down)-2*(B.down?.9:.45)*Math.sqrt(kr)*B.vr)*h;B.r+=B.vr*h}
       B.vsx+=(-480*(B.sx-1)-13*B.vsx)*h;B.sx+=B.vsx*h;B.vsy+=(-480*(B.sy-1)-13*B.vsy)*h;B.sy+=B.vsy*h;
       B.op+=(1-B.op)*Math.min(1,h*12)}}
+  /* Postura: cada carta está girada en 3D hacia el rival (como dos luchadores encarados en un escenario con profundidad) y, en reposo,
+     respira (sube y baja y se ensancha un poco). Al golpear se endereza hacia el rival; al recibir, el golpe la hace girar y vuelve con un muelle. */
+  const YAW=14;
+  function stance(p,B,h){const dir=dirOf(p),base=(B.down?0:dir*YAW)+(B.tw?dir*4:0)+B.r*.35;B.vyw+=(-110*(B.yw-base)-2*.55*Math.sqrt(110)*B.vyw)*h;B.yw+=B.vyw*h;
+    B.idl+=((B.tw||B.down||B.y<-2?0:1)-B.idl)*Math.min(1,h*4)}
   function bodyDraw(p,B){const e=bodyEl(p);if(!e)return;const J=B.jit>.3?B.jit:0,jx=J?(Math.random()-.5)*2*J:0,jy=J?(Math.random()-.5)*J:0;
-    const tr=`translate3d(${(B.x+jx).toFixed(1)}px,${(B.y+jy).toFixed(1)}px,0) rotate(${B.r.toFixed(2)}deg) scale(${B.sx.toFixed(3)},${B.sy.toFixed(3)})`;
+    const ph=TT*2.3+p*1.9,br=RM?0:B.idl,iy=-Math.max(0,Math.sin(ph))*5*br,isx=1+Math.sin(ph*2)*.008*br,isy=1+Math.sin(ph)*.014*br,yw=RM?0:B.yw;
+    const tr=`perspective(1100px) translate3d(${(B.x+jx).toFixed(1)}px,${(B.y+jy+iy).toFixed(1)}px,0) rotateY(${yw.toFixed(2)}deg) rotate(${B.r.toFixed(2)}deg) scale(${(B.sx*isx).toFixed(3)},${(B.sy*isy).toFixed(3)})`;
     if(tr!==B.css){e.style.transform=tr;B.css=tr}
     const fl=B.fl>.03?B.fl:0,ca=B.ca>.5?B.ca:0;
     const fi=(fl?`brightness(${(1+fl*2.3).toFixed(2)}) saturate(${(1-fl*.75).toFixed(2)})`:'')+(ca?` drop-shadow(${ca.toFixed(1)}px 0 0 rgba(255,30,70,.75)) drop-shadow(${(-ca).toFixed(1)}px 0 0 rgba(30,220,255,.75))`:'');
@@ -725,19 +737,22 @@ const VFX=(()=>{
     const op=B.op<.99?B.op.toFixed(2):'';if(op!==B.ocss){e.style.opacity=op;B.ocss=op}
     const s=document.getElementById('abs'+p);if(s){const k=Math.max(.3,1-Math.max(0,-B.y)/300),ss=`translate3d(${B.x.toFixed(1)}px,0,0) scale(${k.toFixed(3)})`;if(ss!==B.scss){s.style.transform=ss;s.style.opacity=k<.99?k.toFixed(2):'';B.scss=ss}}}
   function camUpd(rdt,t){const C=CAM,w=st&&st.querySelector('.ab-world');if(!w)return;C.tr=Math.max(0,C.tr-rdt*1.35);
+    const foc=t<C.fT&&!RM,gz=foc?C.fz:1,gr=foc?C.fr:0;
     for(let n=Math.max(1,Math.ceil(rdt/.016)),h=rdt/n;n--;){const sp=(k,v,kk,z,g)=>{C[v]+=(-kk*(C[k]-g)-2*z*Math.sqrt(kk)*C[v])*h;C[k]+=C[v]*h};
-      sp('x','vx',170,.5,0);sp('y','vy',170,.5,0);sp('r','vr',90,.5,0);sp('z','vz',60,.8,1)}
+      sp('x','vx',170,.5,0);sp('y','vy',170,.5,0);sp('r','vr',90,.5,gr);sp('z','vz',foc?95:60,.8,gz)}
     C.ox+=(C.oxT-C.ox)*Math.min(1,rdt*10);C.oy+=(C.oyT-C.oy)*Math.min(1,rdt*10);
     const s=C.tr*C.tr*(RM?.25:1),T=t/1000,nz=(f,i)=>Math.sin(T*f+C.ph[i])*.6+Math.sin(T*f*2.17+C.ph[i]*1.7)*.4;
-    const X=C.x+s*18*nz(38,0),Y=C.y+s*12*nz(43,1),R=RM?0:C.r+s*1.1*nz(29,2);
-    const css=Math.abs(X)+Math.abs(Y)+Math.abs(R)+Math.abs(C.z-1)*40<.05?'':`translate3d(${X.toFixed(1)}px,${Y.toFixed(1)}px,0) rotate(${R.toFixed(2)}deg) scale(${C.z.toFixed(4)})`;
+    // cámara al hombro: en reposo se mece muy despacio (como el plano de espera de un juego de lucha), nunca del todo quieta
+    const dX=RM?0:Math.sin(T*.37+C.ph[0])*Math.min(6,cw*.005),dY=RM?0:Math.sin(T*.29+C.ph[1])*3,dZ=RM?1:1.024+Math.sin(T*.23+C.ph[2])*.01;
+    const X=C.x+dX+s*18*nz(38,0),Y=C.y+dY+s*12*nz(43,1),R=RM?0:C.r+s*1.1*nz(29,2),Z=C.z*dZ;
+    const css=Math.abs(X)+Math.abs(Y)+Math.abs(R)+Math.abs(Z-1)*40<.05?'':`translate3d(${X.toFixed(1)}px,${Y.toFixed(1)}px,0) rotate(${R.toFixed(2)}deg) scale(${Z.toFixed(4)})`;
     if(css!==C.css){w.style.transform=css;w.style.transformOrigin=css?`${C.ox.toFixed(1)}% ${C.oy.toFixed(1)}%`:'';C.css=css}}
   function motion(d,rdt,t){const ts=st.classList.contains('tstop');
-    for(const p of[0,1]){const B=BD[p];if(!ts)B.rt=false;phys(p,B,B.rt?rdt:d,t);if(t>stopT)B.jit*=Math.exp(-14*rdt);B.fl*=Math.exp(-9*(B.rt?rdt:d));B.ca*=Math.exp(-8*(B.rt?rdt:d));bodyDraw(p,B)}
+    for(const p of[0,1]){const B=BD[p];if(!ts)B.rt=false;phys(p,B,B.rt?rdt:d,t);stance(p,B,Math.min(.033,B.rt?rdt:d));if(t>stopT)B.jit*=Math.exp(-14*rdt);B.fl*=Math.exp(-9*(B.rt?rdt:d));B.ca*=Math.exp(-8*(B.rt?rdt:d));bodyDraw(p,B)}
     camUpd(rdt,t)}
   const hitstop=pow=>{stopT=Math.max(stopT,now()+(pow>=3?170:pow>=2?105:55)*(RM?.5:1))};
   function camHit(x,y,dir,pow){const C=CAM;C.tr=Math.min(1,C.tr+.18+.16*pow);if(RM)return;C.x+=dir*(3+3*pow);C.vx+=dir*70*pow;C.y+=1.5*pow;
-    const Z=Math.min(1.09,1+.024*pow);if(Z>C.z){C.z=Z;C.vz=0}C.oxT=x/(cw||1)*100;C.oyT=y/(ch||1)*100;if(C.z<1.01){C.ox=C.oxT;C.oy=C.oyT}
+    const Z=Math.min(1.12,1+.032*pow);if(Z>C.z){C.z=Z;C.vz=0}C.oxT=x/(cw||1)*100;C.oyT=y/(ch||1)*100;if(C.z<1.01){C.ox=C.oxT;C.oy=C.oyT}
     if(pow>=2)C.vr+=dir*(pow>2?42:24)}
   // sitio que le queda a un luchador hasta el borde del escenario (para que el retroceso no lo saque de la pantalla)
   const room=p=>{const R=rect(p,.5);if(!R)return 120;return Math.max(12,((p?cw-(R.x+R.w):R.x)-6)/(CAM.z||1)+Math.abs(BD[p].x))};
@@ -747,7 +762,7 @@ const VFX=(()=>{
   function wall(p,v){const R=rect(p,.5);if(!R)return;const x=p?R.x+R.w:R.x,k=Math.min(1.5,v/1200);sparks(x,R.y+R.h*.45,Math.round(10+10*k),'#ffffff',{ang:p?Math.PI:0,spread:1.3,max:420+300*k,g:700});
     dust(x,R.y+R.h,Math.round(3+4*k),p?-1:1);CAM.tr=Math.min(1,CAM.tr+.15*k);if(!RM)CAM.vx+=(p?1:-1)*90*k;if(typeof SND!=='undefined')SND.fx('land')}
   // reacción del que recibe: destello blanco, separación de color, temblor durante el hit-stop y salir despedido según el golpe
-  function react(d,pow,ang,sty){const B=BD[d],dir=Math.cos(ang)>=0?1:-1;B.fl=1;B.ca=RM?0:3+3*pow;B.jit=RM?1:3+2.5*pow;B.rt=false;
+  function react(d,pow,ang,sty){const B=BD[d],dir=Math.cos(ang)>=0?1:-1;B.fl=1;B.ca=RM?0:3+3*pow;B.jit=RM?1:3+2.5*pow;B.rt=false;B.vyw+=dir*(280+170*pow);
     if(B.tw)return;B.lim=room(d);
     if(sty==='drop'){B.sy=.76;B.sx=1.18;B.vsx=B.vsy=0;B.y=Math.max(B.y,7);B.vx+=dir*220*pow}
     else if(sty==='upper'){B.vy=Math.min(B.vy,-(380+170*pow));B.vx+=dir*(300+220*pow);B.vr+=dir*(130+90*pow);B.sx=.9;B.sy=1.12;B.vsx=B.vsy=0}
@@ -1024,7 +1039,7 @@ const VFX=(()=>{
   return {
     start(stage){stop();if(!RAF||!stage||!stage.querySelector)return;cv=stage.querySelector('.ab-cv');bk=stage.querySelector('.ab-bk');
       try{c=cv&&cv.getContext?cv.getContext('2d'):null;b=bk&&bk.getContext?bk.getContext('2d'):null}catch(e){c=null}if(!c){cv=null;return}if(!b)bk=null;
-      st=stage;stage.classList.add('vfx');q=RM?.4:1;sc=null;s=null;dom=0;AU.forEach(A=>{A.boost=0;A.prev='';A.card='';A.trail=0;A.tr.length=0});KN[0]=KN[1]=null;
+      st=stage;stage.classList.add('vfx');q=RM?.4:1;PC[0]=PC[1]=null;sc=null;s=null;dom=0;AU.forEach(A=>{A.boost=0;A.prev='';A.card='';A.trail=0;A.tr.length=0});KN[0]=KN[1]=null;
       if(bk){bk.width=bk.height=1}fit();sync();last=now();on=true;requestAnimationFrame(loop)},
     get on(){return on},
     enter(p){if(KN[p]){KN[p].cancel();KN[p]=null}resetBody(p);LAST[p]=null;if(!on)return;setTimeout(()=>{if(!live())return;const A=rect(p,.5);if(!A)return;const fy=A.y+A.h*1.02;craterAt(p,A.w*.75,EL(p).c);dust(A.cx-A.w*.2,fy,8,-1);dust(A.cx+A.w*.2,fy,8,1);chips(A.cx,fy-6,8,fy)},380)},
@@ -1091,6 +1106,37 @@ const VFX=(()=>{
     clashX(x){if(clash)clash.tx=Math.max(.06,Math.min(.94,x))},
     clashEnd(l){if(!clash)return;clash=null;this.boom(l,null,1.25)},
     slow(k,ms){if(!on)return;slowS=k;slowT=now()+ms},
+    /* SUPER: el escenario se apaga, el rival se queda en sombra y solo brilla quien lanza la técnica. Líneas de velocidad de manga
+       que giran hacia él, la energía del escenario converge en su cuerpo, el aura se desboca y la cámara se le acerca inclinada. */
+    superOn(a,col,ms){if(!live())return false;const A=rect(a,.45);if(!A)return false;ms=ms||950;const C=okc(col)||EL(a).c,t0=now(),dir=dirOf(a),S=st,cls=['sup','sa'+a];
+      S.classList.add(...cls);setTimeout(()=>S.classList.remove(...cls),ms);
+      if(!RM){CAM.fz=1.15;CAM.fr=-dir*1.6;CAM.fT=t0+ms*.85;CAM.oxT=A.cx/(cw||1)*100;CAM.oyT=A.cy/(ch||1)*100;CAM.tr=Math.min(1,CAM.tr+.2)}
+      AU[a].boost=Math.max(AU[a].boost,2.4);flare(A.cx,A.cy,A.h*2.4,C,.4);ring(A.cx,A.cy,A.h*1.2,'#ffffff',.45,6);ring(A.cx,A.cy,A.h*.8,C,.6,4);
+      const gy=A.y+A.h*1.02;dust(A.cx-A.w*.3,gy,9,-1);dust(A.cx+A.w*.3,gy,9,1);
+      let L=null,tt=-1,sp=rr(0,TAU);
+      fx({d:ms/1000,rt:1,
+        dws:f=>{const R0=rect(a,.45);if(!R0||RM)return;const x=R0.cx,y=R0.cy,T=f.t/f.d,R=Math.hypot(Math.max(x,cw-x),Math.max(y,ch-y))+30,mn=Math.min(cw,ch);
+          if(!L||f.t-tt>.05){tt=f.t;L=[];for(let i=0,n=Math.round(90*q);i<n;i++)L.push([rr(0,TAU),rr(.006,.02),rr(.4,.7),Math.random()<.3])}
+          const al=Math.min(1,T*6,(1-T)*5);c.save();c.translate(x,y);c.rotate(sp+f.t*.6);
+          for(const[an,w,ri,cc]of L){const r0=mn*ri;c.globalAlpha=al*(cc?.55:.32);c.fillStyle=cc?C:'#ffffff';c.beginPath();c.moveTo(Math.cos(an-w)*R,Math.sin(an-w)*R);c.lineTo(Math.cos(an)*r0,Math.sin(an)*r0);c.lineTo(Math.cos(an+w)*R,Math.sin(an+w)*R);c.closePath();c.fill()}
+          c.restore()},
+        up:(f,dt)=>{const R0=rect(a,.45);if(!R0||f.t>f.d*.8)return;const x=R0.cx,y=R0.cy,M=Math.max(cw,ch)*.55;
+          for(let i=rate(170*q,dt);i--;){const an=rr(0,TAU),d0=M*rr(.55,1),life=rr(.18,.3);add({k:'s',x:x+Math.cos(an)*d0,y:y+Math.sin(an)*d0*.8,vx:-Math.cos(an)*d0/life,vy:-Math.sin(an)*d0*.8/life,l:life*.92,s:rr(1.4,3),c:Math.random()<.45?'#ffffff':C,dr:0})}
+          if(Math.random()<dt*9){const an=rr(0,TAU),L2=rr(40,90);bolt(x+Math.cos(an)*R0.w*.55,y+Math.sin(an)*R0.h*.5,x+Math.cos(an)*(R0.w*.55+L2),y+Math.sin(an)*(R0.h*.5+L2),C,.08,.5)}}});
+      setTimeout(()=>{if(!live())return;const R1=rect(a,.45);if(R1){flare(R1.cx,R1.cy,R1.h*2.8,C,.3);ring(R1.cx,R1.cy,R1.h*1.6,C,.4,7);CAM.tr=Math.min(1,CAM.tr+.3)}},ms*.85); // suelta la energía
+      return true},
+    // "¡LUCHA!": anillo blanco que barre el escenario, chispas y un golpe de cámara
+    go(){if(!live())return false;const x=cw/2,y=ch*.5;flash('#ffffff',.55,.3);ring(x,y,Math.max(cw,ch)*.75,'#ffffff',.55,10);ring(x,y,Math.max(cw,ch)*.5,'#ffd23f',.5,6);
+      sparks(x,y,40,'#ffd23f',{max:1100,life:.5,size:4,g:200});CAM.tr=Math.min(1,CAM.tr+.45);if(!RM){CAM.z=Math.max(CAM.z,1.06);CAM.vz=0}return true},
+    // K.O.: congela la imagen un instante, corte blanco que cruza la pantalla por el que cae, onda de choque y la cámara se le acerca
+    ko(p){if(!live())return false;const D=rect(p,.45);if(!D)return false;const t0=now(),S=st,an=-.12+(p?.05:-.05);
+      stopT=Math.max(stopT,t0+(RM?120:300));S.classList.add('kofr');setTimeout(()=>S.classList.remove('kofr'),RM?120:300);
+      if(!RM){CAM.fz=1.14;CAM.fr=(p?1:-1)*2;CAM.fT=t0+1300;CAM.oxT=D.cx/(cw||1)*100;CAM.oyT=D.cy/(ch||1)*100}CAM.tr=Math.min(1,CAM.tr+.6);
+      const L=Math.hypot(cw,ch),co=Math.cos(an),si=Math.sin(an);
+      fx({d:.55,rt:1,dw:f=>{const T=f.t/f.d,h=Math.min(1,T*8),w=(1-T)*14+1.5;c.globalAlpha=1-T*T;c.strokeStyle='#ffffff';c.lineCap='round';c.lineWidth=w;c.beginPath();
+        c.moveTo(D.cx-co*L*h,D.cy-si*L*h);c.lineTo(D.cx+co*L*h,D.cy+si*L*h);c.stroke();c.globalAlpha=(1-T)*.5;c.strokeStyle='#ff2a3a';c.lineWidth=w*3.5;c.stroke()}});
+      ring(D.cx,D.cy,L*.6,'#ffffff',.6,9);ring(D.cx,D.cy,L*.35,'#ff2a3a',.5,6);flare(D.cx,D.cy,D.h*3,'#ffffff',.35);focusLines(D.cx,D.cy,.5);
+      sparks(D.cx,D.cy,50,'#ffffff',{max:1300,life:.6,size:4,g:300});return true},
     bf(d){if(!live())return;const D=rect(d,.42);if(!D)return;for(let i=0;i<10;i++){const an=rr(0,TAU),L=rr(60,180);bolt(D.cx,D.cy,D.cx+Math.cos(an)*L,D.cy+Math.sin(an)*L,'#ff1f3d',.32,.45,i<6)}flare(D.cx,D.cy,190,'#ff1f3d',.3)},
     slash(d,col){if(!on)return;for(let i=0;i<5;i++)setTimeout(()=>{if(!live())return;const D=rect(d,.45);if(!D)return;const an=rr(-1.2,1.2),L=D.w*rr(1,1.7);
       slashLine(D.cx-Math.cos(an)*L/2,D.cy-Math.sin(an)*L/2,D.cx+Math.cos(an)*L/2,D.cy+Math.sin(an)*L/2,okc(col)||'#ff1f3d',.26)},i*55)},
@@ -1154,7 +1200,11 @@ async function run(tk,script){
   const sfx=k=>{if(ABS<=2)SND.fx(k)};
   const dmgT=(p,x)=>'-'+hpF(Math.max(1,Math.round(x*HM[p]))),healT=(p,x)=>'+'+hpF(Math.max(1,Math.round(x*HM[p]))); // daño y curas en PS de quien los recibe
   const badge=(p,k,cut)=>{$('abtr'+p).innerHTML=cut?`<span class="trx">${$('abtr'+p).innerHTML}</span>`:trB(k)};
-  const cutin=async(p,c,m)=>{VFX.charge(p);const el=tmp(`<div class="ab-cut${p?' r':''}" style="--c:var(--p${p+1});--on:var(--on${p+1})"><span class="ci" style="--h:${c.h}">${spr(c)}</span><span class="ct"><small>${dnh(c)}</small><b>${m}</b></span></div>`,1000);sfx('charge');await z(820);return el};
+  /* técnica especial = SUPER, como en un juego de lucha: el escenario se apaga, la cámara se acerca a quien la lanza, la franja de los ojos
+     cruza la pantalla y el nombre de la técnica cae de golpe. Sin lienzo (VFX apagado) queda la franja y el nombre igual. */
+  const cutin=async(p,c,m)=>{const col=elC(p);VFX.charge(p);VFX.superOn(p,col,980);
+    const el=tmp(`<div class="ab-sup${p?' r':''}" style="--c:${col||`var(--p${p+1})`};--pc:var(--p${p+1});--on:var(--on${p+1})"><div class="su-eye"><span class="su-img" style="--h:${c.h}">${spr(c)}</span></div><div class="su-t"><small>${dnh(c)}</small><b>${m}</b></div></div>`,1150);
+    sfx('charge');await z(980);return el};
   // cut-in de firma de las habilidades únicas: retrato enorme, banda del color de la habilidad y su nombre
   const sig=async(a,k,name)=>{const c=cur[a];if(!c)return;sfx('sig');VFX.charge(a,SIGC[k]);
     tmp(`<div class="ab-sig${a?' r':''}" style="--c:${SIGC[k]||`var(--p${a+1})`};--pc:var(--p${a+1})"><i class="sg-bg"></i><span class="sg-pic" style="--h:${c.h}">${spr(c)}</span><span class="sg-t"><small>★ ${abT('unique')} · ${dnh(c)}</small><b>${name||trT(k,0)}</b></span></div>`,1500);
@@ -1307,11 +1357,12 @@ async function run(tk,script){
     }else if(e.t==='duel'){
       const A=C(e.a),B=C(e.b);$('abdn').textContent=++dno;
       STAGE_FX.forEach(c=>stg(c,false));[0,1].forEach(p=>{mark(p,'win',false);$('abf'+p).classList.remove(...DUEL_MARKS);if(cur[p])$('abtr'+p).innerHTML=trBadge(cur[p])});
-      tmp(`<div class="ab-vs"><div class="vs-s l"><b>${dnh(A)}</b></div><b class="vs-x">${t('vs')}</b><div class="vs-s r"><b>${dnh(B)}</b></div><small class="vs-n">${abT('duel')} ${dno}</small></div>`,1700);
+      tmp(`<div class="ab-vs"><span class="vs-p l" style="--h:${A.h}">${spr(A)}</span><span class="vs-p r" style="--h:${B.h}">${spr(B)}</span><div class="vs-s l"><b>${dnh(A)}</b></div><b class="vs-x">${t('vs')}</b><div class="vs-s r"><b>${dnh(B)}</b></div><small class="vs-n">${abT('duel')} ${dno}</small></div>`,1700);
       sfx('charge');
       const gp=A.pw-B.pw;if(Math.abs(gp)>=250){const s=gp>0?[A,B]:[B,A];com(abF(comT('gap')[dno%2],{a:dnh(s[0]),b:dnh(s[1])}))}else if(Math.abs(gp)<=40)com(comT('even'));
       combo={a:-1,n:0};behind=[0,0];
-      await say(`<b>${dnh(A)}</b> ${t('vs')} <b>${dnh(B)}</b>`,1650);
+      await say(`<b>${dnh(A)}</b> ${t('vs')} <b>${dnh(B)}</b>`,1560);
+      tmp(`<div class="ab-go"><b>${abT('fight')}</b></div>`,900);VFX.go();sfx('boom');await z(620);
       for(const h of e.hits){
         const a=h.a,d=1-a,An=dnh(cur[a]),Dn=dnh(cur[d]),prev=[...hpN],v=h.v||0;
         const upd=()=>{hpN=[h.hp[0],h.hp[1]];setB(0,h.hp[0],h.en&&h.en[0]);setB(1,h.hp[1],h.en&&h.en[1])};
@@ -1369,7 +1420,7 @@ async function run(tk,script){
       $('ablog').insertAdjacentHTML('beforeend',`<div><i>${dno}.</i>${abF(abT('sacLog'),{0:dnh(s)})}</div>`);
       await say(abF(abT('sac'),{0:dnh(s)}),1000);
     }else if(e.t==='down'){
-      ko[e.p][e.k]=true;lastL=C(e.n);lastDown=dn(lastL);pop('K.O.','ko');sfx('ko');shake();STAGE_FX.filter(c=>c!=='ecl').forEach(c=>stg(c,false));
+      ko[e.p][e.k]=true;lastL=C(e.n);lastDown=dn(lastL);tmp('<div class="ab-kof"><i></i><b>K.O.</b></div>',1750);sfx('ko');if(!VFX.ko(e.p))shake();STAGE_FX.filter(c=>c!=='ecl').forEach(c=>stg(c,false));
       await say(t('down',dnh(lastL)),250);if(VFX.dissolve(e.p))$('abf'+e.p).classList.add('dust');$('abf'+e.p).classList.add('ko');$('abfc'+e.p).classList.add('ko');roster(e.p);await z(1300);
       $('abc'+e.p).innerHTML='';delete $('abc'+e.p).dataset.n;
     }else if(e.t==='dko'){
