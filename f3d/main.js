@@ -178,10 +178,6 @@ function updFighter(s, dt, wdt) {
 function powerBurst(p, k = 1) { const s = FT[p]; if (!s) return; s.boost = Math.max(s.boost, k); const c = colOf(p), f = feet(p);
   fx.ring(tmp.copy(f).setY(.05), 2.4 * k, c, .55, { flat: 1, inner: .7 }); fx.smoke(f, 10, '#2a2233', { max: 3.2, up: .3 }); fx.debris(tmp.copy(f).setY(.1), 8);
   fx.glow(chest(p), 30, c, { max: 5, l1: .6 }); shake(.35); shot('focus', p, 900); }
-function pillar(x, z, c, life) { // columna de luz que sube desde el suelo (el alma de un K.O.)
-  const m = energyMat(c, '#ffffff', 1, 2.2), g = new THREE.CylinderGeometry(.5, .85, 16, 32, 1, true), b = new THREE.Mesh(g, m); b.position.set(x, 8, z); b.renderOrder = 5; scene.add(b);
-  fx.anim(life, k => { m.uniforms.t.value = T; m.uniforms.op.value = Math.min(1, k * 8) * Math.pow(1 - k, 1.4) * .85; const r = k < .7 ? 1 + k * .3 : 1.21 * (1 - (k - .7) / .3 * .85); b.scale.set(r, 1, r); },
-    () => { scene.remove(b); g.dispose(); m.dispose(); }); }
 function vanish(p) { const s = FT[p]; if (!s) return; s.gone = true; const c = chest(p); fx.glow(c, 120, '#ffffff', { max: 6, sx: .3, sy: .8, sz: .3, l1: 1 }); fx.sprite(c, 4, '#ffffff', .4); }
 
 /* ---------------- cámara ---------------- */
@@ -200,7 +196,6 @@ function camUpdate(dt) {
     else if (sh.kind === 'side') { const v = FT[1 - p] ? FT[1 - p].A.R.x : homeX(1 - p); CAM.tPos.set(fxp - d * 1.6, 2.2, dist * .9); CAM.tLook.set((fxp + v) / 2 + d * .5, 1.35, 0); k = 3.4; }
     else if (sh.kind === 'hit') { CAM.tPos.set(fxp * .6 + mx * .4, 1.8, dist * .78); CAM.tLook.set(fxp * .7 + mx * .3, 1.4, 0); k = 5; }
     else if (sh.kind === 'ko') { const a = (T - sh.t0) * .55 + .3; CAM.tPos.set(fxp + Math.sin(a) * 4.8, 1.5, Math.cos(a) * 4.8 + .6); CAM.tLook.set(fxp, .55, 0); k = 3; }
-    else if (sh.kind === 'die') { const u = T - sh.t0, a = u * .35 + .3, w = Math.min(u, 2), r = 5.2 + w * .9; CAM.tPos.set(fxp + Math.sin(a) * r, 1.3 + w * .5, Math.cos(a) * r + .6); CAM.tLook.set(fxp, .6 + Math.max(0, Math.min(u - .5, 1.5)) * .9, 0); k = 2.6; } // gira alrededor del cuerpo y sube con el alma
     else if (sh.kind === 'wide') { CAM.tPos.set(mx + Math.sin(yaw) * dist * 1.2, 2.6, Math.cos(yaw) * dist * 1.2); CAM.tLook.set(mx, 1.4, 0); k = 3; }
   } else { CAM.tPos.set(mx + Math.sin(yaw) * dist, 2.1 + Math.sin(T * .17) * .1, Math.cos(yaw) * dist); CAM.tLook.set(mx, 1.6, 0); } // mirando algo alto: el HUD tapa la parte de arriba
   if (CAM.snap) { CAM.snap = 0; CAM.pos.copy(CAM.tPos); CAM.look.copy(CAM.tLook); }
@@ -297,10 +292,13 @@ function hurt(d, big) {
 }
 function knock(d, lv) {
   const s = FT[d]; if (!s || s.dead || !lv) return; const D = dir(d), A = s.A;
-  if (lv > 1) { busy(d, 3); play(d, [['fly', .1, 'out']], true); expr(d, 'k', 9);
-    A.move({ x: Math.max(-6.5, Math.min(6.5, A.R.x - D * 3.2)), y: 0, d: .7, e: 'out', arc: 1.6, rx: -Math.PI / 2 });
-    later(.66, () => { const S = FT[d]; if (!S) return; S.lie = 1; play(d, [['down', .15, 'out']], true); fx.crater(S.A.R.x, S.A.R.z, 1.1, colOf(1 - d)); fx.smoke(feet(d), 14, '#3a3344', { max: 3 }); fx.debris(tmp.copy(feet(d)).setY(.2), 12, { big: 1 }); shake(.45); X.hitstop(90); });
-    shot('ko', d, 2400);
+  if (lv > 1) { // golpe mortal: sale despedido hacia atrás de pie (sin tumbarse) y frena arrastrando los pies; dissolve() lo hace pedazos
+    busy(d, 1.8); play(d, [['hitB', .06, 'snap', .4]], true); expr(d, 'k', 9);
+    A.move({ x: Math.max(-6.5, Math.min(6.5, A.R.x - D * 2.4)), y: 0, d: .45, e: 'out', arc: .45 });
+    for (let i = 1; i <= 4; i++) later(.22 + i * .05, () => { if (FT[d]) fx.smoke(feet(d), 3, '#3a3344', { max: 1.2, up: .2 }); });
+    later(.3, () => { const S = FT[d]; if (!S) return; fx.crater(S.A.R.x, S.A.R.z, .8, colOf(1 - d)); fx.debris(tmp.copy(feet(d)).setY(.2), 8); shake(.35); });
+    later(1.8, () => { const S = FT[d]; if (S && !S.dead) { play(d, [[S.A.base, .3, 'io']]); home(d, .4, .1); } }); // por si no era el final
+    shot('hit', d, 900);
   } else { busy(d, .9); play(d, [['hitL', .08, 'snap', .2], ['airborne', .2, 'io'], ['land', .1, 'out', .12]]);
     A.move({ x: Math.max(-6, Math.min(6, A.R.x - D * 1.1)), d: .45, e: 'out', arc: .35 });
     later(.45, () => { fx.smoke(feet(d), 6, '#3a3344', { max: 2 }); fx.crater(FT[d] ? FT[d].A.R.x : 0, 0, .6, colOf(1 - d)); });
@@ -354,40 +352,23 @@ const API = {
   hakai(d) { const c = chest(d); fx.glow(c, 140, '#a43cff', { max: .2, to: c, pull: 7, sx: 2.2, sy: 2, sz: 2, l0: .6, l1: .8 }); later(.75, () => API.boom(d, '#a43cff', 1.3)); },
   nuke(d) { const c = chest(d), f = feet(d); fx.sprite(c, 16, '#ffffff', .7, { k: 3 }); fx.sprite(c, 9, '#ff9ec4', 1, { k: 2.2 }); fx.ring(tmp.copy(f).setY(.08), 14, '#ffffff', 1, { flat: 1, inner: .9 }); fx.ring(c, 10, '#ff9ec4', .9);
     fx.smoke(f, 40, '#3a2a33', { max: 6, size: 2, up: 2.5, life: 1.6 }); fx.glow(c, 160, '#ffc0d8', { max: 12, l1: 1.2 }); fx.debris(tmp.copy(f).setY(.2), 30, { big: 1 }); fx.crater(f.x, f.z, 2.4, '#ff9ec4'); shake(1); X.kick(5); shot('wide', d, 1600); },
-  /* MUERTE (K.O.): golpe seco y la cámara gira alrededor del cuerpo → se le apaga el color y late dos veces → su alma (copia translúcida)
-     sale de pie y sube dentro de una columna de luz → el cuerpo se quema desde la cabeza con el borde al rojo del color de quien le ha
-     matado, y sus cenizas (con los colores del propio dibujo) se las lleva el viento en remolino → onda y quemadura en el suelo. ~1,9 s */
+  /* MUERTE (K.O.), rápida y sin caerse: destello → el dibujo se agrieta desde el pecho con las grietas al rojo del color de quien le ha
+     matado (0,22 s) → estalla en pedazos que salen volando lejos del rival, girando, y se apagan al caer. ~1,2 s en total */
   dissolve(p) { const s = FT[p]; if (!s || s.dead) return false; s.dead = true; s.lv = 0; s.boost = 0;
-    const F = s.F, D = dir(p), kc = colOf(1 - p), soul = '#cfe6ff', alive = () => FT[p] === s;
-    const hot = new THREE.Color(kc).lerp(WHITE, .35).multiplyScalar(3.2);
-    busy(p, 9); expr(p, 'k', 99); s.fl = 1; X.hitstop(120); shot('die', p, 2600);
-    const fall = !s.lie, t0 = fall ? .45 : .1;
-    if (fall) { s.A.play([['hitB', .12, 'out'], ['down', .35, 'in']], true); s.A.move({ rx: -Math.PI / 2, d: .42, e: 'in' });
-      later(.4, () => { if (!alive()) return; s.lie = 1; fx.smoke(feet(p), 12, '#3a3344', { max: 2.6 }); fx.debris(tmp.copy(feet(p)).setY(.15), 8); shake(.3); }); }
-    // 1) se le va la vida
-    later(t0, () => { if (!alive()) return; fx.anim(.4, k => { if (F.gray) F.gray(k); s.fl = Math.max(s.fl, Math.max(0, Math.sin(k * Math.PI * 2)) * .4); }); fx.spark(chest(p), 14, kc, { max: 6, up: .5 }); });
-    // 2) el alma sale del cuerpo y sube dentro de una columna de luz
-    later(t0 + .25, () => { if (!alive()) return; const x = s.A.R.x, z = s.A.R.z, y0 = F.footY ? F.footY() : 0, g = ghostOf(F, soul, 0), m = g.userData.mat, sc = g.scale.clone();
-      g.rotation.x = g.rotation.z = 0; scene.add(g);
-      fx.anim(1.6, k => { const e = 1 - Math.pow(1 - k, 2); g.position.set(x + Math.sin(k * 7) * .07, y0 + e * 2.6, z); g.scale.copy(sc).multiplyScalar(1 + k * .18); m.opacity = .6 * Math.min(1, k * 5) * (1 - k);
-        if (F.sprite) g.rotation.y = Math.atan2(cam.position.x - x, cam.position.z - z); }, () => { scene.remove(g); m.dispose(); });
-      pillar(x, z, soul, 1.8); fx.ring(tmp.set(x, .06, z), 2.6, soul, .7, { flat: 1, inner: .78 }); fx.glow(tmp.set(x, .2, z), 30, soul, { max: 2.2, vy: 1.5, flat: 1, l1: 1 }); });
-    // 3) el cuerpo se quema y se lo lleva el viento
-    later(t0 + .35, () => { if (!alive()) return; const cx = s.A.R.x, cz = s.A.R.z, f = feet(p);
-      fx.smoke(f, 10, '#2a2233', { max: 2, up: .6 }); fx.ring(tmp.copy(f).setY(.05), 2, kc, .5, { flat: 1, inner: .7 });
-      const ash = (q, c, i) => { const sp = rr(.5, 1.6);
-        fx.smokeP.add({ x: q.x + rr(-.03, .03), y: q.y, z: q.z + rr(-.03, .03), vx: -D * sp + rr(-.2, .2), vy: rr(.4, 1.3), vz: rr(-.6, .6), g: rr(.4, 1), l: rr(1.1, 2.1), s: rr(.035, .07), r: c.r, gg: c.g, b: c.b, a: .95, dr: .6, shr: 1, fi: 1.6, fo: 25, sw: rr(.5, 1.3) * (i % 2 ? 1 : -1), cx, cz });
-        if (i % 2 === 0) fx.glowP.add({ x: q.x, y: q.y, z: q.z, vx: -D * rr(.2, 1), vy: rr(.8, 2.4), vz: rr(-.4, .4), l: rr(.35, .8), s: rr(.03, .06), r: hot.r * .8, gg: hot.g * .8, b: hot.b * .8, dr: 1.2, shr: 1 }); };
-      const gone = () => { if (alive()) { F.root.visible = false; s.aura.visible = false; s.op = s.opT = 0; } };
-      if (F.burn) { const pts = F.burnPts(), n = pts.length, every = Math.max(1, Math.ceil(n / (800 * fx.q1))); let i = 0; F.burn(.001, hot);
-        fx.anim(1.1, k => { if (!alive()) return; const d = (k < .5 ? 2 * k * k : 1 - Math.pow(2 - 2 * k, 2) / 2) * 1.02; F.burn(Math.max(.001, d)); s.op = s.opT = 1 - k * .9;
-          for (; i < n && pts[i][2] <= d; i++) if (i % every === 0) ash(pts[i][0], pts[i][1], i); }, gone);
-      } else { // muñeco 3D (sin dibujo): sus vértices se convierten en ceniza de arriba abajo
-        const pts = []; F.root.updateMatrixWorld(true); F.root.traverse(o => { if (o.isMesh && !o.userData.ol && o.visible && o.geometry.attributes.position) { const a = o.geometry.attributes.position, c = o.material.color || WHITE; for (let j = 0; j < a.count; j += 3) pts.push([tmp.fromBufferAttribute(a, j).applyMatrix4(o.matrixWorld).clone(), c]); } });
-        pts.sort((a, b) => b[0].y - a[0].y); const n = pts.length, every = Math.max(1, Math.ceil(n / (700 * fx.q1))); let i = 0;
-        fx.anim(1.1, k => { if (!alive()) return; F.opacity(Math.max(0, 1 - k * 1.1)); s.op = s.opT = 1 - k; for (; i < n && i <= k * n; i++) if (i % every === 0) ash(pts[i][0], pts[i][1], i); }, gone); } });
-    // 4) final: onda y quemadura en el suelo
-    later(t0 + 1.45, () => { const f = feet(p); fx.ring(tmp.copy(f).setY(.05), 3.4, kc, .8, { flat: 1, inner: .86 }); fx.crater(f.x, f.z, 1.2, kc); fx.glow(tmp.copy(f).setY(.3), 36, soul, { max: 3, vy: 2, l1: 1.1, flat: 1 }); shake(.22); });
+    const F = s.F, D = dir(p), kc = colOf(1 - p), hot = new THREE.Color(kc).lerp(WHITE, .4).multiplyScalar(3), alive = () => FT[p] === s;
+    busy(p, 9); expr(p, 'k', 99); s.fl = 1; shot('hit', p, 1300); shake(.3); X.kick(2);
+    const hide = () => { if (alive()) { F.root.visible = false; s.aura.visible = false; s.op = s.opT = 0; } };
+    const burst = () => { const cp = chest(p), f = feet(p);
+      fx.sprite(cp, 4.5, kc, .35, { k: 2.6 }); fx.sprite(cp, 2.4, '#ffffff', .16, { k: 2.6 }); fx.ring(cp, 3.2, kc, .45); fx.ring(tmp.copy(f).setY(.05), 3.6, kc, .6, { flat: 1, inner: .8 });
+      fx.spark(cp, 46, kc, { max: 20, up: .3 }); fx.glow(cp, 50, kc, { max: 7, l1: .7 }); fx.smoke(f, 12, '#2e2638', { max: 3, up: .6 }); fx.crater(f.x, f.z, 1.1, kc);
+      const pts = F.points ? F.points() : [], st = Math.max(1, Math.ceil(pts.length / (160 * fx.q1))); // polvo brillante con los colores del dibujo
+      for (let i = 0; i < pts.length; i += st) { const [q, c] = pts[i]; fx.glowP.add({ x: q.x, y: q.y, z: q.z, vx: -D * rr(1, 5) + (q.x - cp.x) * 2, vy: rr(.5, 4) + (q.y - cp.y) * 2, vz: rr(-2, 3), l: rr(.4, .9), s: rr(.03, .07), r: c.r * 1.6, gg: c.g * 1.6, b: c.b * 1.6, dr: 2.2, g: -4, shr: 1 }); }
+      shake(.7); X.kick(4); X.hitstop(70); API.slow(.4, 280); };
+    const sh = F.shatter ? F.shatter(.6) : null;
+    if (sh) { scene.add(sh); hide(); const U = sh.userData.U; U.hot.value.copy(hot);
+      fx.anim(.22, k => { U.crack.value = k * 1.2; U.jit.value = .018 * k; }, () => { if (!on) { scene.remove(sh); sh.userData.dispose(); return; } U.jit.value = 0; U.crack.value = 1.2; burst();
+        fx.anim(1, k => { U.t.value = k; U.op.value = 1 - Math.max(0, (k - .5) / .5); }, () => { scene.remove(sh); sh.userData.dispose(); }); });
+    } else later(.2, () => { burst(); hide(); }); // muñeco 3D (sin dibujo): estalla en polvo
     return true; },
   shield(p) { TECH.shield(p); }, meteor(p, miss) { TECH.meteor(p, miss); }, stomp(p) { TECH.stomp(p); }, clone(a, d) { TECH.clone(a, d); }, shades(a, n) { TECH.shades(a, n); }, shadeHit(a, d) { TECH.shadeHit(a, d); },
   finisher(t) { shot('hit', t, 900); X.kick(4); },

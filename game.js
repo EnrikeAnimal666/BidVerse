@@ -1108,7 +1108,7 @@ async function run(tk,script){
       await say(abF(abT('sac'),{0:dnh(s)}),1000);
     }else if(e.t==='down'){
       ko[e.p][e.k]=true;lastL=C(e.n);lastDown=dn(lastL);pop('K.O.','ko');sfx('ko');shake();STAGE_FX.filter(c=>c!=='ecl').forEach(c=>stg(c,false));
-      await say(t('down',dnh(lastL)),250);if(V.dissolve(e.p))$('abf'+e.p).classList.add('dust');$('abf'+e.p).classList.add('ko');$('abfc'+e.p).classList.add('ko');roster(e.p);await z(D3?1950:1300); // 3D: deja ver la muerte entera (f3d/main.js → dissolve)
+      await say(t('down',dnh(lastL)),250);if(V.dissolve(e.p))$('abf'+e.p).classList.add('dust');$('abf'+e.p).classList.add('ko');$('abfc'+e.p).classList.add('ko');roster(e.p);await z(1300);
       $('abc'+e.p).innerHTML='';delete $('abc'+e.p).dataset.n;
     }else if(e.t==='dko'){
       pop(abT('dko'),'ko');sfx('ko');shake();
