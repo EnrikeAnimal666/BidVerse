@@ -29,6 +29,7 @@ infoFree:(p,nm,f)=>u(f?'infoFreeForced':'infoFree',p,nm),
 hintFree:(o,f,n)=>n?u('hintFree',o,f,n):u('hintFreeForced',o,f),
 sends:(p,nm)=>u('sends',p,`<b>${nm}</b>`),
 giftInfo:(w,nm)=>lang==='es'?`${u('player',2-w)} pasa de ${nm}: se lo queda ${u('player',w+1)} gratis.`:`${u('player',2-w)} passes on ${nm}: ${u('player',w+1)} gets it for free.`,
+maxedInfo:(w,nm,pr,m)=>lang==='es'?`${u('player',2-w)} no tiene dinero para superar ${money(pr)}: ${u('player',w+1)} se lleva a ${nm} por ${money(pr)} · le quedan ${money(m)}.`:`${u('player',2-w)} can't top ${money(pr)}: ${u('player',w+1)} takes ${nm} for ${money(pr)} · ${money(m)} left.`,
 infoSold:(p,nm,pr,m)=>cat==='futbol'?(lang==='es'?`${u('player',p)} ficha a ${nm} por ${pr}M. Le quedan ${m}M.`:`${u('player',p)} signs ${nm} for ${pr}M. ${m}M left.`):u('infoSold',p,nm,pr,m),
 passGift:()=>lang==='es'?'Pasar · se lo queda el rival (no gasta saltos)':'Pass · your rival gets it (no skip cost)',
 stampRand:(p,nm,broke)=>`<small>${u(broke?'noMoney':'nobodyBids')}</small><strong>${u('player',p)}</strong><u>${u('takes','<b>'+nm+'</b>')}</u><em>${lang==='es'?'Al azar':'Random'}</em>`,
@@ -185,7 +186,7 @@ function onEv(e){switch(e.t){
     if(e.rand)$('bid').textContent=t('random');
     m.classList.add('pop');sd.classList.add('won');
     $('s'+w).children[cat==='ufc'?UFC_DIVS.findIndex(d=>d.k===cur.cls):cat==='futbol'?futSlot(w,cur):P[w].c.length-1].classList.add('new');
-    $('info').textContent=e.rand?t('randInfo',w+1,dn(cur),e.broke):e.gift?t('giftInfo',w+1,dn(cur)):e.free?t('infoFree',w+1,dn(cur),skips[w]<=0):t('infoSold',w+1,dn(cur),e.price,P[w].m);
+    $('info').textContent=e.rand?t('randInfo',w+1,dn(cur),e.broke):e.gift?t('giftInfo',w+1,dn(cur)):e.free?t('infoFree',w+1,dn(cur),skips[w]<=0):e.maxed?t('maxedInfo',w,dn(cur),e.price,P[w].m):t('infoSold',w+1,dn(cur),e.price,P[w].m);
     setTimeout(()=>{m.classList.remove('pop');sd.classList.remove('won')},1600);break}
   case 'discard':stamp(t('discard'));$('info').textContent='';render();break;
   case 'noBids':stamp(t('noBidsStamp'));$('info').textContent='';render();break;

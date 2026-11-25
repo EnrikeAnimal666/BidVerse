@@ -76,6 +76,19 @@ else{vec2 r=px*3.0,s=r*.707;float t0=al(vec2(r.x,0.)),t1=al(vec2(-r.x,0.)),t2=al
   col+=rimC*a*(1.0-mn)*rimK*1.8;float e=clamp(mx-a,0.,1.),A=a+e*(1.0-a);vec3 oc=mix(olc,rimC*2.2,rimK*.8);col=(col*a+oc*e*(1.0-a))/max(A,.001);a=A;}
 col=mix(col,vec3(1.7),flash);a*=op;if(a<.06)discard;gl_FragColor=vec4(col,a);}`;
 
+// pedazos del dibujo al morir (F.shatter): cada triángulo gira sobre su centro, sale disparado y cae hasta el suelo (fy)
+const SVS = `uniform float t;uniform float crack;uniform float jit;uniform float fy;attribute vec3 aC;attribute vec3 aV;attribute vec3 aAx;attribute float aSp;attribute float aD;attribute vec3 aB;
+varying vec2 vUv;varying vec3 vB;varying float vD;
+vec3 rot(vec3 p,vec3 k,float a){float c=cos(a),s=sin(a);return p*c+cross(k,p)*s+k*dot(k,p)*(1.0-c);}
+void main(){vUv=uv;vB=aB;vD=aD;vec3 p=rot(position-aC,aAx,aSp*t)*(1.0-.4*smoothstep(.3,1.0,t));
+vec3 c=aC+aV*t+vec3(0.0,-5.0*t*t,0.0);c.y=max(c.y,fy);p+=c;p.xy+=vec2(sin(aD*91.0+crack*63.0),cos(aD*57.0+crack*71.0))*jit;
+gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);}`;
+const SFS = `uniform sampler2D map;uniform float bust;uniform float t;uniform float crack;uniform float op;uniform vec3 hot;uniform vec3 tint;varying vec2 vUv;varying vec3 vB;varying float vD;
+void main(){vec4 c=texture2D(map,vUv);float a=c.a;
+if(bust>.5){vec2 q=(vUv-.5)/vec2(.5,.46);a=(1.0-smoothstep(.8,.92,length(q)))*smoothstep(-.05,.3,vUv.y);}
+if(a<.3)discard;vec3 col=c.rgb*tint;float on=smoothstep(vD-.2,vD,crack),e=min(min(vB.x,vB.y),vB.z);
+col=mix(col,hot,smoothstep(.07,.0,e)*on);col=mix(col,hot,.55*step(.001,t)*(1.0-smoothstep(0.0,.25,t)));
+gl_FragColor=vec4(col,a*op);}`;
 const cr = new THREE.Vector3();
 export function buildSprite(name, look, artP) {
   const S = (SIZE[look.b] || 1) * (ART_K[name] || 1), faceL = FACE_L.has(name);
@@ -101,7 +114,7 @@ export function buildSprite(name, look, artP) {
     if (!art || !F.root.visible) { mesh.visible = false; return; } mesh.visible = true;
     const A = s.A, R = A.R, c = A.cur, T = A.T, idle = A.idle;
     cr.setFromMatrixColumn(cam.matrixWorld, 0); const fs = o.dir * cr.x >= 0 ? 1 : -1; // hacia dónde mira en pantalla
-    flip = (fs < 0) !== faceL ? -1 : 1;
+    flip = (fs < 0) !== faceL ? -1 : 1; F.fs = fs;
     // de la pose solo se toma el movimiento del cuerpo entero (sin doblar el dibujo)
     const lean = c[3] * .8 + c[6] * .5, hy = c[NJ3], bz = c[NJ3 + 1];
     const ext = Math.max(0, Math.min(2, -c[18]) - .9, (Math.min(2, -c[15]) - .9) * .8), up = Math.max(0, -Math.min(c[15], c[18]) - 2.3), kick = Math.max(0, -c[36] - 1, -c[33] - 1);
@@ -130,6 +143,31 @@ export function buildSprite(name, look, artP) {
   F.points = () => { if (!art) return []; mesh.updateMatrixWorld(true); const out = [];
     for (const [u, v, r, g, b] of art.pts) out.push([mesh.localToWorld(new THREE.Vector3((u - .5) * w * flip, v * h, 0)), new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace)]);
     return out; };
+  /* MUERTE: el dibujo partido en triángulos (cada uno con su trozo del dibujo) exactamente donde está ahora. Devuelve la malla de
+     los pedazos; quien la usa la añade a la escena y mueve sus uniformes: crack 0→1 la grieta avanza desde el golpe (hv = altura del
+     golpe, 0-1), jit tiembla, t = segundos desde que estalla (salen volando lejos del rival, girando y cayendo), op, hot = color de la grieta. */
+  F.shatter = (hv = .6) => {
+    if (!art) return null;
+    const asp = w / h, NY = 11, NX = Math.max(3, Math.round(NY * asp * 1.1)), occ = new Uint8Array(NX * NY), fs = F.fs || 1;
+    for (const [u, v] of art.pts) occ[Math.min(NY - 1, Math.floor(v * NY)) * NX + Math.min(NX - 1, Math.floor(u * NX))] = 1;
+    const G = []; for (let j = 0; j <= NY; j++) for (let i = 0; i <= NX; i++) G.push([i / NX + (i > 0 && i < NX ? (Math.random() - .5) * .7 / NX : 0), j / NY + (j > 0 && j < NY ? (Math.random() - .5) * .7 / NY : 0)]);
+    const A = { position: [], uv: [], aC: [], aV: [], aAx: [], aSp: [], aD: [], aB: [] }, X = u => (u - .5) * w * flip, Y = v => v * h, rr = (a, b) => a + Math.random() * (b - a), BC = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+    const tri = (...k) => {
+      const cu = (k[0][0] + k[1][0] + k[2][0]) / 3, cv = (k[0][1] + k[1][1] + k[2][1]) / 3, cx = X(cu), cy = Y(cv), dx = cx, dy = cy - hv * h, L = Math.hypot(dx, dy) || 1;
+      const v = [dx / L * rr(1.2, 3.5) - fs * rr(1.5, 4.5), dy / L * rr(.8, 2.6) + rr(.6, 2.6), rr(-2, 3.5)];
+      let ax = [rr(-1, 1), rr(-1, 1), rr(-1, 1)]; const al = Math.hypot(...ax) || 1; ax = ax.map(x => x / al);
+      const sp = rr(5, 13) * (Math.random() < .5 ? -1 : 1), d = Math.min(1, Math.hypot((cu - .5) * asp, cv - hv) / .75);
+      k.forEach((q, i) => { A.position.push(X(q[0]), Y(q[1]), 0); A.uv.push(q[0], q[1]); A.aC.push(cx, cy, 0); A.aV.push(...v); A.aAx.push(...ax); A.aSp.push(sp); A.aD.push(d); A.aB.push(...BC[i]); });
+    };
+    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) { if (!occ[j * NX + i]) continue; const a = G[j * (NX + 1) + i], b = G[j * (NX + 1) + i + 1], c = G[(j + 1) * (NX + 1) + i], d = G[(j + 1) * (NX + 1) + i + 1];
+      if (Math.random() < .5) { tri(a, b, d); tri(a, d, c); } else { tri(a, b, c); tri(b, d, c); } }
+    const g = new THREE.BufferGeometry(); for (const k in A) g.setAttribute(k, new THREE.Float32BufferAttribute(A[k], k === 'uv' ? 2 : k === 'aSp' || k === 'aD' ? 1 : 3));
+    const SU = { map: { value: art.tex }, bust: { value: art.bust ? 1 : 0 }, t: { value: 0 }, crack: { value: 0 }, jit: { value: 0 }, op: { value: 1 }, hot: { value: new THREE.Color(3, 2, 1) }, tint: { value: U.tint.value.clone() }, fy: { value: .03 - mesh.position.y } };
+    const m = new THREE.Mesh(g, new THREE.ShaderMaterial({ uniforms: SU, vertexShader: SVS, fragmentShader: SFS, side: THREE.DoubleSide, transparent: true }));
+    m.position.copy(mesh.position); m.rotation.copy(mesh.rotation); m.renderOrder = 4.6; m.frustumCulled = false;
+    m.userData.U = SU; m.userData.dispose = () => { g.dispose(); m.material.dispose(); };
+    return m;
+  };
   F.dispose = () => { dead = true; geo.dispose(); mat.dispose(); };
   return F;
 }
