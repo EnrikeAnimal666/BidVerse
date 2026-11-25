@@ -11,7 +11,7 @@ const ROOT = path.resolve(__dirname, '..');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.mp4': 'video/mp4', '.webm': 'video/webm', '.ico': 'image/x-icon' };
 // Solo se sirve esto: nada de server/, tests/, .git, node_modules…
 const FILES = new Set(['index.html', 'styles.css', 'game.js', 'engine.js', 'online.js', 'cpu.js', 'data-anime.js', 'data-ufc.js', 'data-futbol.js', 'data-imgs.js']);
-const DIRS = new Set(['lang', 'pics', 'bg', 'f3d']); // f3d = combate de anime en 3D (módulos del navegador)
+const DIRS = new Set(['lang', 'pics', 'bg', 'f3d', 'luchadores']); // f3d = combate de anime en 3D (módulos del navegador) · luchadores = dibujos de cuerpo entero
 
 function loadPools() { // los datos son scripts de navegador: se evalúan aquí para tener los mismos personajes que el cliente
   const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/^const /gm, 'var ');

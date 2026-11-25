@@ -179,6 +179,7 @@ export function buildFighter(name, lk) {
 }
 // Copia fantasma (estelas, clones de Naruto, sombras de Sung Jin-Woo): misma pose, un solo material translúcido
 export function ghostOf(F, color, opacity, additive = true) {
+  if (F.ghost) return F.ghost(color, opacity, additive); // luchador con dibujo (f3d/sprite.js)
   const g = F.root.clone(true), mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
   g.traverse(o => { if (o.isMesh) { if (o.userData.ol || o.material === F.faceMat) o.visible = false; else o.material = mat; } });
   g.userData.mat = mat; return g;

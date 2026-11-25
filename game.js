@@ -879,6 +879,9 @@ const VFX=(()=>{
   };
 })();
 // envuelve el 3D: un fallo en un efecto no puede cortar el combate
+// Dibujo de cada luchador en el combate 3D: luchadores/<Nombre>.png o .webp (cuerpo entero, fondo transparente); si no hay, su retrato.
+// ART_V: súbelo cuando sustituyas un dibujo de luchadores/ con el MISMO nombre (caché del navegador).
+const ART_V=1,artOf=n=>{const c=C(n)||{n,e:'?'};return{full:picNames(c).flatMap(k=>['png','webp'].map(x=>'luchadores/'+encodeURIComponent(k)+'.'+x+'?v='+ART_V)),pic:c.img,emoji:c.e}};
 const safe3=o=>new Proxy(o,{get:(t,k)=>typeof t[k]!=='function'?t[k]:(...a)=>{try{return t[k](...a)}catch(e){console.warn('F3D',k,e);return k==='screen'?{x:0,y:0}:k==='dissolve'}}});
 async function run(tk,script){
   const S0=script||BidEngine.resolveAnime(G);
@@ -890,7 +893,7 @@ async function run(tk,script){
   const T0=S0.ev[0]&&S0.ev[0].teams; // orden real de cada equipo (el motor lo manda; si no, el de la compra)
   const team=[0,1].map(p=>T0?T0[p]:(P[p]&&P[p].c||[]).map(c=>c.n)),ko=[[],[]],act=[-1,-1],cur=[null,null];let hpN=[1,1],HM=[1000,1000],lastDown='',lastL=null,dno=0;
   // 3D (f3d/main.js) si el navegador puede; si no, las tarjetas y el lienzo 2D de siempre
-  let D3=false;try{D3=!!(window.F3D&&F3D.ok()&&F3D.start(ST,{charOf:n=>C(n),arche:VFX.arche,elOf:p=>{const k=cur[p]&&ELN[cur[p].n];return k?{c:ELC[k][0],c2:ELC[k][1]}:null}}))}catch(e){console.warn('F3D',e)}
+  let D3=false;try{D3=!!(window.F3D&&F3D.ok()&&F3D.start(ST,{charOf:n=>C(n),artOf,names:[...team[0],...team[1]],arche:VFX.arche,elOf:p=>{const k=cur[p]&&ELN[cur[p].n];return k?{c:ELC[k][0],c2:ELC[k][1]}:null}}))}catch(e){console.warn('F3D',e)}
   const F3=D3?safe3(F3D):null,V=D3?F3:VFX; // si una llamada del 3D falla, el combate sigue
   if(D3)AB.classList.add('d3');else VFX.start(ST);
   const roster=p=>$('abt'+p).innerHTML=team[p].map((n,k)=>{const c=C(n);return c?`<i class="ab-th${k===act[p]?' on':''}${ko[p][k]?' ko':''}" data-n="${n}" style="--h:${c.h}">${spr(c)}</i>`:''}).join('');

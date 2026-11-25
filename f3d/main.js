@@ -12,6 +12,7 @@ import { buildFighter, ghostOf, OL_U } from './model.js';
 import { Anim } from './anim.js';
 import { FX, TEX, energyMat, rr, TAU } from './fx.js';
 import { makeTech } from './tech.js';
+import { buildSprite, loadArt } from './sprite.js';
 
 const V3 = THREE.Vector3, now = () => performance.now();
 let SUP = null, failed = false, R = null, composer = null, bloom = null, scene = null, cam = null, fx = null, cv = null, ro = null;
@@ -83,18 +84,21 @@ function ambience(dt) {
   const dzOn = k === 'dz' || k === 'shr'; if (dzOn) ENV.dzc.lerp(tmpC.set(k === 'shr' ? '#ff1f3d' : pcol(has('dz0') ? 0 : 1)), r);
   ENV.glow.lerp(tmpC.set(k === 'dz' ? '#' + ENV.dzc.getHexString() : A.glow), r);
   ENV.dz += ((dzOn ? 1 : 0) - ENV.dz) * Math.min(1, dt * 3); floorM.uniforms.dz.value = ENV.dz;
+  TINT.lerp(tmpC.set(TINTS[k] || '#ffffff'), r);
   lights.hemi.intensity = k === 'dark' ? .25 : k === 'god' ? 2.2 : 1.15; lights.halo.material.color.copy(ENV.moon).multiplyScalar(.45);
 }
-const tmpC = new THREE.Color();
+const tmpC = new THREE.Color(), TINT = new THREE.Color(1, 1, 1); // TINT: luz de la escena sobre los dibujos de los luchadores
+const TINTS = { dark: '#3a3a46', tsk: '#ffaaaa', shr: '#ffc4c4', gen: '#ffbcbc', hki: '#ffc8c8', ecl: '#ffb4a4', mug: '#aeb2be', rmb: '#ffe0c4', dz: '#e4dcf0' };
 
 /* ---------------- luchadores ---------------- */
 function slotOf(p) { return FT[p]; }
-function removeFighter(p) { const s = FT[p]; if (!s) return; scene.remove(s.F.root); scene.remove(s.aura); scene.remove(s.pool); scene.remove(s.shadow); s.F.dispose(); s.aura.geometry.dispose(); s.aura.material.dispose(); s.pool.material.dispose(); s.shadow.material.dispose(); FT[p] = null; }
+function removeFighter(p) { const s = FT[p]; if (!s) return; scene.remove(s.F.root); if (s.F.mesh) scene.remove(s.F.mesh); scene.remove(s.aura); scene.remove(s.pool); scene.remove(s.shadow); s.F.dispose(); s.aura.geometry.dispose(); s.aura.material.dispose(); s.pool.material.dispose(); s.shadow.material.dispose(); FT[p] = null; }
 function addFighter(p, name) {
   removeFighter(p);
   const c = opts.charOf ? opts.charOf(name) : null, look = lookOf(c || { n: name });
-  const F = buildFighter(name || '?', look), A = new Anim(F, p);
-  F.root.rotation.order = 'YXZ'; scene.add(F.root);
+  // su dibujo real (luchadores/ o, si no hay, su retrato); el muñeco 3D solo si game.js no da imágenes
+  const F = opts.artOf ? buildSprite(name || '?', look, loadArt(name || '?', opts.artOf(name || '?'))) : buildFighter(name || '?', look), A = new Anim(F, p);
+  F.root.rotation.order = 'YXZ'; scene.add(F.root); if (F.mesh) scene.add(F.mesh);
   F.mats.forEach(m => { m.userData.e0 = m.emissive.clone(); m.userData.i0 = m.emissiveIntensity; });
   const col = (look.au) || (opts.elOf && opts.elOf(p) && opts.elOf(p).c) || pcol(p);
   const aura = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 20), energyMat(col, '#ffffff', 2, 2)); aura.material.uniforms.op.value = 0; aura.renderOrder = 4; scene.add(aura);
@@ -248,7 +252,8 @@ function frame(fixed) { // un fotograma (fixed = segundos simulados, para depura
     lights.r0.color.set(pcol(0)); lights.r1.color.set(pcol(1));
     for (const r of rocks) r.m.position.y = r.y + Math.sin(T * r.sp + r.ph) * .35;
     if (Math.random() < rdt * 14 * fx.q1) { const c = ENV.glow; fx.glowP.add({ x: rr(-9, 9), y: 0, z: rr(-6, 2), vx: rr(-.2, .2), vy: rr(.4, 1.1), vz: 0, l: rr(3, 6), s: rr(.03, .07), r: c.r * 1.6 + .2, gg: c.g * 1.6 + .1, b: c.b * 1.6 + .2, dr: 0, fi: 1, fo: 3 }); }
-    camUpdate(rdt);
+    camUpdate(rdt); cam.updateMatrixWorld();
+    for (const s of FT) if (s && s.F.sync) s.F.sync(s, cam, { dir: dir(s.p), pc: pcol(s.p), tint: TINT });
     fx.glowP.m.material.uniforms.scale.value = fx.smokeP.m.material.uniforms.scale.value = H * PR / (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)));
     composer.render();
   } catch (e) { console.warn('F3D', e); }
@@ -303,6 +308,7 @@ const API = {
     try { if (!R) init(); } catch (e) { failed = true; console.warn('F3D', e); return false; }
     stage = st; opts = o || {}; readPC(); (st.querySelector('.ab-world') || st).appendChild(cv); W = H = 0; resize(); if (ro) ro.observe(st);
     actor = -1; HS = 0; slowU = 0; CAM.shot = null; CAM.until = 0; CAM.trauma = 0; CAM.snap = 1; T = 0;
+    if (opts.artOf && opts.names) opts.names.forEach(n => loadArt(n, opts.artOf(n))); // los dibujos se cargan antes de que entren
     on = true; last = now(); const g = ++gen; requestAnimationFrame(() => loop(g)); return true;
   },
   stop,
@@ -344,7 +350,7 @@ const API = {
   nuke(d) { const c = chest(d), f = feet(d); fx.sprite(c, 16, '#ffffff', .7, { k: 3 }); fx.sprite(c, 9, '#ff9ec4', 1, { k: 2.2 }); fx.ring(tmp.copy(f).setY(.08), 14, '#ffffff', 1, { flat: 1, inner: .9 }); fx.ring(c, 10, '#ff9ec4', .9);
     fx.smoke(f, 40, '#3a2a33', { max: 6, size: 2, up: 2.5, life: 1.6 }); fx.glow(c, 160, '#ffc0d8', { max: 12, l1: 1.2 }); fx.debris(tmp.copy(f).setY(.2), 30, { big: 1 }); fx.crater(f.x, f.z, 2.4, '#ff9ec4'); shake(1); X.kick(5); shot('wide', d, 1600); },
   dissolve(p) { const s = FT[p]; if (!s || s.dead) return false; s.dead = true; s.lv = 0;
-    const go = () => { const pts = []; s.F.root.updateMatrixWorld(true); s.F.root.traverse(o => { if (o.isMesh && !o.userData.ol && o.visible && o.geometry.attributes.position) { const a = o.geometry.attributes.position, c = o.material.color || WHITE; for (let i = 0; i < a.count; i += 3) pts.push([tmp.fromBufferAttribute(a, i).applyMatrix4(o.matrixWorld).clone(), c]); } });
+    const go = () => { const pts = s.F.points ? s.F.points() : []; s.F.root.updateMatrixWorld(true); if (!s.F.points) s.F.root.traverse(o => { if (o.isMesh && !o.userData.ol && o.visible && o.geometry.attributes.position) { const a = o.geometry.attributes.position, c = o.material.color || WHITE; for (let i = 0; i < a.count; i += 3) pts.push([tmp.fromBufferAttribute(a, i).applyMatrix4(o.matrixWorld).clone(), c]); } });
       const step = Math.max(1, Math.floor(pts.length / (700 * fx.q1)));
       for (let i = 0; i < pts.length; i += step) { const [q, c] = pts[i], fr = (q.x - s.A.R.x) * dir(p) * .5 + .5;
         fx.glowP.add({ x: q.x, y: q.y, z: q.z, vx: dir(1 - p) * rr(.2, .8), vy: rr(.3, 1.2), vz: rr(-.3, .3), l: rr(1, 1.8), s: rr(.035, .07), r: c.r * 1.3, gg: c.g * 1.3, b: c.b * 1.3, dr: .3, dl: Math.max(0, 1 - fr) * .6 + rr(0, .15), fi: 1.4, fo: 50 }); }

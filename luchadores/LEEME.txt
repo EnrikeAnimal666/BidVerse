@@ -1,0 +1,12 @@
+DIBUJOS DE LOS LUCHADORES (combate de anime)
+
+Pon aquí un PNG (o WebP) por personaje:
+  - Cuerpo entero, de pie, con el FONDO TRANSPARENTE (un "render").
+  - Nombre del archivo = nombre del personaje en el juego: Goku.png, Gojo.png, Sung Jin-Woo.png...
+    (también vale el nombre en español que usa pics/, p. ej. Freezer.png o Barbablanca.png).
+  - Mejor si mira hacia la DERECHA. Si mira a la izquierda, añade su nombre a FACE_L en f3d/sprite.js.
+  - Tamaño recomendado: unos 1000 px de alto (más grande no se ve mejor y pesa más).
+
+El juego recorta solo los bordes vacíos. Si un personaje no tiene dibujo aquí,
+sale su retrato del juego dentro de un medallón (provisional).
+Si sustituyes un dibujo por otro con el MISMO nombre, sube ART_V en game.js.
