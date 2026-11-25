@@ -48,6 +48,24 @@ function samplePts(c, bust) {
   return out;
 }
 const texOf = c => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+// ruido suave (mosaico 128×128) para la muerte: el mismo valor en el shader (por dónde se quema el dibujo) y aquí (de dónde sale cada ceniza)
+const NZN = 128, NREP = 2.2; let NZ = null, NZT = null;
+function noiseTex() {
+  if (NZT) return NZT;
+  let sd = 1337; const rnd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+  NZ = new Float32Array(NZN * NZN);
+  for (const [cells, wt] of [[6, .55], [12, .3], [24, .15]]) {
+    const L = Array.from({ length: cells * cells }, rnd), at = (x, y) => L[((y % cells + cells) % cells) * cells + ((x % cells + cells) % cells)], sm = t => t * t * (3 - 2 * t);
+    for (let y = 0; y < NZN; y++) for (let x = 0; x < NZN; x++) { const fx = x / NZN * cells, fy = y / NZN * cells, ix = Math.floor(fx), iy = Math.floor(fy), u = sm(fx - ix), v = sm(fy - iy);
+      NZ[y * NZN + x] += wt * ((at(ix, iy) * (1 - u) + at(ix + 1, iy) * u) * (1 - v) + (at(ix, iy + 1) * (1 - u) + at(ix + 1, iy + 1) * u) * v); }
+  }
+  let lo = 1, hi = 0; for (const v of NZ) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  const d = new Uint8Array(NZN * NZN * 4); for (let i = 0; i < NZ.length; i++) { NZ[i] = (NZ[i] - lo) / (hi - lo || 1); d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = Math.round(NZ[i] * 255); d[i * 4 + 3] = 255; }
+  NZT = new THREE.DataTexture(d, NZN, NZN); NZT.wrapS = NZT.wrapT = THREE.RepeatWrapping; NZT.magFilter = NZT.minFilter = THREE.LinearFilter; NZT.needsUpdate = true;
+  return NZT;
+}
+const nzAt = (u, v) => NZ[((Math.floor(v * NZN) % NZN + NZN) % NZN) * NZN + ((Math.floor(u * NZN) % NZN + NZN) % NZN)];
+const burnV = (u, v, asp) => nzAt(u * NREP * asp, v * NREP) * .72 + (1 - v) * .28; // 0 = se quema primero (la cabeza), 1 = lo último (los pies)
 let MASK = null; // máscara redonda para las estelas del medallón
 const maskTex = () => { if (MASK) return MASK; const c = canvasOf(128, 128), g = c.getContext('2d'), r = g.createRadialGradient(64, 64, 40, 64, 64, 62); r.addColorStop(0, '#fff'); r.addColorStop(1, '#000'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); return (MASK = new THREE.CanvasTexture(c)); };
 
@@ -66,7 +84,8 @@ export function loadArt(name, src) {
 }
 
 const VS = `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
-const FS = `uniform sampler2D map;uniform vec2 px;uniform float flash;uniform float op;uniform float bust;uniform float rimK;uniform vec3 rimC;uniform vec3 tint;uniform vec3 olc;varying vec2 vUv;
+const FS = `uniform sampler2D map;uniform vec2 px;uniform float flash;uniform float op;uniform float bust;uniform float rimK;uniform vec3 rimC;uniform vec3 tint;uniform vec3 olc;
+uniform sampler2D nz;uniform vec2 nrep;uniform float dis;uniform vec3 disC;uniform float gray;varying vec2 vUv;
 float al(vec2 o){return texture2D(map,vUv+o).a;}
 void main(){vec4 c=texture2D(map,vUv);float a=c.a;vec3 col=c.rgb*tint;
 if(bust>.5){vec2 q=(vUv-.5)/vec2(.5,.46);float d=length(q);a=(1.0-smoothstep(.8,.92,d))*smoothstep(-.05,.3,vUv.y);
@@ -74,6 +93,9 @@ if(bust>.5){vec2 q=(vUv-.5)/vec2(.5,.46);float d=length(q);a=(1.0-smoothstep(.8,
 else{vec2 r=px*3.0,s=r*.707;float t0=al(vec2(r.x,0.)),t1=al(vec2(-r.x,0.)),t2=al(vec2(0.,r.y)),t3=al(vec2(0.,-r.y)),t4=al(s),t5=al(-s),t6=al(vec2(s.x,-s.y)),t7=al(vec2(-s.x,s.y));
   float mx=max(max(max(t0,t1),max(t2,t3)),max(max(t4,t5),max(t6,t7))),mn=min(min(min(t0,t1),min(t2,t3)),min(min(t4,t5),min(t6,t7)));
   col+=rimC*a*(1.0-mn)*rimK*1.8;float e=clamp(mx-a,0.,1.),A=a+e*(1.0-a);vec3 oc=mix(olc,rimC*2.2,rimK*.8);col=(col*a+oc*e*(1.0-a))/max(A,.001);a=A;}
+col=mix(col,dot(col,vec3(.3,.59,.11))*vec3(.8,.84,.98),gray);
+if(dis>0.0){float e=texture2D(nz,vUv*nrep).r*.72+(1.0-vUv.y)*.28-dis;if(e<0.0)discard;
+  col*=mix(.25,1.0,smoothstep(0.0,.16,e));col=mix(col,disC,smoothstep(.05,.0,e));a=max(a,smoothstep(.03,.0,e)*step(.02,a));}
 col=mix(col,vec3(1.7),flash);a*=op;if(a<.06)discard;gl_FragColor=vec4(col,a);}`;
 
 const cr = new THREE.Vector3();
@@ -89,12 +111,13 @@ export function buildSprite(name, look, artP) {
   const X = look.x || {}; F.armed = !!(X.sword || X.bigsword || X.dual); F.pole = !!(X.staff || X.spear || X.axe || X.hammer || X.club);
 
   const geo = new THREE.PlaneGeometry(1, 1); geo.translate(0, .5, 0); const base = Float32Array.from(geo.attributes.position.array), pos = geo.attributes.position;
-  const U = { map: { value: null }, px: { value: new THREE.Vector2(.002, .002) }, flash: { value: 0 }, op: { value: 1 }, bust: { value: 0 }, rimK: { value: 0 }, rimC: { value: new THREE.Color() }, tint: { value: new THREE.Color(1, 1, 1) }, olc: { value: new THREE.Color('#0a0710') } };
+  const U = { map: { value: null }, px: { value: new THREE.Vector2(.002, .002) }, flash: { value: 0 }, op: { value: 1 }, bust: { value: 0 }, rimK: { value: 0 }, rimC: { value: new THREE.Color() }, tint: { value: new THREE.Color(1, 1, 1) }, olc: { value: new THREE.Color('#0a0710') },
+    nz: { value: noiseTex() }, nrep: { value: new THREE.Vector2(NREP, NREP) }, dis: { value: 0 }, disC: { value: new THREE.Color(3, 1.4, .5) }, gray: { value: 0 } };
   const mat = new THREE.ShaderMaterial({ uniforms: U, vertexShader: VS, fragmentShader: FS, side: THREE.DoubleSide, transparent: true, depthWrite: true });
   const mesh = new THREE.Mesh(geo, mat); mesh.renderOrder = 4.5; mesh.visible = false; mesh.rotation.order = 'YXZ'; mesh.frustumCulled = false; F.mesh = mesh;
   let art = null, w = 1, h = 1, y0 = 0, flip = 1, dead = false;
   artP.then(a => { if (dead) return; art = a; U.map.value = a.tex; U.px.value.set(1 / a.c.width, 1 / a.c.height); U.bust.value = a.bust ? 1 : 0;
-    h = a.bust ? 1.5 * S : F.H; w = h * a.c.width / a.c.height; y0 = a.bust ? .62 * S : 0; }).catch(e => console.warn('F3D sprite', e));
+    h = a.bust ? 1.5 * S : F.H; w = h * a.c.width / a.c.height; y0 = a.bust ? .62 * S : 0; U.nrep.value.set(NREP * a.c.width / a.c.height, NREP); }).catch(e => console.warn('F3D sprite', e));
 
   // cada fotograma (después de mover la cámara): postura del dibujo a partir de la pose del esqueleto
   F.sync = (s, cam, o) => {
@@ -130,6 +153,13 @@ export function buildSprite(name, look, artP) {
   F.points = () => { if (!art) return []; mesh.updateMatrixWorld(true); const out = [];
     for (const [u, v, r, g, b] of art.pts) out.push([mesh.localToWorld(new THREE.Vector3((u - .5) * w * flip, v * h, 0)), new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace)]);
     return out; };
+  // MUERTE: gris (0-1), quemado (0 = entero … 1 = no queda nada) con el borde al rojo del color c, y altura de sus pies si se levantara
+  F.gray = v => { U.gray.value = v; };
+  F.burn = (k, c) => { U.dis.value = k; if (c) U.disC.value.copy(c); };
+  F.footY = () => y0;
+  // puntos del dibujo con el momento en que se queman (ordenados: primero la cabeza)
+  F.burnPts = () => { if (!art) return []; const asp = art.c.width / art.c.height, out = F.points();
+    art.pts.forEach(([u, v], i) => { if (out[i]) out[i].push(burnV(u, v, asp)); }); return out.sort((a, b) => a[2] - b[2]); };
   F.dispose = () => { dead = true; geo.dispose(); mat.dispose(); };
   return F;
 }

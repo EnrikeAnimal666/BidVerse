@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '2026-11-19a';
+  const VERSION = '2026-11-25a';
   const CFG = { anime: { start: 20 }, ufc: { start: 40 }, futbol: { start: 100 } }, MAXC = 3, SECS = 10;
   // Fútbol: 4-3-3 (1 portero, 4 defensas, 3 medios, 3 delanteros). Se subasta por posiciones, igual que la UFC por categorías.
   const FUT_DIVS = [{ k: 'GK', n: 1 }, { k: 'DEF', n: 4 }, { k: 'MID', n: 3 }, { k: 'FWD', n: 3 }];
@@ -101,8 +101,9 @@
     if (v <= g.bid) return err('errOver', g.bid);
     if (v > g.P[p].m) return err('errMoney', g.P[p].m);
     g.bid = v; g.leader = p; g.left = SECS;
-    const closing = !!g.passed[1 - p], ev = [{ t: 'bid', p, amount: v, closing }];
-    if (closing) { const r = close(g, false); return { ev: ev.concat(r.ev), wait: r.wait }; }
+    // El rival no puede superarla (no le llega el dinero para pujar más: tiene $4 y pujas 4, o lo ha pujado todo y le subes): adjudicado al momento
+    const o = 1 - p, maxed = !g.passed[o] && g.P[o].m <= v, closing = !!g.passed[o] || maxed, ev = [{ t: 'bid', p, amount: v, closing }];
+    if (closing) { const r = close(g, false); if (maxed) r.ev.forEach(e => { if (e.t === 'sold') e.maxed = true; }); return { ev: ev.concat(r.ev), wait: r.wait }; }
     return { ev, wait: null };
   }
 
