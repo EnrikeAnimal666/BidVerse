@@ -127,10 +127,12 @@ export function buildSprite(name, look, artP) {
     const roll = fs * -R.rx, lift = Math.abs(Math.sin(roll)) * w * .42;
     mesh.position.set(R.x, R.y + y0 + lift, R.z);
     mesh.rotation.set(0, Math.atan2(cam.position.x - R.x, cam.position.z - R.z), roll - fs * tilt);
-    U.flash.value = Math.min(1, s.fl * 1.1); U.rimK.value = Math.min(1, s.lv * .5);
-    if (s.lv > .2) U.rimC.value.copy(s.auraC); else U.rimC.value.set(o.pc);
+    const na = s.sty && !s.sty.au; // sin aura (Toji…): apenas un borde de luz neutro
+    U.flash.value = Math.min(1, s.fl * 1.1); U.rimK.value = Math.min(1, s.lv * .5) * (na ? .25 : 1);
+    if (s.lv > .2 && !na) U.rimC.value.copy(s.auraC); else U.rimC.value.set(na && s.lv > .2 ? '#d8dce6' : o.pc);
     U.tint.value.copy(o.tint);
   };
+  F.halfW = () => art ? w * .5 : null; // media anchura del dibujo (main.js coloca a los dos luchadores pegados según esto)
   F.opacity = v => { U.op.value = v; };
   F.setExpr = () => {};
   // copia fantasma (estelas, clones, sombras): el dibujo tal y como está ahora, teñido

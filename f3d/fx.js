@@ -12,6 +12,10 @@ export const TEX = {
   crack: cvs(256, 256, g => { g.translate(128, 128); g.strokeStyle = '#fff'; g.lineCap = 'round';
     for (let i = 0; i < 11; i++) { let a = i / 11 * TAU + rr(-.2, .2), x = 0, y = 0; g.lineWidth = rr(3, 6); g.beginPath(); g.moveTo(0, 0); for (let k = 0; k < 6; k++) { a += rr(-.4, .4); const d = rr(12, 22); x += Math.cos(a) * d; y += Math.sin(a) * d; g.lineTo(x, y); g.lineWidth *= .8; } g.stroke(); }
     const r = g.createRadialGradient(0, 0, 0, 0, 0, 60); r.addColorStop(0, 'rgba(255,255,255,.9)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.beginPath(); g.arc(0, 0, 60, 0, TAU); g.fill(); }),
+  // marca de un puño americano: cuatro anillos sobre una barra (impactos de Adam)
+  knuckle: cvs(256, 256, g => { g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineWidth = 11; for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(50 + i * 52, 112, 21, 0, TAU); g.stroke(); }
+    g.beginPath(); g.moveTo(34, 150); g.lineTo(222, 150); g.lineTo(206, 172); g.lineTo(50, 172); g.closePath(); g.fill();
+    const r = g.createRadialGradient(128, 128, 0, 128, 128, 128); r.addColorStop(0, 'rgba(255,255,255,.35)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 256, 256); }),
   crescent: cvs(256, 256, g => { g.translate(128, 128); const r = g.createLinearGradient(-120, 0, 120, 0); r.addColorStop(0, 'rgba(255,255,255,0)'); r.addColorStop(.75, 'rgba(255,255,255,.9)'); r.addColorStop(1, 'rgba(255,255,255,1)'); g.fillStyle = r;
     g.beginPath(); g.arc(0, 0, 120, -1.25, 1.25); g.arc(-38, 0, 104, 1.1, -1.1, true); g.closePath(); g.fill(); }),
 };

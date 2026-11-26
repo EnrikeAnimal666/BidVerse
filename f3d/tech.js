@@ -1,8 +1,11 @@
 /* BidVerse 3D · TÉCNICAS: cada familia (rayo, esfera, del cielo, púrpura, vórtice, destello negro, onda, corte, relámpago, fuego,
-   agua/arena, ráfaga de golpes y enjambre) con su coreografía en 3D. Devuelven una promesa que se cumple en el instante del impacto. */
+   agua/arena, ráfaga de golpes y enjambre) con su coreografía en 3D, pasada por el ESTILO de quien la lanza (f3d/style.js): quien no
+   tiene energía (Toji, Adam, Levi…) nunca lanza rayos; sus técnicas son golpes de verdad (corte iai, la cadena, el bastón, el golpe
+   demoledor…), los Stands pegan con su Stand y la telequinesis aplasta a distancia. Devuelven una promesa que se cumple al impactar. */
 import * as THREE from 'three';
 import { energyMat, TEX, rr, TAU } from './fx.js';
 import { ghostOf } from './model.js';
+import { EL } from './style.js';
 
 export function makeTech(X) {
   const V3 = THREE.Vector3, t1 = new V3(), t2 = new V3();
@@ -10,26 +13,38 @@ export function makeTech(X) {
   const SPH = new THREE.SphereGeometry(1, 32, 20), CYL = new THREE.CylinderGeometry(1, 1, 1, 24, 1, true); CYL.translate(0, .5, 0); CYL.rotateX(Math.PI / 2);
   const orb = (r, col, core = '#ffffff', k = 2.4) => { const m = new THREE.Mesh(SPH, energyMat(col, core, 0, k)); m.scale.setScalar(r); m.renderOrder = 6; S().add(m); return m; };
   const kill = m => { if (!m) return; S().remove(m); m.traverse(o => { if (o.material) o.material.dispose(); }); };
-  const vic = a => 1 - a, vx = a => { const s = X.FT[1 - a]; return s ? s.A.R.x : X.homeX(1 - a); };
+  const vic = a => 1 - a, vx = a => { const s = X.FT[1 - a]; return s ? s.A.R.x : X.homeX(1 - a); }, vz = a => { const s = X.FT[1 - a]; return s ? s.A.R.z : 0; };
   const src2 = a => X.hand(a, 'R').add(X.hand(a, 'L', t2)).multiplyScalar(.5).add(t1.set(X.dir(a) * .12, 0, 0));
   const srcR = a => X.hand(a, 'R').add(t1.set(X.dir(a) * .12, 0, 0));
-  function beamMesh(col, core = '#ffffff') {
-    const o = new THREE.Mesh(CYL, energyMat(col, core, 1, 1.5)), i = new THREE.Mesh(CYL, energyMat(core, '#ffffff', 1, 1.6)); i.scale.set(.38, .38, 1); o.add(i); o.renderOrder = i.renderOrder = 6; S().add(o);
+  const STEEL = X.STEEL;
+  // rayo limpio: núcleo blanco nítido, halo de su color que se difumina hacia el borde y un flujo suave hacia el rival (sin parpadeos ni ruido)
+  function beamMat(col, k) {
+    return new THREE.ShaderMaterial({ uniforms: { col: { value: new THREE.Color(col).multiplyScalar(k) }, t: { value: 0 }, op: { value: 1 } },
+      vertexShader: `varying vec3 vN;varying vec3 vV;varying vec2 vUv;void main(){vUv=uv;vec4 w=modelMatrix*vec4(position,1.0);vN=normalize(mat3(modelMatrix)*normal);vV=normalize(cameraPosition-w.xyz);gl_Position=projectionMatrix*viewMatrix*w;}`,
+      fragmentShader: `uniform vec3 col;uniform float t;uniform float op;varying vec3 vN;varying vec3 vV;varying vec2 vUv;
+void main(){float f=abs(dot(normalize(vN),vV));float flow=.86+.14*sin(vUv.y*10.0-t*20.0);float a=pow(f,1.7)*flow*smoothstep(0.0,.04,vUv.y);
+vec3 c=mix(col,vec3(3.0),smoothstep(.62,.97,f));gl_FragColor=vec4(c,clamp(a,0.0,1.0)*op);}`,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  }
+  function beamMesh(col) {
+    const o = new THREE.Mesh(CYL, beamMat(col, 2)), i = new THREE.Mesh(CYL, beamMat('#ffffff', 1.5)); i.scale.set(.34, .34, 1); o.add(i); o.renderOrder = i.renderOrder = 6; S().add(o);
     return { o, set(a, b, w) { o.position.copy(a); o.lookAt(b); o.scale.set(w, w, Math.max(.001, a.distanceTo(b))); }, t(dt) { o.material.uniforms.t.value += dt; i.material.uniforms.t.value += dt; }, op(v) { o.material.uniforms.op.value = v; i.material.uniforms.op.value = v; }, kill() { kill(o); } };
   }
+  const glowSpr = (col, s, k = 1.8) => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: new THREE.Color(col).multiplyScalar(k), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); m.scale.setScalar(s); m.renderOrder = 8; S().add(m); return m; };
   const impact = (d, C, big = 1) => { const p = X.chest(d); fx().sprite(p, 2 * big, C, .4, { k: 1.7 }); fx().sprite(p, .9 * big, '#ffffff', .18, { k: 1.4 }); fx().ring(p, 2.6 * big, C, .4); fx().glow(p, 50 * big, C, { max: 8 * big, l1: .7 }); fx().spark(p, 24, C, { max: 14 }); X.shake(.4 * big); };
   const fire = (a, pose, hold = .4) => { X.busy(a, hold + .6); X.expr(a, 'a', hold + .5); X.play(a, pose); X.setActor(a); };
   const back = (a, sec) => X.later(sec, () => X.home(a));
+  const line = (a, b, C, life, w) => fx().bolt(a, b, C, life, { disp: 0, w, k: 3 });
 
   // ---- rayo de energía (Kamehameha, Final Flash…) ----
-  function beam(a, big, C, core = '#ffffff') {
+  function beam(a, big, C) {
     const d = vic(a); fire(a, [['beamCharge', .14, 'out', .16], ['beamFire', .06, 'snap', .55]], 1); X.shot('side', a, 1200);
-    const o = orb(.05, C, core); fx().anim(.3, (k, dt) => { o.position.copy(src2(a)); o.scale.setScalar(.05 + .3 * k * (big ? 1.3 : 1)); o.material.uniforms.t.value += dt; }, () => kill(o));
+    const o = orb(.05, C); fx().anim(.3, (k, dt) => { o.position.copy(src2(a)); o.scale.setScalar(.05 + .3 * k * (big ? 1.3 : 1)); o.material.uniforms.t.value += dt; }, () => kill(o));
     const s0 = src2(a); fx().glow(s0, 30, C, { to: s0.clone(), pull: 10, sx: 1.2, sy: 1.2, sz: 1.2, max: .1, l0: .3, l1: .4 });
-    X.later(.3, () => { const B = beamMesh(C, core), w = big ? .3 : .22; fx().sprite(src2(a), 1.1, C, .7, { g0: 1, g1: .2, k: 1.6 }); X.shake(.3); X.kick(2);
-      fx().anim(.8, (k, dt) => { const a0 = src2(a), tg = X.chest(d), ext = Math.min(1, k / .15), b = a0.clone().lerp(tg, ext);
-        B.set(a0, b, w * (k < .78 ? 1 : Math.max(.02, 1 - (k - .78) / .22)) * (1 + .07 * Math.sin(k * 90))); B.t(dt);
-        if (ext >= 1 && Math.random() < .7) { fx().spark(tg, 3, C, { max: 11 }); if (Math.random() < .25) fx().sprite(tg, 1.3, C, .12, { k: 1.5 }); } }, () => B.kill()); });
+    X.later(.3, () => { const B = beamMesh(C), w = big ? .26 : .19, mz = glowSpr(C, .9, 2), hit = glowSpr(C, 1.2, 1.6); fx().sprite(src2(a), 1.1, C, .5, { g0: 1, g1: .2, k: 1.6 }); X.shake(.3); X.kick(2);
+      fx().anim(.8, (k, dt) => { const a0 = src2(a), tg = X.chest(d), ext = Math.min(1, k / .15), b = a0.clone().lerp(tg, ext), fade = k < .78 ? 1 : Math.max(.02, 1 - (k - .78) / .22);
+        B.set(a0, b, w * fade * (1 + .025 * Math.sin(k * 60))); B.t(dt); mz.position.copy(a0); mz.scale.setScalar(.9 * fade); hit.position.copy(b); hit.scale.setScalar(ext >= 1 ? 1.4 * fade : .01);
+        if (ext >= 1 && Math.random() < .35) fx().spark(tg, 2, C, { max: 10 }); }, () => { B.kill(); kill(mz); kill(hit); }); });
     return X.pend(.42, () => impact(d, C, big ? 1.3 : 1));
   }
   // ---- esfera (Rasengan, Rasen Shuriken, Bijūdama, puño gigante…) ----
@@ -116,7 +131,8 @@ export function makeTech(X) {
     else { if (v === 'getsuga') crescentFly(a, '#0a0006', true, 0); crescentFly(a, C, false, rr(-.3, .3)); }
     return X.pend(hitAt, () => { impact(d, C, big ? 1.2 : 1); for (let i = 0; i < 3; i++) X.later(i * .05, () => cut(d, C)); });
   }
-  function cut(d, C) { const c = X.chest(d), an = rr(-1.3, 1.3), L = rr(1, 1.6); fx().bolt(c.clone().add(t1.set(Math.cos(an) * -L, Math.sin(an) * -L, rr(-.2, .2))), c.clone().add(t2.set(Math.cos(an) * L, Math.sin(an) * L, rr(-.2, .2))), C, .22, { disp: 0, w: .06, k: 3 }); }
+  function cutAt(c, C) { const an = rr(-1.3, 1.3), L = rr(1, 1.6); fx().bolt(c.clone().add(t1.set(Math.cos(an) * -L, Math.sin(an) * -L, rr(-.2, .2))), c.clone().add(t2.set(Math.cos(an) * L, Math.sin(an) * L, rr(-.2, .2))), C, .22, { disp: 0, w: .06, k: 3 }); }
+  function cut(d, C) { cutAt(X.chest(d), C); }
   // ---- relámpago (Chidori, Raikiri, Velocidad Divina, Trueno y Destello) ----
   function lightning(a, big, C, v) {
     const d = vic(a), flash = v === 'flash', hitAt = flash ? .12 : .3, D = X.dir(a);
@@ -169,20 +185,217 @@ export function makeTech(X) {
     if (v === 'shadow') fx().smoke(h, 10, '#14061c', { max: 2, a: .7 });
     return X.pend(hitAt, () => { fx().glow(tg, 40, cl[0], { max: 5, l1: .6 }); fx().ring(tg, 2, cl[0], .35); X.shake(.35); });
   }
-  // ---- choque de técnicas ----
+  /* ---- CHOQUE de técnicas, cada uno a su estilo: con energía, su rayo; sin energía (Toji, Adam…), se lanza al punto del choque y aguanta
+     con el puño, la espada o el arma (y si los dos son así, intercambian golpes a toda velocidad); los Stands pegan en el punto de choque.
+     Donde se encuentran: un núcleo blanco nítido, el color de cada uno a su lado, una pared de energía fina y una onda a cada empujón. ---- */
   let CL = null;
+  const modeOf = p => { const st = X.sty(p); return st.k === 'stand' ? 'stand' : st.ce ? 'beam' : 'body'; };
+  const reachOf = p => { const st = X.sty(p); return st.k === 'blade' ? 1.05 : st.k === 'pole' ? (st.w === 'chain' ? 1.5 : 1.25) : st.k === 'claw' ? .95 : .8; };
+  const holdPose = (p, alt) => { const st = X.sty(p); return st.k === 'blade' || st.k === 'claw' ? (alt ? 'slashH2' : 'slashB') : st.k === 'pole' ? (alt ? 'slashH1' : 'jabR') : st.w === 'kick' ? (alt ? 'kickR_m' : 'kickR') : (alt ? 'jabR_m' : 'jabR'); };
   function clash() {
-    const s0 = X.FT[0], s1 = X.FT[1]; if (!s0 || !s1) return;
-    for (const p of [0, 1]) { X.play(p, [['beamFire', .12, 'snap']], true); X.busy(p, 5); X.expr(p, 'a', 5); }
-    const c0 = X.colOf(0), c1 = X.colOf(1), b0 = beamMesh(c0), b1 = beamMesh(c1), ball = orb(.5, '#ffffff', '#ffffff', 2); X.shot('wide', 0, 4500);
-    CL = { x: .5, tx: .5, done: false };
-    CL.an = fx().anim(30, (k, dt) => { if (!CL || CL.done) return; CL.x += (CL.tx - CL.x) * Math.min(1, dt * 8);
-      const h0 = src2(0).clone(), h1 = src2(1).clone(), m = h0.clone().lerp(h1, CL.x); b0.set(h0, m, .32 * (1 + .1 * Math.sin(k * 900))); b1.set(h1, m, .32 * (1 + .1 * Math.cos(k * 800))); b0.t(dt); b1.t(dt);
-      ball.position.copy(m); ball.scale.setScalar(.55 + .12 * Math.sin(k * 700)); ball.material.uniforms.t.value += dt;
-      if (Math.random() < .8) fx().spark(m, 3, Math.random() < .5 ? c0 : c1, { max: 10, life: .35 }); if (Math.random() < dt * 14) fx().bolt(m, m.clone().add(t1.set(rr(-1.6, 1.6), rr(-1.2, 1.2), rr(-1, 1))), Math.random() < .5 ? c0 : c1, .12, { w: .05 });
-      if (Math.random() < dt * 6) X.shake(.08); }, () => { b0.kill(); b1.kill(); kill(ball); });
+    const s0 = X.FT[0], s1 = X.FT[1]; if (!s0 || !s1) return; if (CL) clashEnd(-1);
+    const M = [modeOf(0), modeOf(1)], C = [0, 1].map(p => M[p] === 'body' ? X.tc(p) : M[p] === 'stand' ? X.sty(p).sc || X.colOf(p) : X.colOf(p)), A = [X.chest(0), X.chest(1)];
+    const own = [], add = o => { S().add(o); own.push(o); return o; }, B = [null, null], G = [null, null], mz = [null, null];
+    for (const p of [0, 1]) { X.busy(p, 6); X.expr(p, 'a', 6);
+      if (M[p] === 'beam') { X.play(p, [['beamCharge', .1, 'out'], ['beamFire', .1, 'snap']], true); B[p] = beamMesh(C[p]); mz[p] = add(glowSpr(C[p], .8, 2)); }
+      else if (M[p] === 'stand') { X.play(p, [['cocky', .14, 'out']], true); const g = ghostOf(X.FT[p].F, C[p], .6); g.renderOrder = 4.7; G[p] = add(g); }
+      else { X.play(p, [['dash', .06, 'out'], [holdPose(p), .08, 'snap']], true); X.ghosts(p, 3); } }
+    const mix = new THREE.Color(C[0]).lerp(new THREE.Color(C[1]), .5).lerp(new THREE.Color('#ffffff'), .35), mixH = '#' + mix.getHexString();
+    const core = add(glowSpr('#ffffff', .8, 2.2)), h0 = add(glowSpr(C[0], 1.4, 1.5)), h1 = add(glowSpr(C[1], 1.4, 1.5));
+    const wallG = new THREE.PlaneGeometry(1, 1), poolG = new THREE.PlaneGeometry(1, 1);
+    const wall = add(new THREE.Mesh(wallG, new THREE.MeshBasicMaterial({ map: TEX.glow, color: mix.clone().multiplyScalar(1.6), transparent: true, opacity: .6, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }))); wall.renderOrder = 7;
+    const pool = add(new THREE.Mesh(poolG, new THREE.MeshBasicMaterial({ map: TEX.glow, color: mix.clone().multiplyScalar(.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }))); pool.rotation.x = -Math.PI / 2; pool.renderOrder = 2;
+    X.shot('clash', 0, 6000);
+    const m = new V3(); let tt = 0, pulse = .3, dust = 0, ex = .1, alt = false;
+    const me = CL = { x: .5, tx: .5, M, C, surge: [0, 0], m };
+    me.an = fx().anim(30, (k, dt) => { if (CL !== me) return; tt += dt; me.x += (me.tx - me.x) * Math.min(1, dt * 7);
+      m.copy(M[0] === 'beam' ? src2(0) : A[0]).lerp(M[1] === 'beam' ? src2(1) : A[1], me.x); m.z = 0; X.camAt(m);
+      const sg = me.surge; sg[0] = Math.max(0, sg[0] - dt * 3); sg[1] = Math.max(0, sg[1] - dt * 3);
+      for (const p of [0, 1]) { const D = X.dir(p), s = X.FT[p]; if (!s) continue;
+        if (M[p] === 'beam') { const a0 = src2(p); B[p].set(a0, m, .19 * (1 + .45 * sg[p]) * (1 + .03 * Math.sin(tt * 31 + p * 2))); B[p].t(dt); mz[p].position.copy(a0); mz[p].scale.setScalar(.75 + .08 * Math.sin(tt * 27 + p)); }
+        else if (M[p] === 'stand') { const R = s.F.mesh; G[p].position.set(m.x - D * (.72 + .1 * Math.sin(tt * 64 + p)), (R ? R.position.y : 0) + .12, .3); // el Stand pega sin parar en el punto del choque
+          if (Math.random() < dt * 14) fx().sprite(t1.copy(m).add(t2.set(-D * .15, rr(-.3, .3), rr(-.2, .2))), rr(.4, .7), Math.random() < .5 ? C[p] : '#ffffff', .09, { tex: TEX.star, k: 2.4 }); }
+        else { const R = s.A.R, tx = m.x - D * reachOf(p) + Math.sin(tt * 55 + p * 3) * .012, q = Math.min(1, dt * 12); R.tw = null; R.x += (tx - R.x) * q; R.z -= R.z * q; } } // aguanta en el punto del choque, temblando
+      if (M[0] === 'body' || M[1] === 'body') { if ((ex -= dt) <= 0) { const both = M[0] === 'body' && M[1] === 'body'; ex = both ? .13 : .22; alt = !alt;
+        for (const p of [0, 1]) if (M[p] === 'body') X.play(p, [[holdPose(p, alt), .05, 'snap']], true);
+        if (both) { fx().sprite(m, rr(.7, 1.1), '#ffffff', .09, { tex: TEX.star, k: 2.4 }); fx().ring(m, .9, mixH, .2, { inner: .9 }); fx().spark(m, 8, '#ffffff', { dir: t1.set(0, 1, 0), spread: 1.2, max: 10, life: .25 }); X.shake(.06); } } }
+      const sp = 1 + .3 * (sg[0] + sg[1]);
+      core.position.copy(m); core.scale.setScalar(.75 * sp * (1 + .05 * Math.sin(tt * 23)));
+      h0.position.copy(m).x -= .2; h1.position.copy(m).x += .2; h0.scale.setScalar(1.3 * (1 + .4 * sg[0])); h1.scale.setScalar(1.3 * (1 + .4 * sg[1]));
+      wall.position.copy(m); wall.rotation.set(0, Math.PI / 2, tt * 1.2); wall.scale.setScalar(1.7 * sp * (1 + .06 * Math.sin(tt * 17)));
+      pool.position.set(m.x, .025, 0); pool.scale.setScalar(2.6 * sp);
+      if (Math.random() < dt * 26) fx().spark(m, 2, Math.random() < .5 ? C[0] : C[1], { dir: t1.set(rr(-.25, .25), rr(-1, 1), rr(-1, 1)), spread: .4, max: 9, life: .3, w: .035 });
+      if ((M[0] === 'beam' || M[1] === 'beam') && Math.random() < dt * 1.6) fx().bolt(m, m.clone().add(t1.set(rr(-.9, .9), rr(-.8, .8), rr(-.6, .6))), Math.random() < .5 ? C[0] : C[1], .09, { w: .035 });
+      if ((pulse -= dt) <= 0) { pulse = .55; fx().ring(m, 1.4, mixH, .45, { inner: .93 }); }
+      if ((dust -= dt) <= 0) { dust = .09; fx().smoke(t1.set(m.x, .05, rr(-.3, .3)), 1, '#3a3344', { max: 2.6, up: .08, a: .4, vz: rr(-1, 1) }); }
+      if (Math.random() < dt * 2.5) X.shake(.05);
+    }, () => { for (const b of B) if (b) b.kill(); for (const o of own) { S().remove(o); if (o.material) o.material.dispose(); else if (o.userData.mat) o.userData.mat.dispose(); } wallG.dispose(); poolG.dispose(); });
   }
-  function clashEnd(l) { if (!CL) return; CL.done = true; CL.an.t = CL.an.d; CL = null; for (const p of [0, 1]) { const s = X.FT[p]; if (s && !s.dead) X.play(p, [[s.A.base, .3, 'io']]); } }
+  // empujón: el punto del choque avanza hacia quien cede; el que empuja se ensancha un instante y sale una onda
+  function clashX(x) { const c = CL; if (!c) return; x = Math.max(.06, Math.min(.94, x)); if (x === c.tx) return; const w = x > c.tx ? 0 : 1; c.tx = x; c.surge[w] = 1;
+    fx().ring(c.m, 2, c.C[w], .4, { inner: .9 }); fx().sprite(c.m, 1.5, '#ffffff', .14, { k: 2 }); fx().spark(c.m, 14, c.C[w], { dir: t1.set(X.dir(w) * .6, .5, 0), spread: 1, max: 12, life: .35 }); fx().crater(c.m.x, 0, .7, c.C[w]);
+    X.kick(1.4); X.shake(.16); }
+  // final: el rayo ganador atraviesa al rival; quien pega con el cuerpo se lanza a rematar; el Stand da el último golpe
+  function clashEnd(l) { const c = CL; if (!c) return; CL = null; c.an.t = c.an.d; const w = l === 0 || l === 1 ? 1 - l : -1; X.shot(w >= 0 ? 'hit' : 'wide', w >= 0 ? l : 0, w >= 0 ? 800 : 1);
+    if (w >= 0) { const D = X.dir(w);
+      if (c.M[w] === 'beam') { const B = beamMesh(c.C[w]); fx().anim(.5, (k, dt) => { const a0 = src2(w), tg = X.chest(l).add(t1.set(D * 1.6 * Math.min(1, k * 3), 0, 0)), b = a0.clone().lerp(tg, Math.min(1, k / .18));
+          B.set(a0, b, .2 * (1 + k * .7) * (k > .7 ? Math.max(.05, 1 - (k - .7) / .3) : 1)); B.t(dt); }, () => B.kill()); }
+      else if (c.M[w] === 'stand') standGhost(w, c.C[w], .45, { reach: .5 });
+      else { const st = X.sty(w); X.play(w, [['dash', .04, 'snap'], [st.k === 'blade' || st.k === 'claw' ? 'slashB' : st.w === 'kick' ? 'kickR' : 'upperR', .07, 'snap', .25]]);
+        X.move(w, { x: X.chest(l).x - D * .95, z: 0, d: .08, e: 'out' }); X.ghosts(w, 3); X.later(.55, () => X.home(w)); } }
+    for (const p of [0, 1]) { const s = X.FT[p]; if (!s || s.dead) continue; X.unbusy(p, .5); if (p !== l && c.M[p] !== 'body') X.play(p, [[s.A.base, .3, 'io']]); if (w < 0) X.home(p); }
+  }
+  /* ---- TÉCNICAS SIN ENERGÍA: se hacen con el cuerpo y el arma ---- */
+  const ELA = { fire: 'fire', water: 'water', lightning: 'thunder' }, SWE = { blood: 'blood', ice: 'ice', shadow: 'shadow', paper: 'paper' };
+  const elOf = ar => ar.ar === 'water' && ar.v === 'sand' ? 'sand' : ELA[ar.ar] || (ar.ar === 'swarm' ? SWE[ar.v] || '' : '');
+  // pasa la técnica por el estilo: lo que no encaja con cómo pelea se convierte en su golpe
+  function styled(ar, st) { const k = st.k;
+    if (k === 'stand' && (ar.def || ar.ar === 'barrage' || ar.ar === 'beam' || (ar.ar === 'sphere' && ar.v === 'fist'))) return { ar: 'stand' }; // Star Finger, Road Roller, ORA ORA…: pega el Stand
+    if (ar.ar === 'barrage' && (k === 'blade' || k === 'pole' || k === 'claw')) return { ar: 'strike', v: 'flurry', el: elOf(ar) };
+    if (!st.ce) { if (ar.ar === 'barrage' || ar.ar === 'bflash' || (ar.ar === 'lightning' && ar.v === 'flash') || (ar.ar === 'shock' && ar.v === 'serious')) return ar;
+      return { ar: 'strike', v: '', el: elOf(ar) }; }
+    if ((k === 'pole' || k === 'claw') && ar.ar === 'slash') return { ar: 'strike', v: '', el: '' }; // un bastón o una cola no lanzan cortes voladores: golpean
+    if (ar.def) { if (k === 'mage' && (st.w === 'cards' || st.w === 'needle')) return { ar: 'swarm', v: st.w === 'cards' ? 'paper' : 'needle' }; // Hisoka, Illumi: una lluvia de cartas o agujas
+      return k === 'ki' || k === 'mage' ? ar : k === 'blade' ? { ar: 'slash', v: '' } : k === 'psy' ? { ar: 'psyc' } : { ar: 'strike', v: '', el: '' }; }
+    return ar;
+  }
+  const wOf = (st, name) => /cloud|staff|bokken/i.test(name) ? 'staff' : st.w === 'chain' && /spear|chain|knife|heaven/i.test(name) ? 'chain' : /hammer|mj.lnir|gavel/i.test(name) ? 'hammer' : st.w;
+  function strike(a, big, C0, st, ar, name, o) {
+    const E = ar.el || st.el, C = (E && EL[E]) || (st.au ? C0 : STEEL), w = wOf(st, name), fl = ar.v === 'flurry' || /spin|crazy|rampage|cyclone|dance|berserk|frenzy/i.test(name);
+    if (st.k === 'blade') return fl ? flurry(a, big, C, E, st) : iai(a, big, C, E, st);
+    if (st.k === 'claw') return fl ? flurry(a, big, C, E, st) : rake(a, big, C, E, st);
+    if (st.k === 'pole') return fl ? flurry(a, big, C, E, st) : w === 'chain' ? chainT(a, big, C, E, st) : w === 'spear' ? spearT(a, big, C, E, st) : w === 'staff' ? staffT(a, big, C, E, st) : smashT(a, big, C, E, st);
+    if (st.k === 'stand') return standRush(a, big, st.sc || C0, name, o);
+    if (st.k === 'psy') return psyCrush(a, big, C0);
+    return power(a, big, C, E, st);
+  }
+  // golpe demoledor (Saitama, Adam con su puño americano, Yujiro…): se impulsa agrietando el suelo y la onda de choque sale por detrás del rival
+  function power(a, big, C, E, st) {
+    const d = vic(a), D = X.dir(a), hv = st.heavy, kick = st.w === 'kick', kn = st.w === 'knuckle', hitAt = hv ? .4 : .32;
+    fire(a, [['power', .1, 'out', hv ? .14 : .08], ['dash', .05, 'out'], [kick ? 'kickR' : big ? 'upperR' : 'jabR', .07, 'snap', .3]], .6); X.shot('side', a, 500); X.later(.2, () => X.shot('hit', d, 900));
+    const f0 = X.feet(a); fx().smoke(f0, 8, '#3a3344', { max: 2.4, up: .2 }); fx().crater(f0.x, f0.z, .6, C);
+    if (kn) fx().sprite(X.hand(a, 'R'), .9, '#fff0c0', .3, { tex: TEX.star, k: 2.6, spin: 4 }); // destello del puño americano
+    X.later(hitAt - .15, () => { X.move(a, { x: vx(a) - D * (kick ? 1.2 : 1), z: vz(a), d: .12, e: 'out' }); X.ghosts(a, 3); fx().trail(() => X.hand(a, 'R'), C, .2, { w: .15, keep: .14 }); });
+    back(a, hitAt + .5);
+    return X.pend(hitAt, () => { const c = X.chest(d); X.hitFx(a, d, c, true, C);
+      for (let i = 0; i < (hv ? 5 : 4); i++) X.later(i * .04, () => fx().ring(t1.copy(c).add(t2.set(D * i * .55, 0, 0)), .9 + i * .55, i % 2 ? C : '#ffffff', .32, { inner: .9 }));
+      fx().spark(c, 40, kn ? '#ffe2a0' : '#ffffff', { dir: t1.set(D, .1, 0), spread: .5, max: 20, life: .45 }); if (kn) fx().sprite(c, 1.8, '#fff3d0', .3, { tex: TEX.knuckle, k: 2.6, rot: 0 });
+      if (E) flourish(E, c, 30); const f = X.feet(d); fx().debris(t1.copy(f).setY(.2), hv ? 18 : 10, { big: 1, vx: D * 4 }); fx().crater(f.x + D * .5, f.z, hv ? 1.6 : 1.1, C); fx().smoke(f, 12, '#2e2638', { max: 3.5, vx: D * 2 });
+      X.hitstop(hv ? 150 : 110); X.shake(hv ? .9 : .65); X.kick(hv ? 5 : 4); });
+  }
+  // corte iai: desenvaina, atraviesa al rival en un instante y el corte aparece después, con él ya de espaldas (y su elemento si respira agua, fuego…)
+  function iai(a, big, C, E, st) {
+    const d = vic(a), D = X.dir(a), hitAt = .34; fire(a, [['slashA', .1, 'out', .1], ['dash', .03, 'snap'], ['slashB', .05, 'snap', .4]], .7); X.shot('side', a, 1100);
+    fx().sprite(X.hand(a, 'R').add(t1.set(D * .3, .2, 0)), .6, '#ffffff', .2, { tex: TEX.star, k: 2.2 });
+    X.later(.17, () => { const from = X.chest(a); X.move(a, { x: vx(a) + D * 1.25, z: vz(a) + .35, d: .07, e: 'out' }); X.ghosts(a, 4);
+      X.later(.075, () => { const end = X.chest(a); line(from, end, C, .32, .1); line(from, end, '#ffffff', .22, .045); if (E) for (let i = 0; i <= 8; i++) flourish(E, from.clone().lerp(end, i / 8), 3); }); });
+    X.later(.45, () => X.move(a, { x: X.homeX(a), z: 0, d: .4, e: 'io', arc: .55 })); // vuelve a su sitio de un salto por encima
+    return X.pend(hitAt, () => { const c = X.chest(d); for (let i = 0; i < (big ? 5 : 3); i++) X.later(i * .035, () => cut(d, i % 2 ? '#ffffff' : C)); X.hitFx(a, d, c, true, C); if (E) flourish(E, c, 24); X.hitstop(120); X.shake(.6); X.kick(3); });
+  }
+  // ráfaga de cortes (Corte Giratorio, Corte Loco, la motosierra…)
+  function flurry(a, big, C, E, st) {
+    const d = vic(a), D = X.dir(a), hitAt = .55; X.busy(a, 1.1); X.expr(a, 'a', 1); X.setActor(a); X.shot('hit', d, 1000);
+    X.move(a, { x: vx(a) - D * 1.2, z: vz(a), d: .1, e: 'out' }); X.ghosts(a, 2);
+    const seq = [['dash', .05, 'out']]; for (let i = 0; i < 7; i++) seq.push([i % 2 ? 'slashH1' : 'slashH2', .05, 'snap', .01]); X.play(a, seq);
+    fx().trail(() => X.hand(a, 'R'), C, .5, { w: .16, keep: .1 });
+    for (let i = 0; i < 9; i++) X.later(.1 + i * .045, () => { if (!X.FT[d]) return; cut(d, i % 3 ? C : '#ffffff'); if (E && i % 2) flourish(E, X.chest(d), 4); if (i % 2) X.FT[d].fl = .5; fx().spark(X.chest(d), 5, '#ffffff', { max: 9 }); });
+    back(a, .85);
+    return X.pend(hitAt, () => { X.hitFx(a, d, X.chest(d), true, C); X.shake(.5); });
+  }
+  // zarpazos: tres cortes paralelos (con cola, látigo o kagune, desde más lejos)
+  function claws(d, C, an) { const c = X.chest(d); for (let j = -1; j <= 1; j++) { const o = new V3(-Math.sin(an) * j * .17, Math.cos(an) * j * .17, .1), u = new V3(Math.cos(an) * 1.1, Math.sin(an) * 1.1, 0); line(c.clone().add(o).sub(u), c.clone().add(o).add(u), C, .26, .05); } }
+  function whip(a, d, C, life) { const tip = X.chest(a); fx().anim(life, k => { const u = Math.min(1, k / .6); tip.copy(X.chest(a)).lerp(X.chest(d), u); tip.y += Math.sin(u * Math.PI) * .8; });
+    fx().bolt(tip, tip, C, life, { w: .07, disp: .12, k: 2.4, get: () => [X.chest(a), tip.clone()] }); }
+  function rake(a, big, C, E, st) {
+    const d = vic(a), D = X.dir(a), long = /tail|whip|kagune/.test(st.w), hitAt = .3; fire(a, [['dash', .05, 'out'], ['slashH1', .07, 'out'], ['slashH2', .06, 'snap', .25]], .5); X.shot('hit', d, 900);
+    X.move(a, { x: vx(a) - D * (long ? 1.8 : 1.05), z: vz(a), d: .12, e: 'out' }); X.ghosts(a, 2);
+    if (long) whip(a, d, C, .3); else fx().trail(() => X.hand(a, 'R'), C, .3, { w: .14, keep: .12 });
+    back(a, .8);
+    return X.pend(hitAt, () => { claws(d, C, rr(-1, -.4)); X.later(.08, () => X.FT[d] && claws(d, '#ffffff', rr(.4, 1))); X.hitFx(a, d, X.chest(d), true, C); if (E) flourish(E, X.chest(d), 20); X.shake(.5); X.hitstop(90); });
+  }
+  // el cuchillo con cadena (Lanza Celestial Invertida de Toji): la cadena sale de su mano y el filo restalla contra el rival
+  function chain(a, d, life = .3) { const tip = X.hand(a, 'R');
+    fx().anim(life, k => { const u = Math.min(1, k / .55); tip.copy(X.hand(a, 'R')).lerp(X.chest(d), u); tip.y += Math.sin(u * Math.PI) * .45; });
+    fx().bolt(tip, tip, '#c8cfdc', life + .04, { w: .022, disp: .05, k: 1.4, get: () => [X.hand(a, 'R'), tip.clone()] });
+    fx().trail(() => tip.clone(), '#ffffff', life, { w: .08, keep: .1 }); }
+  function chainT(a, big, C, E, st) {
+    const d = vic(a), D = X.dir(a), hitAt = .36; X.busy(a, 1.1); X.expr(a, 'a', 1); X.setActor(a); X.shot('side', a, 1100);
+    X.play(a, [['dash', .04, 'out'], ['slashH1', .07, 'out', .05], ['slashH2', .05, 'snap', .3]]);
+    X.move(a, { x: vx(a) - D * 2.2, z: .9, d: .08, e: 'out' }); X.ghosts(a, 4); // a toda velocidad: aparece a un lado y luego al otro
+    X.later(.1, () => { X.move(a, { x: vx(a) - D * 1.9, z: -.5, d: .07, e: 'out' }); X.ghosts(a, 3); });
+    X.later(.18, () => chain(a, d, .3));
+    back(a, .8);
+    return X.pend(hitAt, () => { const c = X.chest(d); X.hitFx(a, d, c, true, '#ffffff'); for (let i = 0; i < 3; i++) X.later(i * .04, () => X.FT[d] && cut(d, i % 2 ? STEEL : '#ffffff'));
+      fx().ring(c, 1.8, '#ffffff', .3, { inner: .94 }); fx().sprite(c, 1.6, '#ffffff', .12, { tex: TEX.star, k: 2.6 }); X.hitstop(120); X.shake(.55); X.kick(3); });
+  }
+  // bastón (Nube Juguetona…): dos golpes secos y uno de abajo arriba
+  function staffT(a, big, C, E, st) {
+    const d = vic(a), D = X.dir(a), hitAt = .46; X.busy(a, 1.1); X.expr(a, 'a', 1); X.setActor(a); X.shot('hit', d, 1100);
+    X.move(a, { x: vx(a) - D * 1.4, z: vz(a), d: .1, e: 'out' }); X.ghosts(a, 3);
+    X.play(a, [['dash', .05, 'out'], ['slashH1', .06, 'snap', .04], ['slashH2', .06, 'snap', .04], ['upperR', .07, 'snap', .2]]);
+    fx().trail(() => X.hand(a, 'R').add(t1.set(D * .6, .3, 0)), STEEL, .45, { w: .2, keep: .12 });
+    for (const [t, k] of [[.14, .6], [.27, .8]]) X.later(t, () => { if (!X.FT[d]) return; const c = X.chest(d); fx().ring(c, 1.2 * k, '#ffffff', .25, { inner: .88 }); fx().sprite(c, k, '#ffffff', .1, { tex: TEX.star }); fx().debris(c, 3); X.FT[d].fl = .6; X.shake(.25); });
+    back(a, .9);
+    return X.pend(hitAt, () => { const c = X.chest(d); X.hitFx(a, d, c, true, C); fx().ring(c, 2.6, C, .4, { inner: .9 }); fx().debris(X.feet(d).setY(.2), 12, { big: 1 }); if (E) flourish(E, c, 20); X.hitstop(130); X.shake(.7); X.kick(4); });
+  }
+  // lanza o alabarda: una estocada que atraviesa
+  function spearT(a, big, C, E, st) {
+    const d = vic(a), D = X.dir(a), hitAt = .3; fire(a, [['power', .1, 'out', .06], ['dash', .04, 'out'], ['jabR', .06, 'snap', .3]], .5); X.shot('side', a, 1000);
+    X.later(.14, () => { X.move(a, { x: vx(a) - D * 1.7, z: vz(a), d: .1, e: 'out' }); X.ghosts(a, 3); fx().trail(() => X.hand(a, 'R').add(t1.set(D * .9, 0, 0)), C, .2, { w: .1, keep: .16 }); });
+    back(a, .8);
+    return X.pend(hitAt, () => { const c = X.chest(d); X.hitFx(a, d, c, true, C); fx().spark(c, 40, '#ffffff', { dir: t1.set(D, 0, 0), spread: .25, max: 22, life: .4 });
+      line(c.clone().add(t2.set(-D * .4, 0, 0)), c.clone().add(t2.set(D * 2.2, 0, 0)), C, .25, .08); fx().ring(c.clone().add(t2.set(D * .9, 0, 0)), 1.6, C, .3, { inner: .9 });
+      if (E) flourish(E, c, 24); X.hitstop(110); X.shake(.55); X.kick(3); });
+  }
+  // maza, hacha o martillo: salta y lo descarga de arriba abajo
+  function smashT(a, big, C, E, st) {
+    const d = vic(a), D = X.dir(a), hitAt = .46; fire(a, [['raise', .14, 'out', .12], ['slashB', .07, 'snap', .35]], .7); X.shot('wide', a, 1300);
+    X.move(a, { x: vx(a) - D * 1.2, z: vz(a), y: 0, d: .4, e: 'io', arc: 1.6 }); X.ghosts(a, 2);
+    X.later(.3, () => fx().trail(() => X.hand(a, 'R').add(t1.set(D * .5, .4, 0)), C, .16, { w: .26, keep: .1 }));
+    back(a, 1);
+    return X.pend(hitAt, () => { const f = X.feet(d); X.hitFx(a, d, X.chest(d), true, C); fx().ring(f.clone().setY(.05), 5, C, .6, { flat: 1, inner: .7 }); fx().crater(f.x, f.z, 1.8, C); fx().debris(f.clone().setY(.2), 22, { big: 1 }); fx().smoke(f, 22, '#2e2638', { max: 4.5, size: 1.4 });
+      if (E) flourish(E, X.chest(d), 30); X.hitstop(150); X.shake(1); X.kick(5); });
+  }
+  // Stand: sale del usuario, se planta delante del rival y le da una lluvia de golpes (ORA ORA, MUDA MUDA…)
+  function standGhost(a, C, dur, o = {}) { const s = X.FT[a]; if (!s) return null; const D = X.dir(a), g = ghostOf(s.F, C, .6), m = g.userData.mat; g.renderOrder = 4.7; S().add(g);
+    const x0 = g.position.x + D * .15, y0 = g.position.y + .12, z0 = g.position.z + .3;
+    fx().anim(dur, k => { const el = k * dur, tx = vx(a) - D * (o.reach ?? .75), u = Math.min(1, el / .12), jab = o.rush ? Math.sin(el * 70) * .12 : Math.sin(Math.min(1, el / .25) * Math.PI) * .22;
+      g.position.set(x0 + (tx - x0) * (1 - Math.pow(1 - u, 3)) + D * jab, y0 + Math.sin(el * 6) * .04, z0); m.opacity = .6 * Math.min(1, el / .05) * (k > .75 ? (1 - k) / .25 : 1); },
+      () => { S().remove(g); m.dispose(); });
+    return g; }
+  function standRush(a, big, C, name, o) {
+    const d = vic(a), D = X.dir(a), hitAt = .62, wd = /ora/i.test(name) ? 'ORA' : /muda/i.test(name) ? 'MUDA' : /dora/i.test(name) ? 'DORA' : '';
+    fire(a, [['cocky', .12, 'out', .7]], .8); X.shot('hit', d, 1200); standGhost(a, C, .95, { reach: .7, rush: 1 });
+    for (let i = 0; i < 14; i++) X.later(.14 + i * .034, () => { if (!X.FT[d]) return; const c = X.chest(d).add(t1.set(-D * .25, rr(-.35, .45), rr(-.35, .35))); fx().sprite(c, rr(.5, 1), i % 3 ? C : '#ffffff', .1, { tex: TEX.star, k: 2.4 }); if (i % 2 === 0) fx().spark(c, 4, C, { max: 9 });
+      if (wd && i % 3 === 0) X.word(wd, c.clone().add(t2.set(0, .6, 0)), C); if (i % 3 === 0 && o && o.snd) o.snd(); if (i % 2) X.FT[d].fl = .6; });
+    return X.pend(hitAt, () => { X.hitFx(a, d, X.chest(d), true, C); fx().ring(X.chest(d), 2.4, C, .4, { inner: .9 }); X.shake(.6); X.kick(3); });
+  }
+  // telequinesis: levanta rocas alrededor del rival, lo estruja con anillos que se cierran y lo aplasta con todo
+  function implode(p, r, C, life) { const g = new THREE.RingGeometry(.9, 1, 48), m = new THREE.MeshBasicMaterial({ color: new THREE.Color(C).multiplyScalar(2.2), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }), o = new THREE.Mesh(g, m); o.position.copy(p); o.renderOrder = 8; S().add(o);
+    fx().anim(life, k => { o.scale.setScalar(.1 + r * (1 - k * k)); m.opacity = Math.sin(k * Math.PI); o.quaternion.copy(X.cam.quaternion); }, () => { S().remove(o); g.dispose(); m.dispose(); }); }
+  function psyCrush(a, big, C) {
+    const d = vic(a), hitAt = .6, F = fx(); fire(a, [['raise', .14, 'out', .5]], .8); X.shot('hit', d, 1100);
+    const f = X.feet(d);
+    for (let i = 0; i < 7; i++) { const r = new THREE.Mesh(F.rockG, F.rockM), an = rr(0, TAU), R0 = rr(1.4, 2.4); r.scale.setScalar(rr(.12, .26)); r.position.set(f.x + Math.cos(an) * R0, .1, f.z + Math.sin(an) * R0 * .6); S().add(r); const p0 = r.position.clone(); let from = null;
+      F.anim(hitAt, (k, dt) => { const el = k * hitAt, u = el / .38; r.rotation.x += dt * 3; r.rotation.y += dt * 4;
+        if (u < 1) r.position.set(p0.x, .1 + 1.8 * (1 - Math.pow(1 - u, 3)), p0.z); else { if (!from) from = r.position.clone(); const v = Math.min(1, (el - .38) / (hitAt - .38)); r.position.lerpVectors(from, X.chest(d), v * v); } }, () => S().remove(r)); }
+    F.glow(X.chest(d), 40, C, { to: X.chest(d), pull: 6, sx: 1.4, sy: 1.4, sz: 1.4, max: .1, l0: .5, l1: .6 });
+    for (let i = 0; i < 3; i++) X.later(i * .15, () => X.FT[d] && implode(X.chest(d), 2.2, C, .3));
+    return X.pend(hitAt, () => { const c = X.chest(d); X.hitFx(a, d, c, true, C); F.debris(c, 10, { big: 1 }); F.ring(c, 2.8, C, .4, { inner: .88 }); X.shake(.6); X.kick(3); });
+  }
+  // detalle del elemento en los golpes físicos (Respiración del Agua, del Fuego, el Trueno, la sangre, el Hamon…)
+  function flourish(E, p, n = 10) { const C = EL[E] || '#ffffff', F = fx();
+    switch (E) {
+      case 'fire': case 'sun': F.glow(p, n, C, { max: 2.6, vy: 1.6, l0: .3, l1: .6, s0: .08, s1: .2, k: 2.4, grow: .6 }); F.smoke(p, Math.ceil(n / 6), '#2a1a14', { max: 1.2, up: 1.2, a: .45 }); break;
+      case 'water': F.glow(p, n, C, { max: 3.4, g: -7, l0: .4, l1: .7, s0: .05, s1: .13, k: 2 }); if (n > 15) F.ring(p, 1.6, '#bfe9ff', .35, { inner: .9 }); break;
+      case 'thunder': for (let i = 0; i < Math.max(1, n / 8); i++) F.bolt(p, p.clone().add(t1.set(rr(-1.2, 1.2), rr(-1, 1.2), rr(-.8, .8))), C, .18, { w: .04 }); F.glow(p, n / 2, C, { max: 3, l1: .35 }); break;
+      case 'blood': F.glow(p, n, C, { max: 3, g: -6, l0: .4, l1: .8, s0: .05, s1: .12, k: 1.6 }); break;
+      case 'dark': case 'shadow': F.smoke(p, Math.ceil(n / 3), '#14061c', { max: 1.6, a: .7 }); F.glow(p, n / 2, C, { max: 2.4 }); break;
+      case 'ice': F.glow(p, n, C, { max: 3, l1: .5 }); if (n > 15) F.sprite(p, 1.4, C, .2, { tex: TEX.star }); break;
+      case 'cut': for (let i = 0; i < Math.max(1, n / 10); i++) cutAt(p, C); break;
+      default: F.glow(p, n, C, { max: 2.4 });
+    }
+  }
   // ---- extras de las habilidades ----
   function shield(p) { const g = new THREE.IcosahedronGeometry(1, 2), m = new THREE.MeshBasicMaterial({ color: new THREE.Color(X.colOf(p)).multiplyScalar(2.4), wireframe: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), w = new THREE.Mesh(g, m), o = orb(1, X.colOf(p), '#ffffff', 1.2);
     S().add(w); fx().anim(.75, (k, dt) => { const c = X.chest(p), s = (X.FT[p] ? X.FT[p].F.H : 2.2) * .55 * (k < .15 ? k / .15 : 1); w.position.copy(c); o.position.copy(c); w.scale.setScalar(s); o.scale.setScalar(s * .98); m.opacity = 1 - k; o.material.uniforms.op.value = (1 - k) * .5; o.material.uniforms.t.value += dt; w.rotation.y += dt; },
@@ -205,12 +418,16 @@ export function makeTech(X) {
     fx().anim(.32, k => { g.position.x = x0 + (x1 - x0) * k * k; mat.opacity = .85 * (1 - k * .3); }, () => { fx().smoke(X.chest(d), 10, '#14061c', { max: 2, a: .7 }); fx().glow(X.chest(d), 16, '#8a2be2', { max: 4 }); S().remove(g); mat.dispose(); }); }
 
   function run(a, ar, big, C, o, name) {
+    const st = X.sty(a); ar = styled(ar, st);
     switch (ar.ar) {
+      case 'strike': return strike(a, big, C, st, ar, name, o); case 'stand': return standRush(a, big, st.sc || C, name, o); case 'psyc': return psyCrush(a, big, C);
       case 'purple': return purple(a); case 'sky': return sky(a, big, C); case 'vortex': return vortex(a, big, C, ar.v); case 'sphere': return sphere(a, big, C, ar.v);
       case 'bflash': return bflash(a); case 'shock': return shock(a, big, C, ar.v); case 'slash': return slash(a, big, C, ar.v); case 'lightning': return lightning(a, big, C, ar.v);
       case 'fire': return fireT(a, big, C, ar.v); case 'water': return water(a, big, C, ar.v); case 'barrage': return barrage(a, big, C, o, name); case 'swarm': return swarm(a, big, C, ar.v);
       default: return beam(a, big, C);
     }
   }
-  return { run, beam: (a, big, col) => beam(a, big, col || X.colOf(a)), clash, clashX: x => { if (CL) CL.tx = Math.max(.06, Math.min(.94, x)); }, clashEnd, cut, shield, meteor, stomp, clone, shades, shadeHit };
+  // rayo suelto (Night Guy, o si una técnica no se pudo animar): quien no tiene energía lo sustituye por su golpe
+  const beamS = (a, big, col) => { const st = X.sty(a); return st.ce ? beam(a, big, col || X.colOf(a)) : strike(a, big, col || X.tc(a), st, { ar: 'beam', v: '', el: '' }, '', {}); };
+  return { run, beam: beamS, clash, clashX, clashEnd, cut, shield, meteor, stomp, clone, shades, shadeHit, flourish, standGhost, chain };
 }
