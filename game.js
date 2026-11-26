@@ -771,7 +771,7 @@ const VFX=(()=>{
     [/senbonzakura|petal/i,'swarm','petal'],[/blood|piercing|whip|kagune|centipede|kakuja/i,'swarm','blood'],[/shadow|arise|devour|chimera|dog|bird/i,'swarm','shadow'],[/paper/i,'swarm','paper'],
     [/ice|frost|snow/i,'swarm','ice'],[/needle|spike|bones|resonance|hairpin/i,'swarm','needle'],[/bud|flower|beelzebub|insect|swarm/i,'swarm','flower'],
     [/punch|fist|king kong|bajrang|kick|impact|adamas|stomp|smash|liger|lariat|jajanken|ogre|heavenly foot|elephant|night guy|gun|roller|charge|hand|rock/i,'sphere','fist']];
-  const arche=n=>{for(const r of ARCH)if(r[0].test(n))return {ar:r[1],v:r[2]||'',col:r[3]||null};return {ar:'beam',v:'',col:null}};
+  const arche=n=>{for(const r of ARCH)if(r[0].test(n))return {ar:r[1],v:r[2]||'',col:r[3]||null};return {ar:'beam',v:'',col:null,def:1}}; // def: sin animación propia (el 3D la adapta al estilo de quien la usa)
 
   /* ---- actualizar y dibujar ---- */
   function upd(dt){
