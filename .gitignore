@@ -10,3 +10,5 @@ server/data/
 promo/out/
 # Originales de los fondos antes de comprimirlos a WebP (copia local, no se sube)
 bg/originales/
+# Clips de vídeo generados con IA para los spots (pesados, no se suben)
+promo/clips/
