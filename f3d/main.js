@@ -148,7 +148,9 @@ function updFighter(s, dt, wdt) {
   const tstop = stage.classList.contains('tstop');
   A.update(tstop && p !== actor ? 0 : wdt);
   const Rr = A.R;
-  if (T >= s.busyU && !Rr.tw && !s.dead && !s.gone) { const hx = homeX(p); if (Math.abs(Rr.x - hx) > .005 || Math.abs(Rr.z) > .005) { const k = Math.min(1, wdt * 3); Rr.x += (hx - Rr.x) * k; Rr.z -= Rr.z * k; } } // vuelve a su sitio si algo lo dejó fuera F.root.position.set(Rr.x, Rr.y + s.lie * .2 * F.S, Rr.z); F.root.rotation.set(Rr.rx, (p ? -Math.PI / 2 : Math.PI / 2) + A.yawOff, Rr.rz);
+  if (T >= s.busyU && !Rr.tw && !s.dead && !s.gone) { const hx = homeX(p); if (Math.abs(Rr.x - hx) > .005 || Math.abs(Rr.z) > .005) { const k = Math.min(1, wdt * 3); Rr.x += (hx - Rr.x) * k; Rr.z -= Rr.z * k; } } // vuelve a su sitio si algo lo dejó fuera
+  // el esqueleto invisible sigue al dibujo: de sus manos y su pecho salen los golpes, rayos y estelas
+  F.root.position.set(Rr.x, Rr.y + s.lie * .2 * F.S, Rr.z); F.root.rotation.set(Rr.rx, (p ? -Math.PI / 2 : Math.PI / 2) + A.yawOff, Rr.rz);
   // clases que pone game.js en la tarjeta oculta del luchador
   const f = document.getElementById('abf' + p), cls = f ? f.className : '';
   if (cls !== s.cls) {
@@ -191,14 +193,30 @@ function vanish(p) { const s = FT[p]; if (!s) return; s.gone = true; const c = c
 
 /* ---------------- cámara ---------------- */
 const CAM = { pos: new V3(0, 1.8, 10), look: new V3(0, 1.1, 0), tPos: new V3(), tLook: new V3(), fov: 30, kick: 0, trauma: 0, shot: null, until: 0, ko: 0, focus: new V3(0, 1.3, 0) };
-const FILL = .62; // el más alto de los dos ocupa ~62 % del alto de la pantalla (los pies quedan por encima del diálogo)
+const FILL = .82; // el más alto de los dos ocupa ~82 % de la franja libre (entre las placas de vida y el diálogo)
+/* FRANJA LIBRE: las placas de vida y ki (arriba) y el diálogo (abajo) flotan sobre el escenario. La cámara encuadra la pelea solo en
+   el hueco que dejan (setViewOffset: el «cuadro» de la cámara es esa franja; lo que sale de ella, rayos o saltos, se sigue pintando
+   por debajo del HUD). Durante un combate solo crece, para que la cámara no dé saltos si el diálogo pasa a dos líneas. */
+let BT = 0, BB = 0, BH = 1;
+function band(force) {
+  if (!stage || !cam || !H) return;
+  const ab = stage.parentElement, top = ab && ab.querySelector(':scope>.ab-top'), bot = ab && ab.querySelector(':scope>.ab-bot'), sr = stage.getBoundingClientRect();
+  const edge = (el, low) => { if (!el || !el.offsetHeight) return 0; // lo que tapa: por arriba hasta su borde inferior, por abajo desde su borde superior
+    if (el.offsetParent && el.offsetParent === stage.offsetParent) return low ? stage.offsetTop + H - el.offsetTop : el.offsetTop + el.offsetHeight - stage.offsetTop;
+    const r = el.getBoundingClientRect(); return low ? sr.bottom - r.top : r.bottom - sr.top; };
+  let t = Math.max(BT, Math.max(0, edge(top, 0)) + 6), b = Math.max(BB, Math.max(0, edge(bot, 1)) + 6);
+  const room = H * .5; if (H - t - b < room) { const k = (H - room) / Math.max(1, t + b); t *= k; b *= k; } // pantallas muy bajas: la pelea nunca baja de la mitad
+  if (!force && Math.abs(t - BT) < .5 && Math.abs(b - BB) < .5) return;
+  BT = t; BB = b; BH = Math.max(2, H - t - b);
+  cam.aspect = W / BH; cam.setViewOffset(W, BH, 0, -BT, W, H); cam.updateProjectionMatrix();
+}
 function shot(kind, p, ms) { CAM.shot = { kind, p, t0: T }; CAM.until = T + (ms || 1000) / 1000; }
 function shake(k) { if (RM) k *= .3; CAM.trauma = Math.min(1, CAM.trauma + k); }
 function camUpdate(dt) {
-  const asp = W / H, tanH = Math.tan(THREE.MathUtils.degToRad(CAM.fov / 2));
+  const asp = W / BH, tanH = Math.tan(THREE.MathUtils.degToRad(CAM.fov / 2));
   const x0 = FT[0] ? FT[0].A.R.x : homeX(0), x1 = FT[1] ? FT[1].A.R.x : homeX(1), xa = Math.min(x0 - halfW(0), x1 - halfW(1)), xb = Math.max(x0 + halfW(0), x1 + halfW(1)), mx = (xa + xb) / 2;
   const Hm = Math.max(FT[0] ? FT[0].F.H : 2.2, FT[1] ? FT[1].F.H : 2.2), half = (xb - xa) / 2 + .3;
-  const dist = Math.min(30, Math.max(Hm / FILL / (2 * tanH), half / (tanH * asp))), ly = 2 * dist * tanH * .34; // ly: altura a la que mira (pies abajo, sin tapar con el HUD)
+  const dist = Math.min(30, Math.max(Hm / FILL / (2 * tanH), half / (tanH * asp))), ly = dist * tanH * .84; // ly: altura a la que mira (los pies justo encima del borde de abajo de la franja)
   const yaw = Math.sin(T * .21) * .15 + Math.sin(T * .13) * .06;
   let k = 2.6, sh = T < CAM.until ? CAM.shot : null;
   if (sh) { const p = sh.p, fxp = FT[p] ? FT[p].A.R.x : homeX(p), d = dir(p), Hh = FT[p] ? FT[p].F.H : 2.2;
@@ -237,7 +255,7 @@ function init() {
 function resize() {
   if (!stage || !R) return; const w = Math.max(2, stage.clientWidth), h = Math.max(2, stage.clientHeight);
   if (w === W && h === H) return; const jump = !W || W < 50 || H < 50; W = w; H = h; if (jump) CAM.snap = 1; // tamaño de verdad por primera vez: la cámara se coloca sin viaje
-  R.setSize(w, h, false); composer.setPixelRatio(PR); composer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); OL_U.asp.value = w / h;
+  R.setSize(w, h, false); composer.setPixelRatio(PR); composer.setSize(w, h); OL_U.asp.value = w / h; BT = BB = 0; band(true);
   cv.style.width = '100%'; cv.style.height = '100%';
 }
 function quality(dt) { // si el dispositivo no llega a 45 fps, baja la resolución y las partículas
@@ -254,7 +272,7 @@ function frame(fixed) { // un fotograma (fixed = segundos simulados, para depura
   try {
     const t = now(), rdt = fixed != null ? fixed : Math.min(.05, (t - last) / 1000); last = t; if (PAUSE && fixed == null) { composer.render(); return; } T += rdt; if (fixed == null) quality(rdt);
     if (stage.offsetParent === null) return;
-    if ((sizeT -= rdt) <= 0) { sizeT = .5; if (stage.clientWidth !== W || stage.clientHeight !== H) resize(); } // por si el ResizeObserver no avisa (pestaña en segundo plano)
+    if ((sizeT -= rdt) <= 0) { sizeT = .5; if (stage.clientWidth !== W || stage.clientHeight !== H) resize(); else band(); } // por si el ResizeObserver no avisa (pestaña en segundo plano); y el HUD puede crecer
     let wdt = rdt; if (HS > 0) { HS -= rdt; wdt = 0; }
     const tstop = stage.classList.contains('tstop'), fdt = wdt * (t < slowU ? slowK : 1) * (tstop ? .02 : 1);
     for (let i = LATER.length - 1; i >= 0; i--) { const o = LATER[i]; o.t -= wdt; if (o.t <= 0) { LATER.splice(i, 1); try { o.fn(); } catch (e) { console.warn('F3D', e); } } }
@@ -267,7 +285,7 @@ function frame(fixed) { // un fotograma (fixed = segundos simulados, para depura
     if (Math.random() < rdt * 4 * fx.q1) { const c = ENV.glow; fx.glowP.add({ x: rr(-7, 7), y: 0, z: rr(-5, 1.5), vx: rr(-.15, .15), vy: rr(.3, .8), vz: 0, l: rr(3, 6), s: rr(.025, .05), r: c.r * 1.4 + .08, gg: c.g * 1.4 + .06, b: c.b * 1.4 + .1, dr: 0, fi: 1, fo: 3 }); } // motas de polvo, pocas
     camUpdate(rdt); cam.updateMatrixWorld();
     for (const s of FT) if (s && s.F.sync) s.F.sync(s, cam, { dir: dir(s.p), pc: pcol(s.p), tint: TINT });
-    fx.glowP.m.material.uniforms.scale.value = fx.smokeP.m.material.uniforms.scale.value = H * PR / (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)));
+    fx.glowP.m.material.uniforms.scale.value = fx.smokeP.m.material.uniforms.scale.value = BH * PR / (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2))); // el fov abarca la franja libre (BH), no todo el alto
     composer.render();
   } catch (e) { console.warn('F3D', e); }
 }

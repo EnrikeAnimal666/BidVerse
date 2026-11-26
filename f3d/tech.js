@@ -409,13 +409,30 @@ vec3 c=mix(col,vec3(3.0),smoothstep(.62,.97,f));gl_FragColor=vec4(c,clamp(a,0.0,
       fx().anim(.6, k => { m.position.y = 1.4 + k * 6; m.material.opacity = 1 - k; m.material.transparent = true; }, () => { S().remove(m); m.geometry.dispose(); m.material.dispose(); }); }); }
   function clone(a, d) { const s = X.FT[a]; if (!s) return; const g = ghostOf(s.F, X.colOf(a), .55), mat = g.userData.mat; g.position.z += .9; S().add(g); const x0 = g.position.x, x1 = vx(a) - X.dir(a) * 1;
     fx().anim(.42, k => { g.position.x = x0 + (x1 - x0) * Math.min(1, k / .45); mat.opacity = .55 * (k < .6 ? 1 : 1 - (k - .6) / .4); if (k > .45 && !g.userData.h) { g.userData.h = 1; fx().sprite(X.chest(d), 1.4, X.colOf(a), .15, { tex: TEX.star }); } }, () => { S().remove(g); mat.dispose(); }); }
-  const SH = [];
-  function shades(a, n) { const s = X.FT[a]; if (!s) return; const D = X.dir(a);
-    for (let i = 0; i < n; i++) { const g = ghostOf(s.F, '#120018', .9, false), mat = g.userData.mat; g.position.x -= D * (1 + i * .45); g.position.z = (i % 2 ? -1 : 1) * (.6 + i * .3); g.position.y = -2.4; S().add(g); SH.push(g);
-      fx().smoke(X.feet(a).add(t1.set(-D * (1 + i * .45), 0, g.position.z)), 6, '#14061c', { max: 1.5, a: .7 });
-      fx().anim(1.7, k => { g.position.y = k < .3 ? -2.4 * (1 - k / .3) : k > .8 ? -2.4 * (k - .8) / .2 : 0; mat.opacity = .9; }, () => { S().remove(g); mat.dispose(); const j = SH.indexOf(g); if (j >= 0) SH.splice(j, 1); }); } }
-  function shadeHit(a, d) { const s = X.FT[a]; if (!s) return; const g = ghostOf(s.F, '#14001e', .85, false), mat = g.userData.mat; g.position.x -= X.dir(a) * 1.2; S().add(g); const x0 = g.position.x, x1 = vx(a) - X.dir(a) * 1;
-    fx().anim(.32, k => { g.position.x = x0 + (x1 - x0) * k * k; mat.opacity = .85 * (1 - k * .3); }, () => { fx().smoke(X.chest(d), 10, '#14061c', { max: 2, a: .7 }); fx().glow(X.chest(d), 16, '#8a2be2', { max: 4 }); S().remove(g); mat.dispose(); }); }
+  /* SOMBRAS de Sung Jin-Woo: «Arise» llena el suelo de sombra y salen sus soldados (más grandes que él, con los ojos violetas);
+     cada una cruza el escenario y golpea de verdad: tajo violeta, onda oscura, chispas, pausa de impacto y temblor. */
+  const SH = [], SHC = '#7a3cff', SHE = '#9d7bff';
+  const shEyes = (g, H, D) => fx().glow(t2.set(g.position.x + D * .1, g.position.y + H * .86, g.position.z + .06), 1, SHE, { min: .05, max: .15, l0: .12, l1: .22, s0: .05, s1: .09, k: 2.6 });
+  function shades(a, n) { const s = X.FT[a]; if (!s) return; const D = X.dir(a), f0 = X.feet(a);
+    fx().ring(f0.clone().setY(.04).add(t1.set(-D * 1.2, 0, 0)), 3.2 + n * .55, SHC, .9, { flat: 1, inner: .9 }); fx().smoke(f0, 14, '#14061c', { max: 3, a: .75, up: .3 }); X.shake(.3); X.kick(1.5);
+    for (let i = 0; i < n; i++) { const sc = 1.06 + (i % 3) * .07, g = ghostOf(s.F, '#120018', .93, false), mat = g.userData.mat, H = s.F.H * sc;
+      g.scale.multiplyScalar(sc); g.position.x -= D * (1 + i * .45); g.position.z = (i % 2 ? -1 : 1) * (.6 + i * .3); g.position.y = -2.6 * sc; S().add(g); SH.push(g);
+      const f = X.feet(a).add(t1.set(-D * (1 + i * .45), 0, g.position.z)), y0 = g.position.y;
+      fx().smoke(f, 10, '#14061c', { max: 2, a: .8, up: .5 }); fx().ring(f.clone().setY(.05), 1.4, SHC, .55, { flat: 1, inner: .72 }); fx().glow(f.clone().setY(.2), 10, SHC, { max: 1.5, vy: 1.5, l1: .6 });
+      fx().anim(1.7, k => { g.position.y = k < .3 ? y0 * (1 - k / .3) : k > .8 ? y0 * (k - .8) / .2 : 0; mat.opacity = .93; if (k > .22 && k < .86) shEyes(g, H, D); },
+        () => { S().remove(g); mat.dispose(); const j = SH.indexOf(g); if (j >= 0) SH.splice(j, 1); }); } }
+  let shN = 0;
+  function shadeHit(a, d) { const s = X.FT[a]; if (!s) return; const D = X.dir(a), j = shN = (shN + 1) % 3, sc = 1.08 + j * .06, H = s.F.H * sc;
+    const g = ghostOf(s.F, '#10001a', .93, false), mat = g.userData.mat; g.scale.multiplyScalar(sc); g.position.x -= D * 1.3; g.position.z += (j - 1) * .6; S().add(g);
+    const x0 = g.position.x, z0 = g.position.z, x1 = vx(a) - D * .85; fx().smoke(t1.set(x0, 0, z0), 6, '#14061c', { max: 1.6, a: .8 });
+    fx().anim(.24, k => { g.position.x = x0 + (x1 - x0) * k * k; g.position.z = z0 * (1 - k); shEyes(g, H, D);
+      if (Math.random() < .7) fx().smoke(t1.set(g.position.x - D * .2, rr(.2, H * .6), g.position.z), 1, '#14061c', { max: .5, a: .65, life: .45 }); },
+      () => { const c = X.chest(d), an = (j - 1) * .6 + rr(-.25, .25), L = 1.25, cs = Math.cos(an), sn = Math.sin(an);
+        for (const o of [-.17, 0, .17]) { const m = t1.copy(c).add(t2.set(-sn * o, cs * o, .1)); fx().bolt(m.clone().add(t2.set(-cs * L, -sn * L, 0)), m.clone().add(t2.set(cs * L, sn * L, 0)), o ? SHC : '#ffffff', .26, { disp: 0, w: o ? .06 : .03, k: 3 }); }
+        fx().sprite(c, 2.4, SHC, .3, { k: 2 }); fx().ring(c, 2.3, SHE, .35, { inner: .88 }); fx().glow(c, 28, '#8a2be2', { max: 5, l1: .55 });
+        fx().spark(c, 22, '#c8b4ff', { dir: t2.set(D, .2, 0), spread: .9, max: 12 }); fx().smoke(c, 10, '#14061c', { max: 2.4, a: .75 });
+        X.shake(.28); X.kick(1.6); X.hitstop(45);
+        fx().anim(.26, k => { mat.opacity = .93 * (1 - k); g.position.x += D * .015; }, () => { S().remove(g); mat.dispose(); }); }); }
 
   function run(a, ar, big, C, o, name) {
     const st = X.sty(a); ar = styled(ar, st);
