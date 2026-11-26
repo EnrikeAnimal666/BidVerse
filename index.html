@@ -3,7 +3,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title translate="no">BidVerse</title>
+<meta name="description" content="Bid on anime characters, UFC fighters or footballers and battle with your team. Online 1v1, against the CPU and with a ranking.">
+<meta name="theme-color" content="#0a0a0b">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="BidVerse">
+<meta property="og:title" content="BidVerse · Bid, build your team, fight">
+<meta property="og:description" content="Bid on anime characters, UFC fighters or footballers and battle with your team. Online 1v1, against the CPU and with a ranking.">
+<meta property="og:image" content="{{ORIGIN}}/pics/LogoBidVerse.png">
+<meta property="og:url" content="{{ORIGIN}}/">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" href="pics/logo-icon.png">
+<link rel="apple-touch-icon" href="pics/logo-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Big+Shoulders+Display:wght@800;900&display=swap">
 <link rel="stylesheet" href="styles.css">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
@@ -29,6 +40,7 @@
 <li><button class="mode m-foot" onclick="playSheet('futbol')"><div class="fx fx-foot"><i></i><b></b></div><span class="tt" data-i="cat3">Fútbol</span><span class="ds" data-i="cat3d"></span><span class="ft"><em class="cn" id="ch-foot"></em><strong data-m="play"></strong></span></button></li>
 </ul>
 <div class="joinbar"><span data-m="have"></span><input id="hCode" maxlength="5" autocapitalize="characters" spellcheck="false" data-mph="codePh"><button class="cta" id="hJoin" data-m="join"></button></div>
+<footer class="foot"><button type="button" class="lnk" onclick="openCredits()" data-x="credits">Credits</button><span class="foot-sep">·</span><button type="button" class="lnk" id="pwaBtn" onclick="pwaInstall()" data-x="install" hidden>Install app</button></footer>
 </div>
 
 <div class="game" id="game">
@@ -62,6 +74,7 @@
 <div class="modal" id="login" onclick="if(event.target===this)closeLogin()"><div class="mbox ol prof"><div class="mh"><h3 id="lgTitle"></h3><button type="button" onclick="closeLogin()">✕</button></div>
 <form id="lgForm" onsubmit="event.preventDefault();doLogin()">
 <p class="lgme" id="lgMe"></p>
+<div class="lgstats" id="lgStats" style="display:none"></div>
 <label class="olf" id="lgUserF"><span data-m="user"></span><input id="lgName" name="username" maxlength="16" autocomplete="username" autocapitalize="off" spellcheck="false"></label>
 <label class="olf" id="lgPassF"><span data-m="pass"></span><input id="lgPass" name="password" type="password" maxlength="72" autocomplete="current-password"></label>
 <div class="olf avf" id="lgAvF"><span data-m="avatar"></span><input id="avQ" type="search" autocomplete="off" spellcheck="false" data-mph="avSearch" onkeydown="if(event.key==='Enter')event.preventDefault()"><div class="avgrid" id="avGrid"></div><small class="avcur" id="avCur" aria-live="polite"></small></div>
@@ -78,6 +91,7 @@
 <div class="ps-o ps-cpu"><i class="ps-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1.5"/><rect x="9.5" y="9.5" width="5" height="5" rx=".5"/><path d="M9.5 2.5V6M14.5 2.5V6M9.5 18v3.5M14.5 18v3.5M2.5 9.5H6M2.5 14.5H6M18 9.5h3.5M18 14.5h3.5"/></svg></i><span><b data-m="cpu"></b><small data-m="cpuD"></small><span class="ps-lv"><button type="button" data-lv="1" data-m="lv1"></button><button type="button" data-lv="2" data-m="lv2" class="on"></button><button type="button" data-lv="3" data-m="lv3"></button></span></span></div>
 <button type="button" class="ps-o ps-room" id="psRoom"><i class="ps-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10.5" rx="1.5"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/><path d="M12 14.5v2.5"/></svg></i><span><b data-m="room"></b><small data-m="roomD"></small></span></button>
 </div></div></div>
+<div class="modal" id="credits" onclick="if(event.target===this)closeCredits()"><div class="mbox cr"><div class="mh"><h3 data-x="credits">Credits</h3><button type="button" onclick="closeCredits()" aria-label="Close">✕</button></div><div id="crBody"></div></div></div>
 <div id="netbar"></div>
 <div class="wipe" id="wipe"><span data-i="fightWipe">¡Combate!</span></div>
 <script src="data-anime.js"></script>
@@ -92,4 +106,5 @@
 <script src="game.js"></script>
 <script src="cpu.js"></script>
 <script src="online.js"></script>
+<script src="extras.js"></script>
 </body></html>

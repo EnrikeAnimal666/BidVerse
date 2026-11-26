@@ -1366,3 +1366,34 @@ button.ps-o:focus-visible,.ps-lv button:focus-visible{outline:3px solid #ffb02e;
 .lb-seek .lb-rules{justify-content:center}
 @media(prefers-reduced-motion:reduce){.sk-radar i{animation:none;opacity:.4}}
 .ab.d3 .ab-clash,.ab.d3 .ab-beam,.ab.d3 .ab-burst,.ab.d3 .ab-shield{opacity:0}
+
+/* ---------- PIE DEL MENÚ: créditos e instalar como app ---------- */
+.foot{display:flex;justify-content:center;align-items:center;gap:10px;margin:26px 0 8px;font:600 .8rem var(--mono);color:var(--mut)}
+.foot .lnk{color:var(--mut);font-weight:700}.foot .lnk:hover{color:var(--ink)}
+.lnk[hidden],.foot-sep:has(+.lnk[hidden]){display:none!important}
+
+/* ---------- PERFIL: estadísticas online ---------- */
+.lgstats{margin:0 0 16px;padding:12px 14px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.st-h{margin:0 0 6px;font:900 1.15rem var(--serif)}
+.lgstats h4{margin:10px 0 4px;font:800 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.st-tot{margin:0;font:900 1.3rem/1.2 var(--disp);color:var(--ink)}
+.st-none{margin:0;font:600 .8rem/1.4 var(--mono);color:var(--mut)}
+.st-streak{margin:2px 0 0;font:800 .8rem var(--mono)}.st-streak.w{color:#7dff9b}.st-streak.l{color:#ff6b6b}
+.st-cats{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:2px}
+.st-cats li{display:flex;justify-content:space-between;font:600 .8rem var(--mono)}
+.st-rec{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.st-g{display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:8px;padding:5px 8px;background:rgba(255,255,255,.03)}
+.st-g i{font:900 .8rem var(--mono);font-style:normal;text-align:center;padding:3px 0;color:#0a0a0b;background:var(--mut)}
+.st-g.w i{background:#7dff9b}.st-g.l i{background:#ff6b6b}
+.st-g span{font:700 .82rem var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-g small{display:block;font:600 .7rem var(--mono);color:var(--mut)}
+.st-g b{font:800 .85rem var(--mono)}.st-g.w b{color:#7dff9b}.st-g.l b{color:#ff6b6b}
+
+/* ---------- CRÉDITOS ---------- */
+.mbox.cr section{margin:0 0 14px}
+.mbox.cr h4{margin:0 0 4px;font:900 1rem var(--serif)}
+.mbox.cr p{margin:0;font:500 .8rem/1.55 var(--mono);color:var(--mut)}
+.mbox.cr summary{margin-top:8px;cursor:pointer;font:800 .8rem var(--mono);color:#ffb02e}
+.cr-list{columns:2;column-gap:18px;margin:8px 0 0;padding:0;list-style:none;font:500 .75rem/1.7 var(--mono)}
+.cr-list a{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+@media(max-width:560px){.cr-list{columns:1}}

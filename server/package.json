@@ -4,9 +4,9 @@
   "private": true,
   "description": "BidVerse: juego de pujas de personajes (anime, UFC y fútbol) online 1v1 con cuentas y ranking",
   "scripts": {
-    "start": "node server/server.js",
-    "lan": "node server/server.js --lan",
-    "test": "node tests/engine.test.js && node tests/client.smoke.js && node tests/server.test.js && node tests/online.smoke.js"
+    "start": "node server.js",
+    "lan": "node server.js --lan",
+    "test": "node ../tests/engine.test.js && node ../tests/client.smoke.js && node ../tests/server.test.js && node ../tests/online.smoke.js"
   },
   "engines": { "node": ">=22.13" },
   "dependencies": { "pg": "^8.13.1" }
