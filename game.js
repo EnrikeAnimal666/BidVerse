@@ -9,10 +9,10 @@ let lang='en'; // idioma oficial: inglés. El traductor del navegador se encarga
 const EXT={ // textos que no están en lang/*.js (fútbol); FUTX solo se usa durante una partida de fútbol (dinero en millones)
  es:{cat3:'Fútbol',cat3d:'Ficha un once de leyendas y cracks actuales. 4-3-3 y 100 millones para gastar.',nPlayers:'{0} futbolistas',tabFut:'Fútbol',olCreateFutbol:'Crear sala · Fútbol',
   div_GK:'Porteros',div_DEF:'Defensas',div_MID:'Centrocampistas',div_FWD:'Delanteros',legend:'Leyenda',
-  scaleNoteFut:'Media de 40 a 99 como en los videojuegos: las 50 leyendas, en su mejor temporada; el resto, su nivel en la temporada 2026-27. Las fotos salen de Wikipedia.'},
+  scaleNoteFut:'Media y estadísticas de EA SPORTS FC 27 (ritmo, tiro, pase, regate, defensa y físico). Las leyendas llevan su carta Icono (las que no tienen Icono, su mejor carta de FIFA/FC). En el partido cuentan: el tiro decide cuánto mete cada uno. Las fotos salen de Wikipedia.'},
  en:{cat3:'Football',cat3d:'Sign an XI of legends and current stars. 4-3-3 and 100 million to spend.',nPlayers:'{0} players',tabFut:'Football',olCreateFutbol:'Create room · Football',
   div_GK:'Goalkeepers',div_DEF:'Defenders',div_MID:'Midfielders',div_FWD:'Forwards',legend:'Legend',
-  scaleNoteFut:'Rated 40-99 like the video games: the 50 legends at their best season, everyone else at their 2026-27 level. Photos come from Wikipedia.'}};
+  scaleNoteFut:'Ratings and stats from EA SPORTS FC 27 (pace, shooting, passing, dribbling, defending and physical). Legends use their Icon card (or their best FIFA/FC card if they have no Icon). They count in the match: shooting decides how much each player scores. Photos come from Wikipedia.'}};
 const FUTX={es:{paid:'{0}M',forPrice:'{0}M',errMoney:'Solo te quedan {0}M.',errOver:'Tienes que pujar más de {0}M.',bidPh:'Millones'},
  en:{paid:'{0}M',forPrice:'{0}M',errMoney:'You only have {0}M left.',errOver:'You must bid more than {0}M.',bidPh:'Millions'}};
 const NMS=()=>(net&&net.names)||(CPU&&CPU.names),WN={en:{wins:'{0} wins!',winsH:'{0} wins'},es:{wins:'¡Gana {0}!',winsH:'Gana {0}'}}; // con nombres (online o CPU): "Gana CPU" en vez de "Gana el Jugador 2"
@@ -168,7 +168,7 @@ function onEv(e){switch(e.t){
   case 'lot':
     wantImg([cur],true);
     $('pic').classList.remove('fit');
-    $('pic').innerHTML=(cur.img?lotImg(cur):`<div class="e">${cur.e}</div>`)+(cur.kind==='futbol'?`<div class="fovr${cur.leg?' leg':''}"><b>${cur.ovr}</b><span>${roleT(cur.role)}</span></div>`:'')+'<div class="stamp" id="stamp"><span id="st"></span></div>';
+    $('pic').innerHTML=(cur.img?lotImg(cur):`<div class="e">${cur.e}</div>`)+(cur.kind==='futbol'?`<div class="fovr${cur.leg?' leg':''}"><b>${cur.ovr}</b><span>${roleT(cur.role)}</span>${fstHtml(cur)}</div>`:'')+'<div class="stamp" id="stamp"><span id="st"></span></div>';
     $('pic').style.setProperty('--h',cur.h);
     $('lot').classList.toggle('ufc',cur.kind==='ufc'||cur.kind==='futbol');
     lastBid=0;lotText();hint();render();timer();break;
@@ -1178,7 +1178,10 @@ const FM_T={
   penSave:'¡<b>{g}</b> para el penalti!',penWide:'<b>{s}</b> manda el penalti fuera',shoot:['Remata <b>{s}</b>…','¡<b>{s}</b> se planta solo!','Disparo de <b>{s}</b>…'],
   build:['Juega {a}…','{a} conduce…','{a} abre a banda…'],var:'Revisión del VAR…',varNo:'GOL ANULADO por fuera de juego',yc:'Tarjeta amarilla para <b>{n}</b>',
   shootout:'Tanda de penaltis',stats:['Posesión','Tiros','A puerta','Goles esperados (xG)','Amarillas'],motm:'Jugador del partido',saveP:'¡PARADA!',postP:'¡AL PALO!',
-  ovr:'MED',lines:['POR','DEF','MED','DEL'],pen1:'penalti',penPop:'¡PENALTI!'},
+  ovr:'MED',lines:['POR','DEF','MED','DEL'],pen1:'penalti',penPop:'¡PENALTI!',
+  run:'¡Pase al hueco para <b>{a}</b>!',drib:'<b>{a}</b> encara a {d}…',dribOk:'¡<b>{a}</b> se va de {d}!',cross:'<b>{a}</b> centra al área…',header:'¡Cabezazo de <b>{s}</b>!',
+  box:'<b>{a}</b> combina con {s}…',long:'¡<b>{s}</b> lo intenta desde lejos!',oneOnOne:'¡<b>{a}</b> se queda solo ante {g}!',claim:'<b>{g}</b> sale y atrapa el centro',clear:'<b>{d}</b> despeja de cabeza',
+  lost:['<b>{d}</b> le roba el balón a {a}','¡Entradón de <b>{d}</b>!','<b>{d}</b> corta el pase']},
  en:{half1:'1st half',half2:'2nd half',ht:'Half-time',ft:'Full time',pens:'Penalties',kick:'Kick-off!',kick2:'Second half under way!',
   lineups:'Both XIs walk out',goal:'GOOOAL!',assist:'Ast.',save:['Great save by <b>{g}</b>!','<b>{g}</b> holds {s}’s shot','<b>{g}</b> to the rescue'],
   wide:['<b>{s}</b> drags it wide','<b>{s}</b> blazes it over','Just past the post from <b>{s}</b>!'],post:'OFF THE POST! So close for <b>{s}</b>',
@@ -1186,8 +1189,16 @@ const FM_T={
   penSave:'<b>{g}</b> saves the penalty!',penWide:'<b>{s}</b> misses the penalty',shoot:['<b>{s}</b> shoots…','<b>{s}</b> is through on goal!','<b>{s}</b> lets fly…'],
   build:['{a} on the ball…','{a} drives forward…','{a} spreads it wide…'],var:'VAR check…',varNo:'GOAL DISALLOWED for offside',yc:'Yellow card for <b>{n}</b>',
   shootout:'Penalty shootout',stats:['Possession','Shots','On target','Expected goals (xG)','Yellow cards'],motm:'Player of the match',saveP:'SAVE!',postP:'POST!',
-  ovr:'OVR',lines:['GK','DEF','MID','FWD'],pen1:'penalty',penPop:'PENALTY!'}};
+  ovr:'OVR',lines:['GK','DEF','MID','FWD'],pen1:'penalty',penPop:'PENALTY!',
+  run:'Through ball for <b>{a}</b>!',drib:'<b>{a}</b> takes on {d}…',dribOk:'<b>{a}</b> skips past {d}!',cross:'<b>{a}</b> whips in a cross…',header:'Header from <b>{s}</b>!',
+  box:'<b>{a}</b> plays a one-two with {s}…',long:'<b>{s}</b> tries one from distance!',oneOnOne:'<b>{a}</b> is one-on-one with {g}!',claim:'<b>{g}</b> comes out and claims the cross',clear:'<b>{d}</b> heads it clear',
+  lost:['<b>{d}</b> wins the ball off {a}','Crunching tackle by <b>{d}</b>!','<b>{d}</b> cuts out the pass']}};
 const fmT=(k,i)=>{let s=(FM_T[lang]||FM_T.es)[k];if(Array.isArray(s))s=s[(i||0)%s.length];return String(s??k)};
+const FST_L={es:{f:['RIT','TIR','PAS','REG','DEF','FÍS'],g:['EST','PAR','SAQ','REF','VEL','COL']},en:{f:['PAC','SHO','PAS','DRI','DEF','PHY'],g:['DIV','HAN','KIC','REF','SPD','POS']}};
+const fstL=c=>(FST_L[lang]||FST_L.en)[c.cls==='GK'?'g':'f'];
+// las 6 de la carta (FC 27) en dos columnas, como en el juego
+const fstHtml=c=>c&&c.fs&&c.fs.length===6?'<ul class="fst">'+[0,3,1,4,2,5].map(i=>'<li><b>'+c.fs[i]+'</b>'+fstL(c)[i]+'</li>').join('')+'</ul>':'';
+const fstTxt=c=>c&&c.fs&&c.fs.length===6?c.fs.map((v,i)=>fstL(c)[i]+' '+v).join(' · '):'';
 const ROLE_EN={POR:'GK',DFC:'CB',LI:'LB',LD:'RB',MCD:'CDM',MC:'CM',MCO:'CAM',EI:'LW',ED:'RW',DC:'ST'};
 const roleT=r=>lang==='en'?(ROLE_EN[r]||r):r;
 const PART=new Set(['van','de','di','da','dos','du','der','den','Van','De','Di','Da','Mac','Le','La','del']);
@@ -1218,6 +1229,9 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
 <div class="fm-log"><div class="a0" id="fml0"></div><div class="a1" id="fml1"></div></div></div>`;
   const E=await arenaIn(async ms=>{await sleep(ms);if(tk!==bt)throw 0},html);
   const FM=$('fm'),FX=$('fmfx'),B=$('fmb');
+  let F3=null; // estadio 3D (f3d/foot.js) si hay WebGL2; si no, el campo 2D de siempre
+  try{const info=p=>XI[p].map((c,i)=>({n:c?c.n:'',sh:c?shortN(c.n):'—',num:FM_NUM[i],pac:c&&c.fs?c.fs[c.cls==='GK'?4:0]:60,img:c?imgOf(c.n)||'':''}));
+    if(window.FOOT3D&&FOOT3D.ok()&&FOOT3D.start($('fmp'),{teams:[info(0),info(1)],sfx:k=>SND.fx(k)})){F3=FOOT3D;$('fmp').classList.add('d3')}}catch(er){console.warn('FOOT3D',er);F3=null}
   try{localStorage.removeItem('bvfms')}catch(e){} // limpia la velocidad que se guardaba antes
   const say=h=>{$('fmdl').innerHTML='<span>'+h+'</span>'};
   const sfx=k=>{if(FMS<=2)SND.fx(k)};
@@ -1265,6 +1279,54 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
     confetti(p);sfx('goal');await z(2300)};
   const pensRow=()=>{const host=$('fmpens');host.classList.add('on');host.innerHTML=[0,1].map(p=>`<div class="a${p}" style="--c:var(--p${p+1})"><small>${P_(p)}</small><span id="fpr${p}"></span></div>`).join('')};
   const penMark=(p,ok)=>$('fpr'+p).insertAdjacentHTML('beforeend',`<i class="${ok?'ok':'ko'}">${ok?'●':'✕'}</i>`);
+  if(F3){ // ---- partido en 3D: el estadio hace cada jugada del guion y aquí van el marcador, el reloj y los comentarios ----
+    const w3=async f=>{try{await f()}catch(er){if(er===0)throw er;console.warn('FOOT3D',er)}if(tk!==bt)throw 0};
+    const tick=async to=>{const n=parseInt(to)||0;while(clock<n){clock++;setClk(clock);await z(90)}if(String(to).includes('+'))setClk(to)};
+    const adv=async(to,p)=>{const n=parseInt(to)||0;let pr=null;try{pr=F3.idle(Math.max(.3,(n-clock)*.09),p)}catch(er){console.warn('FOOT3D',er)}await tick(to);await w3(()=>pr)};
+    const gp=p=>{try{return F3.goalScr(p)}catch(er){return {x:p?12:88,y:30}}};
+    for(const e of ev){
+      if(e.t==='lineups'){say(fmT('lineups'));await w3(()=>F3.walkout())}
+      else if(e.t==='ko'){half=e.h;$('fmhalf').textContent=fmT(half===1?'half1':'half2');clock=half===1?0:45;setClk(clock);const kp=half===1?0:1;
+        await w3(()=>F3.kickoff(kp));tmp(`<div class="fm-ov"><b>${fmT(half===1?'kick':'kick2')}</b></div>`,1400);say(fmT(half===1?'kick':'kick2'));sfx('whistle');await z(600);await w3(()=>F3.idle(.9,kp))}
+      else if(e.t==='att'){
+        await adv(e.m,e.p);
+        const p=e.p,o=1-p,s=e.sh,sN=s>=0?nm(p,s):'',a=e.c>=0?nm(p,e.c):'',d=e.dv>=0?nm(o,e.dv):'';
+        if(e.pen){
+          await w3(()=>F3.penFoul(e));sfx('whistle');{const g0=gp(p);pop(fmT('penPop'),g0.x,g0.y,'big')}say(fmT('pen').replace('{p}',P_(p)));await z(1100);
+          await w3(()=>F3.penSetup(e));say(fmT('shoot',0).replace('{s}',sN));await z(400);
+          await w3(()=>F3.outcome(e));
+          if(e.out==='goal'){score(e.sc,1);say(fmT('penGoal').replace('{s}',sN));log(p,`⚽ ${e.m}' ${sN} (p)`);F3.celebrate(p,s);await goalBanner(p,s,-1,e.m,1);await w3(()=>F3.kickoff(o));await w3(()=>F3.idle(.8,o))}
+          else{if(e.out==='save'){const g1=gp(p);pop(fmT('saveP'),g1.x,g1.y);say(fmT('penSave').replace('{g}',nm(o,0)))}else say(fmT('penWide').replace('{s}',sN));await z(600);await w3(()=>F3.after(e))}
+          continue;
+        }
+        let first=1;await w3(()=>F3.build(p,e.ch||[],i=>{if(first||Math.random()<.4)say(fmT('build',Math.floor(Math.random()*3)).replace('{a}',nm(p,i)));first=0}));
+        const intro={run:fmT('run').replace('{a}',a),drib:fmT('drib').replace('{a}',a).replace('{d}',d),cross:fmT('cross').replace('{a}',a),box:fmT('box').replace('{a}',a).replace('{s}',sN),long:fmT('long').replace('{s}',sN)}[e.k];
+        if(intro)say(intro);
+        await w3(()=>F3.chance(e));
+        if(e.out==='lost'){say(e.k==='cross'?(e.dv===0?fmT('claim').replace('{g}',nm(o,0)):fmT('clear').replace('{d}',d)):fmT('lost',e.k==='run'||e.k==='box'?2:Math.floor(Math.random()*2)).replace('{d}',d).replace('{a}',a));await z(500);continue}
+        say(e.k==='drib'?fmT('dribOk').replace('{a}',a).replace('{d}',d):e.k==='cross'?fmT('header').replace('{s}',sN):e.k==='run'?fmT('oneOnOne').replace('{a}',sN).replace('{g}',nm(o,0)):fmT('shoot',e.d).replace('{s}',sN));
+        await w3(()=>F3.outcome(e));
+        if(e.out==='goal'||e.out==='var'){
+          const sc2=e.out==='var'?e.sc.map((v,i)=>i===p?v+1:v):e.sc;score(sc2,1);say(`${fmT('goal')} <b>${sN}</b> · ${sc2[0]} – ${sc2[1]}`);F3.celebrate(p,s);await goalBanner(p,s,e.as,e.m);
+          if(e.out==='var'){tmp(`<div class="fm-ov var"><b>${fmT('var')}</b></div>`,1600);say(fmT('var'));await z(1500);score(e.sc);tmp(`<div class="fm-ov no"><b>${fmT('varNo')}</b></div>`,1700);say(fmT('varNo'));await z(1500);await w3(()=>F3.after(e))}
+          else{log(p,`⚽ ${e.m}' ${sN}${e.as>=0?` <small>(${nm(p,e.as)})</small>`:''}`);await w3(()=>F3.kickoff(o));await w3(()=>F3.idle(.8,o))}
+        }else{
+          const g2=gp(p);
+          if(e.out==='save'){pop(fmT('saveP'),g2.x,g2.y);say(fmT('save',e.d).replace('{g}',nm(o,0)).replace('{s}',sN))}
+          else if(e.out==='post'){pop(fmT('postP'),g2.x,g2.y,'post');say(fmT('post').replace('{s}',sN))}
+          else if(e.out==='block')say(fmT('block').replace('{b}',nm(o,e.bl>=0?e.bl:2)).replace('{s}',sN));
+          else say(fmT('wide',e.d).replace('{s}',sN));
+          await z(350);await w3(()=>F3.after(e));
+        }
+      }
+      else if(e.t==='yc'){await adv(e.m,-1);sfx('whistle');say(fmT('yc').replace('{n}',nm(e.p,e.i)));log(e.p,`<span class="yc"></span> ${e.m}' ${nm(e.p,e.i)}`);await w3(()=>F3.card(e.p,e.i))}
+      else if(e.t==='ht'||e.t==='ft'){await adv(e.t==='ht'?45:90,-1);sfx('whistle');tmp(`<div class="fm-ov"><b>${fmT(e.t)}</b><span>${e.sc[0]} – ${e.sc[1]}</span></div>`,1900);say(`${fmT(e.t)} · ${e.sc[0]} – ${e.sc[1]}`);$('fmhalf').textContent=fmT(e.t);await w3(()=>F3.whistle());await z(500)}
+      else if(e.t==='pens'){pensRow();$('fmhalf').textContent=fmT('pens');tmp(`<div class="fm-ov"><b>${fmT('shootout')}</b></div>`,1700);say(fmT('shootout'));await w3(()=>F3.soSetup());await z(900);
+        for(const k of e.seq){say(`${nm(k.p,k.s)}…`);await w3(()=>F3.soKick(k));sfx(k.goal?'goal':k.out==='save'?'save':'kick');penMark(k.p,k.goal);say(`${nm(k.p,k.s)}: ${k.goal?'⚽':'✕'} · ${k.ps[0]} – ${k.ps[1]}`);await z(600)}}
+      else if(e.t==='end'){try{F3.finale(e.w)}catch(er){}endScreen(e)}
+    }
+    return;
+  }
   // salida al campo
   for(let p=0;p<2;p++)for(let i=0;i<11;i++)put(el(p,i),50,104,0);
   put(B,50,50,0);B.style.opacity=0;
@@ -1298,6 +1360,8 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
       layout(p,650);
       const ch=e.ch||[];
       for(let k=0;k<ch.length;k++){await passTo(p,ch[k],k?320:420);if(k===ch.length-1||Math.random()<.4)say(fmT('build',Math.floor(Math.random()*3)).replace('{a}',nm(p,ch[k])));await z(150)}
+      if(e.out==='lost'){const dv=e.dv>=0?e.dv:6;if(e.c>=0)await passTo(p,e.c,320);await passTo(o,dv,300);el(o,dv).classList.add('blk');
+        say(fmT('lost',Math.floor(Math.random()*3)).replace('{d}',nm(o,dv)).replace('{a}',e.c>=0?nm(p,e.c):nm(p,ch[ch.length-1]||6)));await z(700);el(o,dv).classList.remove('blk');layout(-1,700);continue}
       // el rematador se mete en el área
       const [sx0,sy0]=at(p,s),sx=p?Math.min(sx0,26):Math.max(sx0,74),sy=Math.max(28,Math.min(72,sy0));put(el(p,s),sx,sy,420);
       if(e.out==='block'&&e.bl>=0)put(el(o,e.bl),sx+(p?-5:5),sy+(sy>50?-3:3),420);
@@ -1353,7 +1417,10 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
         await z(900);el(o,0).classList.remove('dive');put(el(p,k.s),p?55:45,22+k.s*5.5,500);await ball(89.5,50,300);
       }
     }else if(e.t==='end'){
-      hold(null);sfx('whistle');
+      hold(null);endScreen(e);
+    }
+  }
+  function endScreen(e){{sfx('whistle');
       const w=e.w,st=e.st||{},rows=[['poss','%'],['sh',''],['sot',''],['xg',''],['yc','']];
       say(w<0?t('tie'):t('wins',w+1));
       const bar=(k,suf,i)=>{const v=st[k]||[0,0],a=+v[0],b=+v[1],tot=a+b||1;return `<div class="fm-st"><span>${a}${suf}</span><div><small>${fmT('stats',i)}</small><i><u style="width:${a/tot*100}%"></u></i></div><span>${b}${suf}</span></div>`};
@@ -1364,8 +1431,7 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
 ${mc?`<div class="ab-mvp" style="--c:var(--p${m.p+1})"><em>${fmT('motm')}</em><i class="ab-th" data-n="${mc.n}" style="--h:${mc.h}">${spr(mc)}</i><span><b>${dnh(mc)}</b><small>${P_(m.p)} · ${m.r.toFixed(1)}</small></span></div>`:''}
 <button onclick="again()">${t('again')}</button></div>`);
       E.querySelector('.fm-res').scrollIntoView({behavior:'smooth',block:'nearest'});
-    }
-  }
+  }}
 }
 
 /* ---------- ESCALA DE PODER (pestañas Anime / UFC) ---------- */
@@ -1374,7 +1440,7 @@ function scaleTab(k){scTab=k;openScale()}
 const TOP3=['God','Zeno','Truth'],topRank=c=>{const i=TOP3.indexOf(c.n);return i<0?9:i};
 function openScale(){
   wantImg(POOLS[scTab]);
-  const row=(c,k,m)=>`<div class="sr"><span class="rk">${k}</span><div class="av" data-n="${c.n}" style="--h:${c.h}">${c.img?`<img src="${c.img}" alt="">`:c.e}</div><div><b>${dnh(c)}</b>${c.kind==='anime'?trBadge(c):''}<small>${m}</small><div class="bar2"><i style="width:${c.kind==='futbol'?Math.max(0,(c.ovr-40)/59*100):c.pw/10}%"></i></div>${c.kind==='anime'?stT(c):''}</div><span class="pv">${c.kind==='futbol'?c.ovr:c.pw}</span></div>`;
+  const row=(c,k,m)=>`<div class="sr"><span class="rk">${k}</span><div class="av" data-n="${c.n}" style="--h:${c.h}">${c.img?`<img src="${c.img}" alt="">`:c.e}</div><div><b>${dnh(c)}</b>${c.kind==='anime'?trBadge(c):''}<small>${m}</small>${c.kind==='futbol'&&c.fs?'<small class="fsl">'+fstTxt(c)+'</small>':''}<div class="bar2"><i style="width:${c.kind==='futbol'?Math.max(0,(c.ovr-40)/59*100):c.pw/10}%"></i></div>${c.kind==='anime'?stT(c):''}</div><span class="pv">${c.kind==='futbol'?c.ovr:c.pw}</span></div>`;
   $('scn').textContent=u(scTab==='ufc'?'scaleNoteUfc':scTab==='futbol'?'scaleNoteFut':'scaleNote');
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.k===scTab));
   $('scl').innerHTML=scTab==='futbol'

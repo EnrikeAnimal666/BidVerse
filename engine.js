@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '2026-11-25a';
+  const VERSION = '2026-11-26a';
   const CFG = { anime: { start: 20 }, ufc: { start: 40 }, futbol: { start: 100 } }, MAXC = 3, SECS = 10;
   // Fútbol: 4-3-3 (1 portero, 4 defensas, 3 medios, 3 delanteros). Se subasta por posiciones, igual que la UFC por categorías.
   const FUT_DIVS = [{ k: 'GK', n: 1 }, { k: 'DEF', n: 4 }, { k: 'MID', n: 3 }, { k: 'FWD', n: 3 }];
@@ -557,59 +557,134 @@
   }
 
 
-  /* ---------- FÚTBOL: partido simulado minuto a minuto ----------
-     Cada equipo: portero, defensa, medio y ataque (media de cada línea). En cada minuto puede haber una jugada de ataque;
-     quién ataca depende sobre todo del centro del campo, y la calidad de la ocasión del ataque rival contra la defensa propia.
-     El remate lo hace un jugador concreto (más probable si es delantero centro y cuanto mejor sea) y el portero puede pararlo.
-     Calibrado con miles de partidos simulados (victoria en 90' / contando penaltis):
-       iguales ≈ 2,8 goles y 25 % de empates · +5 de media ≈ 51 % / 65 % · +10 ≈ 66 % / 79 % · +20 ≈ 88 % / 95 %.
+  /* ---------- FÚTBOL v2: partido simulado minuto a minuto con las estadísticas de la carta (EA SPORTS FC 27) ----------
+     Cada futbolista lleva las 6 de su carta (c.fs): RIT TIR PAS REG DEF FÍS (portero: EST PAR SAQ REF VEL COL).
+     · Quién tiene el balón: el centro del campo (pase, regate y físico de los medios contra la presión del rival).
+     · Cada ataque acaba en un tipo de ocasión según quien la lleva, y antes hay un duelo contra un defensor concreto:
+         run   pase al hueco + carrera (PAS del que la da y RIT del que corre contra RIT/DEF del central) → mano a mano
+         drib  regate (REG contra DEF/FÍS)                                                                   → remate en el área
+         cross centro de un extremo (PAS) y remate de cabeza (FÍS contra FÍS/DEF)                            → cabezazo
+         box   paredes en la frontal (PAS y REG contra la defensa)                                          → remate en el área
+         long  disparo lejano de un medio                                                                    → tiro lejano
+       Si pierde el duelo, el defensor se queda el balón (out 'lost').
+     · El remate es gol sobre todo por el TIRO de quien remata, y algo por el portero (estirada, reflejos, colocación, paradas):
+         P(gol) = base(ocasión) · 10^((TIR − 80) / 30) · 10^((84 − portero) / 45)
+       Un 91 de tiro (Mbappé) mete más de la mitad de lo que remata, un 75 uno de cada 5 y un defensa casi nunca.
+     Calibrado con miles de partidos simulados entre onces al azar (victoria en 90' / contando penaltis):
+       iguales ≈ 2,7 goles y 25 % de empates · +2 de media ≈ 52 % / 66 % · +4 ≈ 64 % / 75 % · +6 ≈ 77 % / 87 % · +10 ≈ 92 % / 94 %.
      Si hay empate se decide en una tanda de penaltis. */
-  const FT = { K: 130, SH: 80, GK: 250, Q0: .12, ATT: .225, CARD: .032 };
-  const avg = a => a.reduce((x, c) => x + c.ovr, 0) / a.length;
+  const FT = { ATT: .15, CARD: .03, PEN: .025, SH: 30, GKK: 45, POSS: 40, DU: 75, B: { run: .34, drib: .23, cross: .19, box: .21, long: .075 } };
+  // estadísticas de la carta (los huecos vacíos son un jugador muy flojo)
+  function fst(c) {
+    const v = c && Array.isArray(c.fs) && c.fs.length === 6 && !c.fs.some(x => !(x >= 0)) ? c.fs : null, o = (c && c.ovr) || 45;
+    if (c && c.cls === 'GK') { const [div, han, kic, ref, spd, pos] = v || [o, o, o, o, 40, o]; return { div, han, kic, ref, spd, pos, gk: .3 * div + .3 * ref + .2 * pos + .2 * han }; }
+    const [pac, sho, pas, dri, def, phy] = v || [o - 5, o - 15, o - 10, o - 10, o - 10, o - 5];
+    return { pac, sho, pas, dri, def, phy };
+  }
   function futXI(cards) { // 11 huecos: 0 POR · 1-4 DEF (LI, DFC, DFC, LD) · 5-7 MED (MC, MCD, MC) · 8-10 DEL (EI, DC, ED)
-    const by = k => cards.filter(c => c.cls === k), fill = (a, n, k) => { a = a.slice(0, n); while (a.length < n) a.push({ n: '', ovr: 50, cls: k, role: '', ghost: 1 }); return a; };
+    const by = k => cards.filter(c => c.cls === k), fill = (a, n, k) => { a = a.slice(0, n); while (a.length < n) a.push({ n: '', ovr: 45, cls: k, role: '', ghost: 1 }); return a; };
     const take = (a, roles) => { const i = a.findIndex(c => roles.includes(c.role)); return i >= 0 ? a.splice(i, 1)[0] : a.shift(); };
     const d = fill(by('DEF'), 4, 'DEF'), m = fill(by('MID'), 3, 'MID'), f = fill(by('FWD'), 3, 'FWD'), gk = fill(by('GK'), 1, 'GK')[0];
     const lb = take(d, ['LI']), rb = take(d, ['LD']), cdm = take(m, ['MCD']), st = take(f, ['DC']), lw = take(f, ['EI']);
     return [gk, lb, d[0], d[1], rb, m[0], cdm, m[1], lw, st, f[0]];
   }
-  const SHW = c => !c || c.ghost ? .05 : ({ DC: 3.4, EI: 2.4, ED: 2.4, MCO: 1.5, MC: .9, MCD: .45 }[c.role] || (c.cls === 'FWD' ? 2.6 : c.cls === 'MID' ? .9 : c.cls === 'DEF' ? .25 : 0)) * Math.pow((c.ovr || 50) / 80, 4);
   function wpick(rng, ids, w) { const t = ids.reduce((s, i) => s + w(i), 0); let r = rng() * t; for (const i of ids) { r -= w(i); if (r <= 0) return i; } return ids[ids.length - 1]; }
+  const ROLEW = { DC: 3.2, EI: 2.3, ED: 2.3, MCO: 1.5, MC: .8, MCD: .35, LI: .2, LD: .2, DFC: .08 };
+  const roleW = c => !c || c.ghost ? .05 : ROLEW[c.role] != null ? ROLEW[c.role] : c.cls === 'FWD' ? 2.4 : c.cls === 'MID' ? .8 : c.cls === 'DEF' ? .12 : 0;
+  const fduel = (a, d, b = .55) => clamp(b + (a - d) / FT.DU, .18, .9);
+  function futTeam(x) {
+    const s = x.map(fst), mean = (ids, f) => ids.reduce((a, i) => a + f(s[i]), 0) / ids.length, ML = [5, 6, 7];
+    return { s, G: s[0].gk,
+      D: mean([1, 2, 3, 4], q => .6 * q.def + .25 * q.phy + .15 * q.pac),
+      Mc: mean(ML, q => .45 * q.pas + .35 * q.dri + .2 * q.phy), // control del balón
+      Mp: mean(ML, q => .55 * q.def + .3 * q.phy + .15 * q.pac), // presión
+      A: mean([8, 9, 10], q => .3 * q.pac + .3 * q.dri + .2 * q.sho + .2 * q.pas) };
+  }
+  // P(gol) de un remate: el tiro de quien remata manda; el portero resta
+  const shotQ = (k, sho, G, rng) => clamp(FT.B[k] * Math.pow(10, (sho - 80) / FT.SH) * Math.pow(10, (84 - G) / FT.GKK) * (.75 + .5 * rng()), .01, .86);
   function resolveFutbol(g) {
-    const rng = g.rng, X = g.P.map(p => futXI(p.c));
-    const T = X.map(x => { const G = x[0].ovr, D = avg(x.slice(1, 5)), M = avg(x.slice(5, 8)), A = avg(x.slice(8)); return { G, D, M, A, AP: .6 * A + .3 * M + .1 * D, DP: .6 * D + .4 * M }; });
-    const sh0 = clamp(1 / (1 + Math.pow(10, -((T[0].M - T[1].M) * .7 + ((T[0].AP - T[1].DP) - (T[1].AP - T[0].DP)) * .3) / FT.SH)), .28, .72);
-    const sc = [0, 0], st = { sh: [0, 0], sot: [0, 0], xg: [0, 0], yc: [0, 0], att: [0, 0] }, R = X.map(x => x.map(c => c.ghost ? 0 : 6.4 + (c.ovr - 80) / 40)), yc = [new Set(), new Set()];
-    const ev = [{ t: 'lineups', L: X.map(x => x.map(c => c.n)), T: T.map(t => ({ G: Math.round(t.G), D: Math.round(t.D), M: Math.round(t.M), A: Math.round(t.A) })) }, { t: 'ko', h: 1 }];
-    const ids = [...Array(11).keys()];
-    const attack = (m, p) => {
-      const o = 1 - p, x = X[p], gk = X[o][0];
-      st.att[p]++;
-      if (rng() < .025) { // penalti
-        const s = wpick(rng, ids.slice(5), i => SHW(x[i]) * (x[i].role === 'DC' ? 1.6 : 1)), q = clamp(.76 + (x[s].ovr - gk.ovr) / 250, .55, .92), goal = rng() < q;
-        const out = goal ? 'goal' : rng() < .65 ? 'save' : 'wide';
-        st.sh[p]++; st.xg[p] += .76; if (out !== 'wide') st.sot[p]++;
-        if (goal) { sc[p]++; R[p][s] += 1; R[o][0] -= .3; } else if (out === 'save') R[o][0] += .9;
-        ev.push({ t: 'att', m, p, pen: 1, ch: [], sh: s, out, xg: .76, sc: [...sc], d: rndi(rng, 0, 2) });
-        return;
-      }
-      const ch = [rng() < .15 ? 0 : rndi(rng, 1, 4)]; // salida: portero o defensa
-      const nm = rng() < .5 ? 1 : 2; for (let i = 0; i < nm; i++) ch.push(rndi(rng, 5, 7));
-      if (rng() < .55) ch.push(rndi(rng, 8, 10));
-      const s = wpick(rng, ids.slice(1), i => SHW(x[i]) * (i === ch[ch.length - 1] ? .6 : 1));
-      if (ch[ch.length - 1] === s) ch.pop();
-      const q = clamp(FT.Q0 * Math.pow(10, (T[p].AP - T[o].DP) / FT.K) * Math.pow(10, (x[s].ovr - gk.ovr) / FT.GK) * (.45 + 1.1 * rng()), .01, .7);
+    const rng = g.rng, X = g.P.map(p => futXI(p.c)), T = X.map(futTeam);
+    const ctl = p => .6 * T[p].Mc + .25 * (T[p].Mc - T[1 - p].Mp) + .15 * (T[p].A - T[1 - p].D);
+    const sh0 = clamp(1 / (1 + Math.pow(10, -(ctl(0) - ctl(1)) / FT.POSS)), .28, .72);
+    const sc = [0, 0], st = { sh: [0, 0], sot: [0, 0], xg: [0, 0], yc: [0, 0], att: [0, 0] }, R = X.map(x => x.map(c => c.ghost ? 0 : 6.4 + ((c.ovr || 45) - 80) / 40)), yc = [new Set(), new Set()];
+    const ov = v => Math.round(v);
+    const ev = [{ t: 'lineups', L: X.map(x => x.map(c => c.n)),
+      T: T.map((t, p) => ({ G: ov(X[p][0].ovr || 45), D: ov(X[p].slice(1, 5).reduce((a, c) => a + (c.ovr || 45), 0) / 4), M: ov(X[p].slice(5, 8).reduce((a, c) => a + (c.ovr || 45), 0) / 3), A: ov(X[p].slice(8).reduce((a, c) => a + (c.ovr || 45), 0) / 3) })) }, { t: 'ko', h: 1 }];
+    const ids = [...Array(11).keys()], FW = [8, 9, 10], MD = [5, 6, 7], DF = [1, 2, 3, 4];
+    const S = (p, i) => T[p].s[i];
+    const shoot = (m, p, o, k, s, as, extra) => { // remate: gol, parada, palo, rechace o fuera
+      const sv = S(p, s), sho = k === 'cross' ? .55 * sv.sho + .45 * sv.phy : sv.sho, G = T[o].G, q = shotQ(k, sho, G, rng);
       const r = rng(); let out;
       if (r < q) out = rng() < .05 ? 'var' : 'goal';
-      else { const u = rng(); out = u < .38 ? 'save' : u < .44 ? 'post' : u < .66 ? 'block' : 'wide'; }
+      else { const u = rng(), sv0 = clamp(.4 + (G - 84) / 100, .26, .58), bl = k === 'run' ? 0 : k === 'long' ? .24 : .14; out = u < sv0 ? 'save' : u < sv0 + .06 ? 'post' : u < sv0 + .06 + bl ? 'block' : 'wide'; }
       st.sh[p]++; st.xg[p] += q; if (out === 'goal' || out === 'save' || out === 'var') st.sot[p]++;
-      let as = -1;
-      if (out === 'goal') {
-        sc[p]++; R[p][s] += 1.1; R[o][0] -= .25; for (let i = 1; i <= 4; i++) R[o][i] -= .1;
-        const last = ch[ch.length - 1]; if (last != null && last >= 5 && rng() < .8) { as = last; R[p][as] += .6; }
-      } else if (out === 'save') R[o][0] += .25 + q;
-      else if (out === 'block') R[o][rndi(rng, 1, 4)] += .2;
-      ev.push({ t: 'att', m, p, ch, sh: s, as, out, xg: +q.toFixed(2), sc: [...sc], d: rndi(rng, 0, 2), bl: out === 'block' ? rndi(rng, 1, 4) : -1 });
+      if (out === 'goal') { sc[p]++; R[p][s] += 1.1; R[o][0] -= .25; for (const i of DF) R[o][i] -= .1; if (as >= 0) R[p][as] += .6; else if (as < 0) as = -1; }
+      else if (out === 'save') R[o][0] += .25 + q;
+      const bl = out === 'block' ? wpick(rng, DF.concat(6), i => S(o, i).def) : -1; if (bl >= 0) R[o][bl] += .2;
+      ev.push(Object.assign({ t: 'att', m, p, k, sh: s, as: out === 'goal' || out === 'var' ? as : -1, out, xg: +q.toFixed(2), sc: [...sc], d: rndi(rng, 0, 2), bl }, extra));
+    };
+    const lost = (m, p, o, k, ch, c, dv, z) => { // el defensor gana el duelo y se queda el balón
+      R[o][dv] += .25; R[p][c] -= .05;
+      ev.push({ t: 'att', m, p, k, ch, c, dv, sh: -1, as: -1, out: 'lost', z, sc: [...sc], d: rndi(rng, 0, 2) });
+    };
+    const attack = (m, p) => {
+      const o = 1 - p, x = X[p];
+      st.att[p]++;
+      if (rng() < FT.PEN) { // penalti: lo tira el que mejor tira de los de arriba
+        const s = wpick(rng, ids.slice(5), i => Math.pow(S(p, i).sho / 80, 8) * (x[i].ghost ? .01 : 1)), dv = wpick(rng, DF.concat(6), i => 1), G = T[o].G;
+        const q = clamp(.72 + (S(p, s).sho - G) / 120, .5, .93), goal = rng() < q, out = goal ? 'goal' : rng() < .65 ? 'save' : 'wide';
+        st.sh[p]++; st.xg[p] += .76; if (out !== 'wide') st.sot[p]++;
+        if (goal) { sc[p]++; R[p][s] += 1; R[o][0] -= .3; } else if (out === 'save') R[o][0] += .9;
+        R[o][dv] -= .2;
+        ev.push({ t: 'att', m, p, pen: 1, k: 'pen', ch: [], sh: s, dv, out, xg: .76, sc: [...sc], d: rndi(rng, 0, 2) });
+        return;
+      }
+      // salida del balón: portero o defensa y uno o dos medios
+      const ch = [rng() < .15 ? 0 : rndi(rng, 1, 4)];
+      const nm = rng() < .5 ? 1 : 2; for (let i = 0; i < nm; i++) { let j = rndi(rng, 5, 7); if (j === ch[ch.length - 1]) j = 5 + (j - 4) % 3; ch.push(j); }
+      // pérdida en el centro del campo (la presión del rival contra el control propio)
+      if (rng() < clamp(.11 + (T[o].Mp - T[p].Mc) / 110, .05, .22)) {
+        const c = ch[ch.length - 1], dv = wpick(rng, MD, i => Math.pow(S(o, i).def / 70, 3));
+        return lost(m, p, o, 'mid', ch, c, dv, 'mid');
+      }
+      // ¿quién encara? y ¿qué ocasión busca?
+      const c = wpick(rng, ids.slice(1), i => roleW(x[i]) * Math.pow(Math.max(30, (S(p, i).dri + S(p, i).pac) / 2) / 80, 4) * (i === ch[ch.length - 1] ? .5 : 1));
+      if (ch[ch.length - 1] === c) ch.pop();
+      const cv = S(p, c), pz = ch.length ? ch[ch.length - 1] : 6, pv = S(p, pz), wing = c === 8 || c === 10 || x[c].role === 'EI' || x[c].role === 'ED';
+      const fw = c >= 8, w = {
+        run: fw ? Math.pow(cv.pac / 80, 6) * (x[c].role === 'DC' ? 1.2 : .9) : .05,
+        drib: Math.pow(cv.dri / 80, 6) * (fw || x[c].role === 'MCO' ? 1 : .35),
+        cross: wing ? .9 * Math.pow(cv.pas / 80, 4) : .08,
+        box: .8,
+        long: c >= 5 && c <= 7 ? 1.1 * Math.pow(cv.sho / 80, 4) : .12 };
+      const k = wpick(rng, Object.keys(w), q => w[q]);
+      // defensor que sale a por él (centrales para el centro, laterales para las bandas)
+      const dvOf = side => wpick(rng, DF, i => (side === 0 ? [0, 1.3, .7, .5, .3] : side === 2 ? [0, .3, .5, .7, 1.3] : [0, .3, 1, 1, .3])[i]);
+      const side = c === 8 ? (p ? 2 : 0) : c === 10 ? (p ? 0 : 2) : 1; // lado del campo visto desde el equipo que defiende
+      if (k === 'run') {
+        const dv = dvOf(side === 1 ? 1 : side), dd = S(o, dv), ok = rng() < fduel(.4 * pv.pas + .6 * cv.pac, .55 * dd.pac + .45 * dd.def);
+        if (!ok) return lost(m, p, o, k, ch, c, dv, 'att');
+        return shoot(m, p, o, 'run', c, pz, { ch, c, dv });
+      }
+      if (k === 'drib') {
+        const dv = dvOf(side), dd = S(o, dv), ok = rng() < fduel(cv.dri, .7 * dd.def + .3 * dd.phy);
+        if (!ok) return lost(m, p, o, k, ch, c, dv, 'att');
+        return shoot(m, p, o, 'drib', c, pz, { ch, c, dv });
+      }
+      if (k === 'cross') { // el extremo centra; remata el que mejor cabecea de los de arriba
+        const s = wpick(rng, [9, 8, 10, 5, 7, 2, 3].filter(i => i !== c), i => (i === 9 ? 3 : i >= 8 ? 1.2 : .45) * Math.pow(S(p, i).phy / 75, 4) * (x[i].ghost ? .01 : 1));
+        const dv = wpick(rng, [2, 3], () => 1), dd = S(o, dv), sv = S(p, s), gk = T[o].s[0];
+        if (rng() < clamp(.08 + (gk.pos - 80) / 200, .03, .16)) return lost(m, p, o, k, ch.concat(c), s, 0, 'box'); // el portero sale y la atrapa
+        const ok = rng() < fduel(.5 * cv.pas + .5 * sv.phy, .5 * dd.phy + .5 * dd.def, .5);
+        if (!ok) return lost(m, p, o, k, ch.concat(c), s, dv, 'box');
+        return shoot(m, p, o, 'cross', s, c, { ch: ch.concat(c), c, dv });
+      }
+      if (k === 'long') return shoot(m, p, o, 'long', c, pz, { ch, c, dv: -1 });
+      // box: paredes en la frontal y remata uno de los de arriba
+      const s = wpick(rng, ids.slice(1).filter(i => i !== c), i => roleW(x[i]) * Math.pow(Math.max(30, S(p, i).sho) / 80, 5));
+      const dv = dvOf(1), ok = rng() < fduel(.5 * cv.pas + .5 * S(p, s).dri, T[o].D);
+      if (!ok) return lost(m, p, o, k, ch.concat(c), s, dv, 'att');
+      return shoot(m, p, o, 'box', s, c, { ch: ch.concat(c), c, dv });
     };
     const card = (m) => {
       const p = rng() < .5 ? 0 : 1, i = wpick(rng, ids.slice(1), i => i <= 4 ? 1.6 : i <= 7 ? 1.2 : .5);
@@ -626,12 +701,12 @@
     half(1, 45, rndi(rng, 1, 3)); ev.push({ t: 'ht', sc: [...sc] }, { t: 'ko', h: 2 });
     half(46, 90, rndi(rng, 2, 6)); ev.push({ t: 'ft', sc: [...sc] });
     let pens = null, w = sc[0] > sc[1] ? 0 : sc[1] > sc[0] ? 1 : -1;
-    if (w < 0) { // tanda de penaltis
-      const order = x => [9, 8, 10, 5, 7, 6, 1, 4, 2, 3, 0].filter(i => !x[i].ghost);
-      const O = X.map(x => { const o = order(x); return o.length ? o : [9]; }), ps = [0, 0], seq = [];
+    if (w < 0) { // tanda de penaltis: tiran primero los que mejor tiran
+      const order = (x, p) => ids.filter(i => i && !x[i].ghost).sort((a, b) => S(p, b).sho - S(p, a).sho).concat(0);
+      const O = X.map((x, p) => { const o = order(x, p); return o.length ? o : [9]; }), ps = [0, 0], seq = [];
       for (let k = 0; k < 30; k++) {
-        const p = k % 2, o = 1 - p, s = O[p][Math.floor(k / 2) % O[p].length], gk = X[o][0];
-        const goal = rng() < clamp(.75 + (X[p][s].ovr - gk.ovr) / 220, .55, .92); if (goal) ps[p]++;
+        const p = k % 2, o = 1 - p, s = O[p][Math.floor(k / 2) % O[p].length], G = T[o].G;
+        const sho = s === 0 ? 45 : S(p, s).sho, goal = rng() < clamp(.72 + (sho - G) / 120, .5, .93); if (goal) ps[p]++;
         seq.push({ p, s, goal, out: goal ? 'goal' : rng() < .65 ? 'save' : 'wide', d: rndi(rng, 0, 2), gd: rndi(rng, 0, 2), ps: [...ps] });
         if (k < 10) { const rem0 = 5 - Math.ceil((k + 1) / 2), rem1 = 5 - Math.floor((k + 1) / 2); if (ps[0] > ps[1] + rem1 || ps[1] > ps[0] + rem0) break; }
         else if (p === 1 && ps[0] !== ps[1]) break;
@@ -653,5 +728,5 @@
     return { kind: 'anime', script: resolveAnime(g) };
   }
 
-  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, ROTO_PW, ROTO_P, order, FT, FUT_DIVS, futXI, resolveFutbol, resolve, create, can, out, gives, next, tick, place, skip, close, duel, stats, hpMax, decide, resolveAnime, resolveUfc, mulberry32 };
+  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, ROTO_PW, ROTO_P, order, FT, FUT_DIVS, futXI, fst, shotQ, resolveFutbol, resolve, create, can, out, gives, next, tick, place, skip, close, duel, stats, hpMax, decide, resolveAnime, resolveUfc, mulberry32 };
 });

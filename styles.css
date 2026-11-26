@@ -1026,6 +1026,12 @@ body.inlobby .wordmark{font-size:clamp(2.2rem,6vw,3.4rem)}
 .fovr{position:absolute;left:12px;top:12px;z-index:1;display:grid;justify-items:center;padding:6px 10px 5px;background:#0a0a0b;color:#f3e6c8;border:2px solid #f3e6c8;box-shadow:4px 4px 0 rgba(0,0,0,.5)}
 .fovr b{font:900 2.6rem/1 'Big Shoulders Display',Impact,sans-serif}.fovr span{font:800 .72rem var(--mono);letter-spacing:.12em}
 .fovr.leg{background:#e8b04a;color:#0a0a0b;border-color:#0a0a0b}
+/* las 6 estadísticas de la carta (FC 27), en dos columnas como en el juego */
+.fst{display:grid;grid-template-columns:auto auto;gap:1px 10px;margin:6px 0 1px;padding:5px 0 0;border-top:1.5px solid currentColor;list-style:none}
+.fst li{display:flex;align-items:baseline;gap:4px;font:800 .62rem/1.25 var(--mono);letter-spacing:.06em;opacity:.92}
+.fst li b{min-width:1.6em;text-align:right;font:900 .95rem/1.1 'Big Shoulders Display',Impact,sans-serif;letter-spacing:0}
+.sr small.fsl{margin-top:1px;font-weight:600;color:var(--ink);opacity:.75}
+@media(max-width:560px){.fovr b{font-size:2.1rem}.fst li{font-size:.56rem}.fst li b{font-size:.82rem}}
 .nm small .lg{font-style:normal;font-weight:800;color:#e8b04a}
 
 /* partido */
@@ -1111,6 +1117,15 @@ body.inlobby .wordmark{font-size:clamp(2.2rem,6vw,3.4rem)}
   .fm-log{font-size:.72rem}
 }
 @media(prefers-reduced-motion:reduce){.fm-gb,.fm-cf{animation-duration:.01s}}
+
+/* partido en 3D (f3d/foot.js): el lienzo ocupa el campo y se esconden las fichas 2D */
+.fm-pitch.d3{aspect-ratio:16/9;background:#070b14}
+.fm-pitch.d3::before,.fm-pitch.d3 .fm-lines,.fm-pitch.d3 .fm-pl,.fm-pitch.d3 .fm-ball,.fm-pitch.d3 .fm-net{display:none}
+.fm3-cv{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0}
+.fm3-tag{position:absolute;left:0;top:0;z-index:3;display:flex;align-items:center;gap:6px;padding:2px 8px 2px 2px;font:800 clamp(.6rem,1.2vw,.8rem)/1.25 var(--mono);color:#fff;background:rgba(8,10,14,.8);border-left:3px solid var(--c,#fff);white-space:nowrap;pointer-events:none;transition:opacity .25s;will-change:transform}
+.fm3-tag b{display:grid;place-items:center;min-width:1.6em;height:1.6em;font:900 .9em/1 var(--mono);color:#0a0a0b;background:var(--c,#fff)}
+.fm3-fade{position:absolute;inset:0;z-index:4;background:#000;opacity:0;transition:opacity .2s linear;pointer-events:none}
+@media(max-width:640px){.fm-pitch.d3{aspect-ratio:4/3}}
 .fm-res .ab-mvp{display:flex;width:max-content;max-width:100%;margin:16px auto 4px}
 .fm-res .ab-mvp em{font-size:1.05rem;letter-spacing:.04em}
 .fm-res button{display:block;margin:16px auto 0}

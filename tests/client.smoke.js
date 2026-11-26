@@ -1,5 +1,5 @@
 // Prueba de humo del cliente: ejecuta game.js REAL contra un DOM falso y un reloj simulado. Comprueba que la lógica de enlace no lanza errores
-// y que partidas completas (anime y UFC) llegan hasta el final. NO comprueba cómo se ve nada.
+// y que partidas completas (anime, UFC y fútbol) llegan hasta el final. NO comprueba cómo se ve nada (sin WebGL: el fútbol va por el campo 2D).
 const fs=require('fs'),vm=require('vm'),path=require('path'),assert=require('assert');
 const root=path.join(__dirname,'..');
 function mkEl(id){
@@ -41,7 +41,7 @@ function run(cat,seed,opts={}){
   sandbox.window=sandbox;sandbox.self=sandbox;
   const ctx=vm.createContext(sandbox);
   const errors=[];
-  for(const f of['data-anime.js','data-ufc.js','engine.js','game.js'])vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),ctx,{filename:f});
+  for(const f of['data-anime.js','data-ufc.js','data-futbol.js','engine.js','game.js'])vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),ctx,{filename:f});
   return{ctx,els,clock,errors};
 }
 async function drain(h,until,maxSteps=200000){
@@ -91,6 +91,6 @@ async function play(cat,seed){
 process.on('unhandledRejection',e=>{throw e});
 (async()=>{
   let ok=0;const rows=[];
-  for(const cat of['anime','ufc'])for(let s=1;s<=15;s++){const r=await play(cat,s*7919);ok++;if(s<=2)rows.push(cat+' #'+s+': '+JSON.stringify(r))}
+  for(const cat of['anime','ufc','futbol'])for(let s=1;s<=15;s++){const r=await play(cat,s*7919);ok++;if(s<=2)rows.push(cat+' #'+s+': '+JSON.stringify(r))}
   console.log(rows.join('\n'));console.log('OK',ok,'partidas completas (subasta + combate) sin errores');process.exit(0);
 })().catch(e=>{console.error('FALLO:',e);process.exit(1)});
