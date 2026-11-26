@@ -162,7 +162,9 @@
       rkEmpty:'Todavía no se ha jugado ninguna partida online.',rkEmptyW:'Nadie ha jugado esta semana. ¡Sé el primero!',
       rkNoteW:'Puntos ganados (o perdidos) en las partidas online desde el lunes {0}. Se reinicia solo cada semana.',
       rkNoteA:'Puntuación total. Todos empiezan con 1000: ganar a alguien con más puntos da más y perder contra alguien con menos quita más. Solo cuentan las partidas online entre dos cuentas.',
-      rkWLD:'{0} V · {1} D · {2} E',rkYou:'Tú',ptsLine:'{0} puntos de ranking · ahora tienes {1}',ptsLeft:'Ganas por abandono: {0} puntos.'},
+      rkWLD:'{0} V · {1} D · {2} E',rkYou:'Tú',ptsLine:'{0} puntos de ranking · ahora tienes {1}',ptsLeft:'Ganas por abandono: {0} puntos.',
+      stTitle:'Tus estadísticas online',stNone:'Aún no has jugado online con esta cuenta.',stRecent:'Últimas partidas',stStreakW:'Racha: {0} victorias seguidas',stStreakL:'Racha: {0} derrotas seguidas',stVs:'contra {0}',stLeave:'abandono',stTimeout:'no volvió',stLoad:'Cargando…',stErr:'No se han podido cargar.',
+      w:'V',l:'D',d:'E',cats:{anime:'Anime',ufc:'UFC',futbol:'Fútbol'}},
     en:{have:'Got a room code?',codePh:'CODE',join:'Join',create:'Create room',login:'Log in',edit:'My profile',
       signIn:'Log in',signUp:'Create account',profile:'Your profile',user:'Username',pass:'Password',avatar:'Profile picture',
       avSearch:'Search a character or an anime…',avNone:'No picture',avEmpty:'No character matches',avPick:'Picked: ',hi:'Hi, ',
@@ -176,7 +178,9 @@
       rkEmpty:'No online games have been played yet.',rkEmptyW:'Nobody has played this week. Be the first!',
       rkNoteW:'Points won (or lost) in online games since Monday {0}. Resets on its own every week.',
       rkNoteA:'Total score. Everyone starts at 1000: beating someone with more points gives more, losing to someone with fewer takes more. Only online games between two accounts count.',
-      rkWLD:'{0} W · {1} L · {2} D',rkYou:'You',ptsLine:'{0} ranking points · you now have {1}',ptsLeft:'You win by forfeit: {0} points.'}};
+      rkWLD:'{0} W · {1} L · {2} D',rkYou:'You',ptsLine:'{0} ranking points · you now have {1}',ptsLeft:'You win by forfeit: {0} points.',
+      stTitle:'Your online stats',stNone:'No online games with this account yet.',stRecent:'Recent games',stStreakW:'Streak: {0} wins in a row',stStreakL:'Streak: {0} losses in a row',stVs:'vs {0}',stLeave:'forfeit',stTimeout:'timed out',stLoad:'Loading…',stErr:'Could not load them.',
+      w:'W',l:'L',d:'D',cats:{anime:'Anime',ufc:'UFC',futbol:'Football'}}};
   const NAME_RE=/^[\p{L}\p{N}][\p{L}\p{N}._-]{2,15}$/u; // la misma regla que el servidor (server/db.js)
   const dict=()=>M[typeof lang!=='undefined'&&M[lang]?lang:'es'];
   const fmt=(s,...a)=>s.replace(/\{(\d+)\}/g,(m,i)=>a[i]??m);
@@ -224,9 +228,26 @@
     $('lgMe').style.display=mode==='me'?'':'none';$('lgMe').textContent=me?fmt(x.meLine,me.name,me.rating):'';
     $('lgGo').textContent=mode==='me'?x.save:mode==='up'?x.goUp:x.goIn;
     $('lgOut').style.display=mode==='me'?'':'none';
+    $('lgStats').style.display=mode==='me'?'':'none';if(mode==='me')stats();
     $('lgSwP').style.display=mode==='me'?'none':'';$('lgSwT').textContent=mode==='up'?x.toIn:x.toUp;$('lgSw').textContent=mode==='up'?x.toInB:x.toUpB;
     $('lgPass').autocomplete=mode==='up'?'new-password':'current-password';
     if(mode!=='in')grid()}
+  // ---- estadísticas del perfil: victorias/derrotas/empates online por categoría, racha y últimas partidas (GET /api/stats) ----
+  const wld=(o,x)=>`${o.w} ${x.w} · ${o.l} ${x.l} · ${o.d} ${x.d}`;
+  let stReq=0;
+  async function stats(){const x=dict(),el=$('lgStats'),id=++stReq;
+    const box=body=>{el.innerHTML=`<h3 class="st-h">${x.stTitle}</h3>${body}`};
+    box(`<p class="st-none">${x.stLoad}</p>`);
+    if(local){box(`<p class="st-none">${x.e_file}</p>`);return}
+    const r=await api('stats').catch(()=>null);if(id!==stReq)return;
+    if(r&&r.status===401){mode='in';dropLocal();return} // la sesión ya no vale: pasa a iniciar sesión (mode antes de dropLocal, que repinta la ventana)
+    if(!r||!r.total){box(`<p class="st-none">${x.stErr}</p>`);return}
+    const n=r.total.w+r.total.l+r.total.d;if(!n){box(`<p class="st-none">${x.stNone}</p>`);return}
+    const st=r.streak>1?`<p class="st-streak w">${fmt(x.stStreakW,r.streak)}</p>`:r.streak<-1?`<p class="st-streak l">${fmt(x.stStreakL,-r.streak)}</p>`:'';
+    const cats=['anime','ufc','futbol'].filter(k=>r.cats[k]).map(k=>`<li><span>${x.cats[k]}</span><b>${wld(r.cats[k],x)}</b></li>`).join('');
+    const rec=r.recent.map(g=>`<li class="st-g ${g.res}"><i>${x[g.res]}</i><span>${esc(fmt(x.stVs,g.opp))}<small>${x.cats[g.cat]||esc(g.cat)}${g.reason==='leave'?' · '+x.stLeave:g.reason==='timeout'?' · '+x.stTimeout:''}</small></span><b>${g.d>0?'+':''}${g.d}</b></li>`).join('');
+    box(`<p class="st-tot">${wld(r.total,x)}</p>${st}<ul class="st-cats">${cats}</ul><h4>${x.stRecent}</h4><ol class="st-rec">${rec}</ol>`);
+  }
   const err=t=>{$('lgErr').textContent=t||''};
   window.openLogin=m=>{mode=me?'me':(m==='up'?'up':'in');sel=me&&me.av||'';$('avQ').value='';err('');if(!me)$('lgPass').value='';
     paintModal();$('login').classList.add('open');setTimeout(()=>(mode==='me'?$('lgGo'):$('lgName')).focus(),50)};

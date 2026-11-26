@@ -1,13 +1,16 @@
 // Prueba de humo ONLINE: dos clientes (game.js + online.js reales, DOM falso) juegan contra el servidor real.
 // Necesita Node 22+. No comprueba el aspecto, solo que todo el enlace cliente-servidor funciona.
-const fs=require('fs'),vm=require('vm'),path=require('path'),assert=require('assert');
+const fs=require('fs'),vm=require('vm'),path=require('path'),os=require('os'),assert=require('assert');
+delete process.env.DATABASE_URL; // siempre SQLite en una carpeta temporal: nunca se toca la base de datos de verdad
 if(typeof WebSocket==='undefined'){console.log('SALTADO: necesita Node 22 o superior');process.exit(0)}
 const {mkEl}=require('./fakedom.js'),{create}=require('../server/server.js');
 const root=path.join(__dirname,'..'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 process.on('uncaughtException',e=>{console.error('EXCEPCIÓN:',e);process.exit(1)});
 process.on('unhandledRejection',e=>{console.error('PROMESA RECHAZADA:',e);process.exit(1)});
-function client(port){
-  const els={},store={},alerts=[],scale=60;
+// Para jugar online hace falta cuenta: el cliente arranca con la sesión ya guardada en su localStorage (acc = respuesta de /api/register)
+function client(port,acc){
+  const els={},alerts=[],scale=60;
+  const store=acc?{bvauth:acc.token,bvuser:acc.user.name,bvname:acc.user.name}:{};
   const doc={getElementById:id=>els[id]||(els[id]=mkEl(id)),body:mkEl('body'),documentElement:mkEl('html'),hidden:false,
     querySelector:()=>mkEl('q'),querySelectorAll:sel=>/\.fc/.test(sel)?[mkEl('fa'),mkEl('fb')]:[],createElement:()=>mkEl('c'),addEventListener(){}};
   const L={ui:new Proxy({},{get:(t,k)=>k in t?t[k]:String(k)}),names:{},animes:{},feats:{}};
@@ -18,7 +21,7 @@ function client(port){
     location:{protocol:'http:',host:'127.0.0.1:'+port,origin:'http://127.0.0.1:'+port,pathname:'/',search:''},addEventListener(){}};
   sb.window=sb;sb.self=sb;
   const ctx=vm.createContext(sb);
-  for(const f of['data-anime.js','data-ufc.js','engine.js','lang/online.js','game.js','online.js'])vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),ctx,{filename:f});
+  for(const f of['data-anime.js','data-ufc.js','data-futbol.js','engine.js','lang/online.js','game.js','online.js'])vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),ctx,{filename:f});
   const J=c=>vm.runInContext(c,ctx),el=id=>doc.getElementById(id);
   return{J,el,alerts,store};
 }
@@ -27,11 +30,20 @@ const done=c=>/class="res[ "]/.test(String(c.el('end').innerHTML));
 // anime: en la pantalla de orden cada cliente pulsa "Listo" con su orden (si no, el servidor usa el de compra al acabar el tiempo)
 const ready=c=>{if(c.J('!!LU&&!LU.ready[net.me]'))c.J("LU.el.onclick({target:{closest:()=>({disabled:false,dataset:{go:String(net.me)}})}})")};
 
+const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'bidverse-online-'));
 (async()=>{
-  const S=await create({port:0,speed:40});S.hub.abandonMs=1e9;
+  const S=await create({port:0,speed:40,dbFile:path.join(tmp,'test.db')});S.hub.abandonMs=1e9;
+  const reg=async user=>{const r=await fetch(`http://127.0.0.1:${S.port}/api/register`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user,pass:'secreto123'})});
+    const j=await r.json();assert.strictEqual(r.status,200,'registro de '+user+': '+JSON.stringify(j));return j};
   try{
-    for(const cat of['anime','ufc']){
-      const A=client(S.port),B=client(S.port);
+    const accA=await reg('Ana'),accB=await reg('Beto');
+    { // sin sesión: el servidor no deja crear sala y el cliente abre la ventana de cuenta
+      const G=client(S.port);G.J('openOnline()');G.J(`olCreate('anime')`);
+      await until(()=>G.el('login').classList.contains('open'),5000,'sin cuenta pide iniciar sesión');
+      assert.strictEqual(String(G.el('olCodeBig').textContent),'','sin cuenta no hay código de sala');
+    }
+    for(const cat of['anime','ufc','futbol']){
+      const A=client(S.port,accA),B=client(S.port,accB);
       A.J('openOnline()');B.J('openOnline()');
       A.el('olName').value='Ana';B.el('olName').value='Beto';
       A.J(`olCreate('${cat}')`);
@@ -76,5 +88,5 @@ const ready=c=>{if(c.J('!!LU&&!LU.ready[net.me]'))c.J("LU.el.onclick({target:{cl
     }
     console.log('OK online');
   }catch(e){console.error('FALLO:',e);process.exitCode=1}
-  finally{S.close();setTimeout(()=>process.exit(process.exitCode||0),300)}
+  finally{S.close();setTimeout(()=>{try{fs.rmSync(tmp,{recursive:true,force:true})}catch(e){}process.exit(process.exitCode||0)},300)}
 })();

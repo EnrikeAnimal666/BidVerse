@@ -6,6 +6,7 @@
      GET  /api/me                              → { user }                 errores: auth
      POST /api/profile   { av }                → { user }  (cambia la foto de perfil)
      GET  /api/ranking?period=week|all         → { period, since, players, rows: [...], me }
+     GET  /api/stats                           → { total, cats, streak, recent: [...] }  (tus partidas online)  errores: auth
    Límite de intentos de entrar/registrarse por IP para que no se puedan probar contraseñas a lo bruto. */
 const LIMIT = 10, WINDOW = 5 * 60000; // 10 intentos cada 5 minutos por IP
 
@@ -47,6 +48,7 @@ function makeApi(db, { avOk = () => true } = {}) {
           const b = await body(req); if (!b) return send(res, 400, { err: 'bad' });
           return send(res, 200, { user: await db.setAvatar(u.id, avOk(b.av) ? b.av : null) });
         }
+        case 'GET /api/stats': { const u = await db.byToken(tokenOf(req)); return u ? send(res, 200, await db.stats(u.id)) : send(res, 401, { err: 'auth' }); }
         case 'GET /api/ranking': {
           const u = await db.byToken(tokenOf(req));
           return send(res, 200, await db.ranking(url.searchParams.get('period') === 'week' ? 'week' : 'all', u && u.id));
