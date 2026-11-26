@@ -1315,23 +1315,27 @@ h1.brandimg a.home{display:inline-block;line-height:0;color:inherit;text-decorat
 h1.brandimg a.home:focus-visible{outline:2px solid var(--acc);outline-offset:4px;border-radius:4px}
 /* ================= COMBATE ANIME 3D (f3d/): el HUD flota sobre el escenario ================= */
 .ab-3d{position:absolute;inset:0;display:block;width:100%;height:100%;z-index:1}
-.ab.d3{max-width:1240px;grid-template-columns:minmax(0,1fr)}
+/* más grande: sale del ancho de la página (hasta 1760 px) y ocupa casi todo el alto de la ventana */
+.ab.d3{max-width:none;margin-left:calc(50% - min(50vw - 14px,880px));margin-right:calc(50% - min(50vw - 14px,880px));grid-template-columns:minmax(0,1fr)}
+.end.battle:has(>.ab.d3){margin-top:8px}
 .ab.d3 .ab-sky,.ab.d3 .ab-neb,.ab.d3 .ab-alt,.ab.d3 .ab-floor,.ab.d3 .ab-emb,.ab.d3 .ab-bk,.ab.d3 .ab-cv,.ab.d3 .ab-spl{display:none}
 .ab.d3 .ab-f{visibility:hidden;pointer-events:none}
-.ab.d3>.ab-stage{grid-row:1;grid-column:1;height:clamp(430px,76vh,740px);border-radius:6px;background:#05030c;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 70px -30px #000}
+.ab.d3>.ab-stage{grid-row:1;grid-column:1;height:clamp(500px,calc(100vh - 140px),1100px);height:clamp(500px,calc(100svh - 140px),1100px);border-radius:6px;background:#05030c;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 70px -30px #000}
 .ab.d3 .ab-vig{background:radial-gradient(ellipse at 50% 52%,transparent 58%,rgba(0,0,0,.55))}
 .ab.d3>.ab-top{grid-row:1;grid-column:1;z-index:6;align-self:start;margin:14px 16px 0;pointer-events:none}
 .ab.d3 .ab-pl{background:linear-gradient(105deg,color-mix(in srgb,var(--c) 34%,rgba(9,7,15,.72)),rgba(9,7,15,.5) 72%);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:inset 0 -1px 0 rgba(255,255,255,.1),0 10px 30px -14px rgba(0,0,0,.8)}
 .ab.d3 .ab-pl.a1{background:linear-gradient(255deg,color-mix(in srgb,var(--c) 34%,rgba(9,7,15,.72)),rgba(9,7,15,.5) 72%)}
 .ab.d3 .ab-c{align-self:start;padding:8px 12px;background:rgba(9,7,15,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:2px solid #ffd23f}
 .ab.d3 .ab-stw{display:none}
+.ab.d3 .ab-pl{padding-top:8px;padding-bottom:8px}.ab.d3 .ab-face{width:58px;height:70px} /* placas algo más compactas: más sitio para la pelea */
 .ab.d3>.ab-com{grid-row:1;grid-column:1;z-index:6;align-self:end;margin-bottom:84px;pointer-events:none;text-shadow:0 2px 10px #000,0 0 2px #000}
 .ab.d3>.ab-bot{grid-row:1;grid-column:1;z-index:6;align-self:end;justify-self:center;width:min(780px,calc(100% - 28px));margin-bottom:16px;pointer-events:none}
 .ab.d3 .ab-dlg{justify-content:center;text-align:center;min-height:2.7em;background:rgba(8,6,14,.6);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-left:0;border-bottom:2px solid #ffd23f;box-shadow:0 12px 30px -16px #000}
 .ab.d3>.ab-log{grid-row:2}
 .ab.d3 .ab-num{font-size:2.3rem}.ab.d3 .ab-num.crit{font-size:3.2rem}
 @media(max-width:700px){
-  .ab.d3>.ab-stage{height:clamp(380px,66svh,580px)}
+  .ab.d3>.ab-stage{height:clamp(420px,calc(100vh - 130px),860px);height:clamp(420px,calc(100svh - 130px),860px)}
+  .ab.d3 .ab-face{width:46px;height:56px}
   .ab.d3>.ab-top{margin:8px 8px 0}
   .ab.d3>.ab-com{margin-bottom:96px;font-size:.8rem}
   .ab.d3>.ab-bot{margin-bottom:10px}.ab.d3 .ab-dlg{font-size:.85rem;padding:8px 12px}

@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '2026-11-26a';
+  const VERSION = '2026-11-26b';
   const CFG = { anime: { start: 20 }, ufc: { start: 40 }, futbol: { start: 100 } }, MAXC = 3, SECS = 10;
   // Fútbol: 4-3-3 (1 portero, 4 defensas, 3 medios, 3 delanteros). Se subasta por posiciones, igual que la UFC por categorías.
   const FUT_DIVS = [{ k: 'GK', n: 1 }, { k: 'DEF', n: 4 }, { k: 'MID', n: 3 }, { k: 'FWD', n: 3 }];
@@ -171,15 +171,16 @@
 
   /* ---------- DUELO (anime) v2 ----------
      Idea: diferencias pequeñas de poder = combate igualado; diferencias enormes = paliza. La ventaja crece despacio hasta ~250 puntos
-     y muy deprisa a partir de ~400 (un dios borra a un humano de un golpe). Calibrado con miles de duelos simulados (mismo perfil, sin daño previo):
-       +50 → ~57 %   +100 → ~65 %   +150 → ~73 %   +250 → ~87 %   +400 → ~98 %   +600 → 100 %
+     y muy deprisa a partir de ~250: con 300+ de diferencia el débil apenas araña al fuerte, aunque le sobren turnos o llegue herido
+     (Pucci 450 no puede con Broly 880 ni con Made in Heaven). Calibrado con miles de duelos simulados (mismo perfil, sin daño previo):
+       +50 → ~55 %   +100 → ~63 %   +150 → ~71 %   +250 → ~87 %   +300 → ~93 %   +400 → ~99 %   +500 → 100 %
      Mecánicas (todas salen en el guion para animarlas):
        · golpe / crítico                · técnica especial (gasta ki, más daño)   · esquiva (+ contraataque)
        · choque de técnicas: los dos lanzan su técnica a la vez y empujan; el que gana revienta al otro
        · despertar: la primera vez que un personaje baja del 33 % de vida puede (55 %) sacar su verdadero poder (+stats, recupera ki). Una vez por combate.
      La vida y el ki que le quedan al ganador pasan al siguiente duelo (el ki se recupera un poco entre duelos). */
-  const AN = { FORM: 80, K1: 7000, K3: 900, BASE: .19, KS: 3000, KA: 2600, AWK: 55, AWHP: .33, AWP: .55, SPC: .34, REGEN: .05, CAP: 80 };
-  const ex = d => d / AN.K1 + Math.sign(d) * Math.pow(Math.abs(d) / AN.K3, 3); // exponente: lineal suave + cúbico (castiga las diferencias enormes)
+  const AN = { FORM: 80, K1: 7000, K3: 900, GAP: 250, K4: 40000, BASE: .19, KS: 3000, KA: 2600, AWK: 55, AWHP: .33, AWP: .55, SPC: .34, REGEN: .05, CAP: 80 };
+  const ex = d => d / AN.K1 + Math.sign(d) * (Math.pow(Math.abs(d) / AN.K3, 3) + Math.pow(Math.max(0, Math.abs(d) - AN.GAP), 2) / AN.K4); // lineal suave + cúbico + un extra a partir de 250 de diferencia (las diferencias enormes son palizas)
   const mul = d => Math.pow(10, ex(d));
   /* ---------- RASGOS (anime): habilidades propias de algunos personajes. La clave está en data-anime.js (TRAITS) y llega como c.tr ----------
      COMPARTIDOS
@@ -229,7 +230,7 @@
        zawarudo  Dio: 1 vez: detiene el tiempo, un golpe y remata con una apisonadora
        heaven    Pucci: el tiempo se acelera: tiene al menos el 60 % de los turnos
        counter   Meliodas: devuelve la primera técnica del rival con el doble de fuerza
-       arise     Sung Jin-Woo: al empezar el duelo atacan sus sombras: 2 + 1 por rival derrotado (hasta 5)
+       arise     Sung Jin-Woo: al empezar el duelo atacan sus sombras: 2 + 1 por rival derrotado (hasta 5); cada una pega con su fuerza (~13 % a uno de su nivel)
        geass     Lelouch: una orden por persona: el primer ataque del rival se vuelve contra él
        eclipse   Griffith: 1 vez, en vez de caer, sacrifica al siguiente de su equipo y renace al 60 %
        dnote     Light Yagami: antes que nadie escribe el nombre del rival; el rival lo mata de un golpe (es un simple humano) y
@@ -457,7 +458,7 @@
       }
       if (has(i, 'arise')) {
         const n = Math.min(TR.SHADN, TR.SHAD + (F[i].ko || 0)); rec({ a: i, k: 'tr', tr: 'arise', n });
-        for (let j = 0; j < n && hp[o] > 0; j++) chip(i, o, clamp(fx(i, o, .3), .03, .12), 'shadow', { j });
+        for (let j = 0; j < n && hp[o] > 0; j++) chip(i, o, clamp(fx(i, o, .7, 'STR'), .05, .18), 'shadow', { j }); // Igris, Beru…: golpes de verdad
       }
     }
     if (KO()) return end();
