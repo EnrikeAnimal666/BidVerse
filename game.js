@@ -342,6 +342,7 @@ const TR_T={
   ui:['Untouchable','Rivals miss 18% more often',''],
   req:['Requiem','Cancels the first blow that would K.O. them · rivals can’t awaken','<b>{a}</b>’s Requiem returns the blow to zero!'],
   serious:['Serious Punch','After taking 3 hits, the next attack takes at least 55% HP','<b>{a}</b> gets serious…'],
+  gate:['Gate of Truth','Each duel opens the Gate: the rival loses 40% ki and 20% HP; below 1000 power they also lose their ability, can’t awaken and pay with part of their body (−160 to everything)','<b>{a}</b> opens the Gate of Truth… {d} pays the toll'],
   toll:['The Toll','Each duel starts with the rival losing 40% ki and 10% HP','<b>{a}</b> collects the toll from {d}'],
   domain:['Domain Expansion','Once per duel: 4 attacks that never miss and hit 40% harder','<b>{a}</b>: “Domain Expansion!”'],
   regen:['Regeneration','Below 60% HP heals 7% each turn (up to 4 times)','<b>{a}</b> regenerates'],
@@ -404,6 +405,7 @@ const TR_T={
   ui:['Intocable','El rival falla un 18 % más',''],
   req:['Requiem','Anula el primer golpe que le dejaría K.O. · el rival no puede despertar','¡El Requiem de <b>{a}</b> devuelve el golpe a cero!'],
   serious:['Golpe serio','Tras recibir 3 golpes, su siguiente ataque quita al menos un 55 %','<b>{a}</b> se pone serio…'],
+  gate:['La Puerta de la Verdad','Cada duelo abre la Puerta: el rival pierde un 40 % de ki y un 20 % de vida; con menos de 1000 de poder, además pierde su habilidad, no puede despertar y paga con parte de su cuerpo (−160 a todo)','<b>{a}</b> abre la Puerta de la Verdad… {d} paga el peaje'],
   toll:['El peaje','Cada duelo el rival empieza perdiendo un 40 % de ki y un 10 % de vida','<b>{a}</b> cobra el peaje a {d}'],
   domain:['Expansión de dominio','1 vez por duelo: 4 ataques que no fallan y hacen un 40 % más','<b>{a}</b>: «¡Expansión de dominio!»'],
   regen:['Regeneración','Por debajo del 60 % se cura un 7 % por turno (hasta 4 veces)','<b>{a}</b> se regenera'],
@@ -465,7 +467,7 @@ const trT=(k,i)=>{const d=TR_T[lang]||TR_T.en,v=d[k];return v?v[i]||'':''};
 const SIGC={touch:'#fff3c4',inf:'#7fd8ff',serious:'#ffd23f',sun:'#ffb02e',ultra:'#dfe7ff',ego:'#b04dff',hakai:'#a43cff',erase:'#ffffff',rewind:'#7ad7ff',copy:'#ff4d6d',
  clones:'#ff9d2e',amaterasu:'#a35cff',meteor:'#ff7a2e',tsukuyomi:'#ff2a3a',kamui:'#8f6bff',gates:'#3dff9e',gear5:'#ffffff',asura:'#7dff8a',quake:'#cfe9ff',haki:'#ff2a2a',
  mugetsu:'#aab2c8',kyoka:'#8affd0',shrine:'#ff1f3d',bflash:'#ff1f3d',jackpot:'#ffd23f',rumbling:'#ffb27a',ackerman:'#c9d6e3',adult:'#ffd23f',rose:'#ff9ec4',steal:'#b07cff',
- chain:'#ffcf5a',hinokami:'#ff6a00',anti:'#9dff6a',zawarudo:'#ffd23f',heaven:'#9be7ff',counter:'#ff3b6b',arise:'#8a7cff',geass:'#ff2a55',eclipse:'#ff1f1f',dnote:'#f2f2f2'};
+ chain:'#ffcf5a',hinokami:'#ff6a00',anti:'#9dff6a',zawarudo:'#ffd23f',heaven:'#9be7ff',counter:'#ff3b6b',arise:'#8a7cff',geass:'#ff2a55',eclipse:'#ff1f1f',gate:'#f4efe2',dnote:'#f2f2f2'};
 const UNQ=new Set(Object.keys(SIGC));
 const trB=k=>k?`<em class="trb${UNQ.has(k)?' u':''}" title="${trT(k,1)}"${UNQ.has(k)?` style="--sc:${SIGC[k]}"`:''}>${UNQ.has(k)?'★':'✦'} ${trT(k,0)}</em>`:'';
 const trBadge=c=>c&&c.tr?trB(c.tr):'';
@@ -984,6 +986,7 @@ async function run(tk,script){
       case 'time':stg('tstop');pop(nm,'',col);sfx('time');await z(950);break;
       case 'req':shield(a);flash('#ffd23f');pop(nm,'','#ffd23f');sfx('awake');num(a,'0','txt');await z(1100);break;
       case 'serious':await sig(a,k);break;
+      case 'gate':await sig(a,k);flash('#fff');hurt(d);if(h.dmg)num(d,dmgT(d,h.dmg));if(h.s){badge(d,'',true);num(d,'✕ '+trT(h.s,0),'txt')}sfx('boom');upd();await z(1000);break;
       case 'toll':pop(nm,'',`var(--p${a+1})`);flash('#fff');hurt(d);if(h.dmg)num(d,dmgT(d,h.dmg));sfx('boom');upd();await z(1000);break;
       case 'domain':await cutin(a,cur[a],nm);stg('dz'+a);sfx('domain');await z(400);break;
       case 'regen':num(a,healT(a,h.heal||0),'heal');sfx('awake');upd();await z(650);break;
@@ -1103,7 +1106,7 @@ async function run(tk,script){
           V.clash();pop(abT('clashPop'),'',`var(--p${a+1})`);sfx('beam');shake();await z(600);
           for(const x of (h.fr||[.45,.55,l?1:0])){cl.style.setProperty('--x',x);V.clashX(x);if(x===0||x===1)break;sfx('hum');await z(330)}
           if(lethal)await finisher(l);
-          await z(260);cl.remove();V.clashEnd(l);V.knock(l,lethal?2:1);hurt(l,true);burst(l,true,elC(w));shake();zoom(l);imp();flash(elC(w));if(h.dmg>0)num(l,dmgT(l,dm(l)),'crit');sfx('boom');upd();
+          await z(260);cl.remove();V.clashEnd(l);V.knock(l,lethal?2:1);hurt(l,true);burst(l,true,elC(w));shake();zoom(l);imp();if(!D3)flash(elC(w));if(h.dmg>0)num(l,dmgT(l,dm(l)),'crit');sfx('boom');upd();
           await say(abF(abT('clashWin'),{w:dnh(cur[w])}),lethal?1100:900);
         }else if(h.k==='awake'){
           say(abF(abT('awake'),{a:An}));mark(a,'aw');flash(`var(--p${a+1})`); // VFX detecta la clase 'aw' y hace estallar el aurapop(abT('awakePop'),'',`var(--p${a+1})`);sfx('awake');

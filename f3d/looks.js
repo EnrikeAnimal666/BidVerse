@@ -148,7 +148,6 @@ export const LOOKS = {
   'Rick Sanchez': { hs: 'gojo', hc: '#a6d8f2', t: '#8ad2f2', p: '#8a6a43', sh: '#3a2a1a', sl: 2, b: 'slim', f: 'unibrow', x: { coat: '#f2f2f2', gun: '#7dff8a' } },
   'Lelouch': { hs: 'messy', hc: '#151515', o: 'robe', t: '#2b2b4a', t2: '#d4af37', p: '#2b2b4a', sh: '#1b1b1b', sl: 2, b: 'slim', es: 's', ey: '#8a3ab8', f: 'geass', x: { cape: '#1b1b2a' } },
   'Suzaku': { hs: 'fluffy', hc: '#6b4a2a', o: 'robe', t: '#f2f2f2', t2: '#d4af37', p: '#f2f2f2', sh: '#f2f2f2', sl: 2, ey: '#3fa36b', x: { cape: '#f2f2f2', sword: '#d8dde6' } },
-  'C.C.': { hs: 'long', hc: '#7fdc8a', o: 'zip', t: '#f2f2f2', p: '#f2f2f2', sh: '#f2f2f2', sl: 2, b: 'f', fem: 1, ey: '#ffcf3a' },
   'Absolute Being': { hs: 'bald', sk: '#2f4f8a', t: '#1b2240', p: '#1b2240', sh: '#1b2240', sl: 2, b: 'tall', f: 'truth', ey: '#bfe9ff', x: { hood: '#141a33', coat: '#1b2240' }, au: '#5ab8ff' },
   'Buddha': { hs: 'messy', hc: '#2b2b2b', o: 'tank', t: '#1b1b1b', p: '#e8a83a', sh: '#c8a060', sl: 0, f: 'bindi', x: { staff: '#d4af37' }, au: '#ffd23f' },
   'Kinji Hakari': L(JJ, { hs: 'pomp', hc: '#c8ccd4', x: { coat: '#5a5f6a' }, au: '#3dff9e' }),

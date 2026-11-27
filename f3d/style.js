@@ -64,7 +64,7 @@ export const STYLE = {
   'Diavolo': S('stand', { sc: '#ff2a3a' }), 'Enrico Pucci': S('stand', { sc: '#e8e8f0' }),
   // ---- telequinesis, gravedad y mente ----
   'Tatsumaki': S('psy'), 'Mob': S('psy'), 'Zeno': S('psy'), 'Pain': S('psy'), 'Kenjaku': S('psy'), 'Lucifero': S('psy'), 'Nanika': S('psy'),
-  'Toge Inumaki': S('psy'), 'Lelouch': S('psy'), 'C.C.': S('psy'), 'Light Yagami': S('psy'), 'Truth': S('psy'), 'God': S('psy'),
+  'Toge Inumaki': S('psy'), 'Lelouch': S('psy'), 'Light Yagami': S('psy'), 'Truth': S('psy'), 'God': S('psy'),
   // ---- magia, jutsu y alquimia ----
   'Roy Mustang': S('mage', { el: 'fire' }), 'Itachi': S('mage', { el: 'fire' }), 'Gaara': S('mage', { el: 'sand' }), 'Hashirama': S('mage', { el: 'wood' }),
   'Deidara': S('mage', { el: 'fire' }), 'Konan': S('mage', { el: 'paper' }), 'Danzo': S('mage', { el: 'wind' }), 'Kabuto': S('mage'), 'Megumi': S('mage', { el: 'shadow' }),

@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '2026-11-26b';
+  const VERSION = '2026-11-27a';
   const CFG = { anime: { start: 20 }, ufc: { start: 40 }, futbol: { start: 100 } }, MAXC = 3, SECS = 10;
   // Fútbol: 4-3-3 (1 portero, 4 defensas, 3 medios, 3 delanteros). Se subasta por posiciones, igual que la UFC por categorías.
   const FUT_DIVS = [{ k: 'GK', n: 1 }, { k: 'DEF', n: 4 }, { k: 'MID', n: 3 }, { k: 'FWD', n: 3 }];
@@ -24,10 +24,34 @@
   const pick = (rng, a) => a[rndi(rng, 0, a.length - 1)];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const shuffle = (rng, a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  /* Rotos (poder ≥ 900: God, Zeno, La Verdad, Gran Sacerdote, Whis, Saitama, Goku, Beerus): con tanto personaje ya no hay rareza,
-     salen con la misma probabilidad que cualquier otro (mazo barajado sin más). ROTO_PW solo lo usa la CPU para valorarlos. */
-  const ROTO_PW = 900;
-  const animeDeck = (rng, pool) => shuffle(rng, pool.slice());
+  /* MAZO DE ANIME. Barajado sin más, el 40 % eran débiles y salían rachas largas de flojos: la subasta se hacía aburrida. Ahora:
+       · el primer lote es de poder medio (400–599): al principio se suelen saltar los débiles para guardar el dinero
+       · los débiles (poder < 400) salen la mitad de a menudo y los medio fuertes (500–899) algo más
+       · nunca más de 2 débiles seguidos: después sale uno fuerte (600+) seguro
+       · Light Yagami no cuenta como débil: con la Death Note se lleva a cualquiera (vpw = su valor real, también para la CPU)
+     Rotos (poder ≥ 900: God, Zeno, La Verdad, Gran Sacerdote, Whis, Saitama, Goku, Beerus): salen como cualquier otro, sin rareza.
+     ROTO_PW solo lo usa la CPU para valorarlos. */
+  const ROTO_PW = 900, WEAK = 400, STRONG = 600, WRUN = 2;
+  const vpw = c => c.tr === 'dnote' ? 650 : c.pw || 0;
+  const tierOf = c => { const v = vpw(c); return v < WEAK ? 0 : v < STRONG ? 1 : 2; };
+  const deckW = c => { const v = vpw(c); return v < WEAK ? .5 : v >= 500 && v < ROTO_PW ? 1.3 : 1; };
+  function animeDeck(rng, pool) {
+    const left = pool.slice(), deck = [], real = c => c.tr !== 'dnote';
+    const draw = ok => { // sorteo ponderado entre los que cumplen ok; si no queda ninguno, entre todos
+      const can = left.filter(ok), from = can.length ? can : left;
+      let r = rng() * from.reduce((s, c) => s + deckW(c), 0);
+      for (const c of from) if ((r -= deckW(c)) < 0) return c;
+      return from[from.length - 1];
+    };
+    let run = 0;
+    while (left.length) {
+      const c = !deck.length ? draw(c => tierOf(c) === 1 && real(c)) // abre uno de poder medio
+        : run >= WRUN ? draw(c => tierOf(c) === 2 && real(c))        // tras 2 débiles, uno fuerte seguro
+        : draw(() => true);
+      left.splice(left.indexOf(c), 1); deck.push(c); run = tierOf(c) ? 0 : run + 1;
+    }
+    return deck;
+  }
 
   /* ---------- estado ---------- */
   function create({ cat, pool, divs = [], rng = Math.random }) {
@@ -202,6 +226,7 @@
        copy      Garou: cuando le alcanza una técnica la copia y la devuelve (2 veces)
        clones    Naruto: en sus 3 primeros ataques un clon también golpea (60 %)
        amaterasu Sasuke: su primer golpe prende llamas negras: el rival pierde un 4 % en cada turno (8 turnos)
+                 (aparte, cualquier técnica llamada Amaterasu —la de Itachi— pega un 35 % más y también prende las llamas)
        meteor    Madara: empieza el duelo con 2 meteoritos (esquivables si el rival es más rápido)
        tsukuyomi Itachi: en su primer turno el rival pierde 2 turnos, un 12 % de vida y un 30 % de ki
        kamui     Kakashi: la primera técnica del rival se va a otra dimensión
@@ -230,13 +255,16 @@
        geass     Lelouch: una orden por persona: el primer ataque del rival se vuelve contra él
        eclipse   Griffith: 1 vez por combate, en vez de caer sacrifica a la Banda del Halcón y renace como Femto al 35 %:
                  +30 a todo el resto del combate (también en los duelos siguientes). No le cuesta ningún compañero
+       gate      Truth: abre la Puerta de la Verdad al empezar cada duelo, antes que nada: el rival pierde un 40 % de ki y un 20 % de vida;
+                 si no es otro dios supremo (poder < 1000) además pierde su habilidad, no puede despertar y la Puerta se cobra
+                 parte de su cuerpo (−160 a todo). Así nadie por debajo de los dioses le gana salvo de rebote
        dnote     Light Yagami: antes que nadie escribe el nombre del rival; el rival lo mata de un golpe (es un simple humano) y
                  40 s después muere de un ataque al corazón. Caen los dos siempre: nada lo para, ni God, ni robarlo ni anularlo.
      Todo sale en el guion como golpes { k:'tr', tr:<clave>, a:<dueño> } para animarlo. */
   const TR = { INF: 2, TS: 2, UI: .18, TOLLE: .4, TOLLH: .1, DOMC: .5, DOMN: 4, DOMX: 1.4, RGHP: .6, RG: .07, RGN: 4, AD: .1, ADN: 4, GEN: 2, RAGEHP: .4, RAGEX: 1.3, SUNN: 4, SUNX: 1.5, SER: 3, SERX: .55,
-    ULTRA: .22, EGO: 22, EGON: 6, HAKAI: .35, ERASE: .5, RWD: .15, CPN: 2, CLN: 3, CLX: .6, BURN: .04, BURNN: 8, MET: 2, GATEHP: .35, G5HP: .5, G5B: 70, G5H: .25, G5A: .12,
+    ULTRA: .22, EGO: 22, EGON: 6, HAKAI: .35, ERASE: .5, RWD: .15, CPN: 2, CLN: 3, CLX: .6, BURN: .04, BURNN: 8, AMX: 1.35, MET: 2, GATEHP: .35, G5HP: .5, G5B: 70, G5H: .25, G5A: .12,
     ASC: .15, ASX: 2.4, QK: .5, HAKI: 200, MUGHP: .3, MUGB: 90, KYO: 2, SLASH: .05, BF: .15, BFU: .1, BFX: 2.5, JP: .12, JPN: 4, RBHP: .4, RBN: 3, ACK: 800, ACKX: .8,
-    GONHP: .3, GONB: 220, GONN: 3, GONP: 150, ROSE: .5, EMB: 90, EMH: .03, HKN: 3, ANTI: .6, ZWN: 1, MIH: .6, ECL: .35, ECLB: 30, GS: 1, SHAD: 2, SHADN: 5, FC: .4 };
+    GONHP: .3, GONB: 220, GONN: 3, GONP: 150, ROSE: .5, EMB: 90, EMH: .03, HKN: 3, ANTI: .6, ZWN: 1, MIH: .6, ECL: .35, ECLB: 30, GATEE: .4, GATEH: .2, GATEB: 160, GOD: 1000, GS: 1, SHAD: 2, SHADN: 5, FC: .4 };
   const TROUPE = ['Chrollo Lucilfer', 'Uvogin', 'Feitan', 'Phinks', 'Nobunaga', 'Franklin', 'Machi', 'Shalnark', 'Pakunoda', 'Shizuku', 'Bonolenov', 'Kortopi', 'Kalluto']; // Brigada Fantasma (Kurapika)
   function duel(rng, A, B) {
     const fm = [0, 1].map(() => (rng() - .5) * 2 * AN.FORM), F = [A, B];
@@ -274,7 +302,7 @@
       if (has(d, 'ego') && (X[d].eg || 0) < TR.EGON) { X[d].eg = (X[d].eg || 0) + 1; bo[d] += TR.EGO; rec({ a: d, k: 'tr', tr: 'ego', lv: X[d].eg }); }
     };
     const awaken = d => { // despertar: solo si sigue en pie, aún no lo ha usado y el rival no tiene Requiem
-      if (aw[d] || hp[d] <= 0 || hp[d] > AN.AWHP || has(1 - d, 'req')) return;
+      if (aw[d] || hp[d] <= 0 || hp[d] > AN.AWHP || has(1 - d, 'req') || X[d].noaw) return;
       aw[d] = true; if (rng() > AN.AWP) return; // solo lo intenta una vez por combate, y no siempre sale
       bo[d] += AN.AWK; hp[d] = Math.min(1, hp[d] + .06); en[d] = Math.min(1, en[d] + .5);
       rec({ a: d, k: 'awake' });
@@ -296,13 +324,15 @@
       const bf = !sp && has(a, 'bflash') && rng() < TR.BF + TR.BFU * (X[a].bf || 0); // Destello Negro
       if (bf) { X[a].bf = (X[a].bf || 0) + 1; en[a] = Math.min(1, en[a] + .25); }
       const pw = P != null ? P : sp ? S(a, 'ENE') : S(a, 'STR');
+      const mv = rndi(rng, 0, 5), ama = sp && !(tag && tag.cp != null) && F[a].am >= 0 && mv % F[a].nmv === F[a].am; // su técnica se llama Amaterasu (Itachi)
       const x = Math.min(1, AN.BASE * mul(pw - S(d, 'DUR')) * (.7 + .6 * rng()) * (crit ? (has(a, 'asura') ? TR.ASX : 1.6) : 1) * (sp ? 1.55 : 1)
-        * (ctr && !(tag && tag.ui) ? .6 : 1) * (bf ? TR.BFX : 1) * (sp && has(d, 'anti') ? TR.ANTI : 1) * mlt * boost(a, d));
+        * (ctr && !(tag && tag.ui) ? .6 : 1) * (bf ? TR.BFX : 1) * (sp && has(d, 'anti') ? TR.ANTI : 1) * (ama ? TR.AMX : 1) * mlt * boost(a, d));
       const g = guard(d, x); if (g) { block(d, g, a); return null; }
       const v = hurt(d, x);
-      const r = rec(Object.assign({ a, k: ctr ? 'ctr' : sp ? (crit ? 'spc' : 'sp') : crit ? 'crit' : 'hit', crit, dmg: +v.toFixed(4), v: rndi(rng, 0, 5) }, bf ? { bf: 1 } : null, crit && has(a, 'asura') ? { as: 1 } : null, tag));
+      const r = rec(Object.assign({ a, k: ctr ? 'ctr' : sp ? (crit ? 'spc' : 'sp') : crit ? 'crit' : 'hit', crit, dmg: +v.toFixed(4), v: mv }, bf ? { bf: 1 } : null, crit && has(a, 'asura') ? { as: 1 } : null, tag));
       took(d, v); awaken(d);
       if (hp[d] > 0 && hp[a] > 0) {
+        if (ama) { X[d].burn = TR.BURNN; rec({ a, k: 'tr', tr: 'amaterasu' }); } // la técnica Amaterasu también deja llamas negras (vuelve a prenderlas)
         if (has(a, 'amaterasu') && !used[a].am) { used[a].am = 1; X[d].burn = TR.BURNN; rec({ a, k: 'tr', tr: 'amaterasu' }); }
         if (sp && has(a, 'quake') && rng() < TR.QK) { stun[d] = Math.max(stun[d], 1); rec({ a, k: 'tr', tr: 'quake' }); }
         if (sp && has(d, 'copy') && (X[d].cp || 0) < TR.CPN && !(tag && tag.cp != null)) { // Garou copia la técnica y la devuelve
@@ -419,6 +449,14 @@
       return end();
     }
     for (const i of [0, 1]) if (F[i].fem) { bo[i] += TR.ECLB; rec({ a: i, k: 'tr', tr: 'femto' }); } // Griffith sigue siendo Femto
+    // LA PUERTA DE LA VERDAD (Truth): antes que nada, es un dios. A los que no son dioses supremos les quita la habilidad y el despertar
+    for (const i of [0, 1]) {
+      const o = 1 - i; if (!has(i, 'gate') || KO()) continue;
+      const low = pwOf(o) < TR.GOD, take = low && tr[o] && tr[o] !== 'touch' ? tr[o] : '';
+      if (take) tr[o] = ''; if (low) { X[o].noaw = 1; bo[o] -= TR.GATEB; } // y se cobra parte de su cuerpo
+      en[o] = Math.max(0, en[o] - TR.GATEE); const v = hurt(o, Math.max(0, Math.min(hp[o] - .02, TR.GATEH)));
+      rec(Object.assign({ a: i, k: 'tr', tr: 'gate', dmg: +v.toFixed(4) }, take ? { s: take } : null));
+    }
     // al empezar el duelo, por este orden: anti-magia → Cadena del Juicio → Skill Hunter → Haki / Borrar → el resto
     for (const i of [0, 1]) { const o = 1 - i; if (has(i, 'anti') && tr[o]) { rec({ a: i, k: 'tr', tr: 'anti', s: tr[o] }); tr[o] = ''; } }
     for (const i of [0, 1]) {
@@ -480,7 +518,7 @@
 
   // Combate final de anime: devuelve el guion completo (eventos) para animarlo. Solo lleva nombres, vida, ki y estadísticas.
   function resolveAnime(g) {
-    const rng = g.rng, T = g.P.map(p => p.c.map(c => { const st = stats(c); return { n: c.n, pw: c.pw, tr: c.tr || '', st, hm: hpMax(st), f: 1, e: 1, aw: false, dead: false, ko: 0, dmg: 0, fem: false }; })), i = [0, 0];
+    const rng = g.rng, T = g.P.map(p => p.c.map(c => { const st = stats(c); return { n: c.n, pw: c.pw, tr: c.tr || '', am: (c.mv || []).findIndex(m => /amaterasu/i.test(m)), nmv: (c.mv || []).length || 1, st, hm: hpMax(st), f: 1, e: 1, aw: false, dead: false, ko: 0, dmg: 0, fem: false }; })), i = [0, 0];
     const alive = p => i[p] < T[p].length, ev = [{ t: 'start', teams: T.map(t => t.map(c => c.n)) }];
     const adv = p => { do i[p]++; while (i[p] < T[p].length && T[p][i[p]].dead); }; // el siguiente que siga vivo
     const send = p => { const c = T[p][i[p]]; ev.push({ t: 'send', p, k: i[p], n: c.n, f: +c.f.toFixed(4), e: +c.e.toFixed(3), aw: c.aw, st: c.st, hm: c.hm }); };
@@ -727,5 +765,5 @@
     return { kind: 'anime', script: resolveAnime(g) };
   }
 
-  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, ROTO_PW, order, FT, FUT_DIVS, futXI, fst, shotQ, resolveFutbol, resolve, create, can, out, gives, next, tick, place, skip, close, duel, stats, hpMax, decide, resolveAnime, resolveUfc, mulberry32 };
+  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, ROTO_PW, vpw, order, FT, FUT_DIVS, futXI, fst, shotQ, resolveFutbol, resolve, create, can, out, gives, next, tick, place, skip, close, duel, stats, hpMax, decide, resolveAnime, resolveUfc, mulberry32 };
 });

@@ -197,14 +197,14 @@ vec3 c=mix(col,vec3(3.0),smoothstep(.62,.97,f));gl_FragColor=vec4(c,clamp(a,0.0,
     const M = [modeOf(0), modeOf(1)], C = [0, 1].map(p => M[p] === 'body' ? X.tc(p) : M[p] === 'stand' ? X.sty(p).sc || X.colOf(p) : X.colOf(p)), A = [X.chest(0), X.chest(1)];
     const own = [], add = o => { S().add(o); own.push(o); return o; }, B = [null, null], G = [null, null], mz = [null, null];
     for (const p of [0, 1]) { X.busy(p, 6); X.expr(p, 'a', 6);
-      if (M[p] === 'beam') { X.play(p, [['beamCharge', .1, 'out'], ['beamFire', .1, 'snap']], true); B[p] = beamMesh(C[p]); mz[p] = add(glowSpr(C[p], .8, 2)); }
+      if (M[p] === 'beam') { X.play(p, [['beamCharge', .1, 'out'], ['beamFire', .1, 'snap']], true); B[p] = beamMesh(C[p]); B[p].op(.7); mz[p] = add(glowSpr(C[p], .55, 1.1)); }
       else if (M[p] === 'stand') { X.play(p, [['cocky', .14, 'out']], true); const g = ghostOf(X.FT[p].F, C[p], .6); g.renderOrder = 4.7; G[p] = add(g); }
       else { X.play(p, [['dash', .06, 'out'], [holdPose(p), .08, 'snap']], true); X.ghosts(p, 3); } }
     const mix = new THREE.Color(C[0]).lerp(new THREE.Color(C[1]), .5).lerp(new THREE.Color('#ffffff'), .35), mixH = '#' + mix.getHexString();
-    const core = add(glowSpr('#ffffff', .8, 2.2)), h0 = add(glowSpr(C[0], 1.4, 1.5)), h1 = add(glowSpr(C[1], 1.4, 1.5));
+    const core = add(glowSpr(mixH, .5, 1.1)), h0 = add(glowSpr(C[0], 1, .8)), h1 = add(glowSpr(C[1], 1, .8)); // luz contenida: antes era una bola blanca que lo tapaba todo
     const wallG = new THREE.PlaneGeometry(1, 1), poolG = new THREE.PlaneGeometry(1, 1);
-    const wall = add(new THREE.Mesh(wallG, new THREE.MeshBasicMaterial({ map: TEX.glow, color: mix.clone().multiplyScalar(1.6), transparent: true, opacity: .6, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }))); wall.renderOrder = 7;
-    const pool = add(new THREE.Mesh(poolG, new THREE.MeshBasicMaterial({ map: TEX.glow, color: mix.clone().multiplyScalar(.6), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }))); pool.rotation.x = -Math.PI / 2; pool.renderOrder = 2;
+    const wall = add(new THREE.Mesh(wallG, new THREE.MeshBasicMaterial({ map: TEX.glow, color: mix.clone().multiplyScalar(.8), transparent: true, opacity: .3, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }))); wall.renderOrder = 7;
+    const pool = add(new THREE.Mesh(poolG, new THREE.MeshBasicMaterial({ map: TEX.glow, color: mix.clone().multiplyScalar(.3), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }))); pool.rotation.x = -Math.PI / 2; pool.renderOrder = 2;
     X.shot('clash', 0, 6000);
     const m = new V3(); let tt = 0, pulse = .3, dust = 0, ex = .1, alt = false;
     const me = CL = { x: .5, tx: .5, M, C, surge: [0, 0], m };
@@ -220,20 +220,20 @@ vec3 c=mix(col,vec3(3.0),smoothstep(.62,.97,f));gl_FragColor=vec4(c,clamp(a,0.0,
         for (const p of [0, 1]) if (M[p] === 'body') X.play(p, [[holdPose(p, alt), .05, 'snap']], true);
         if (both) { fx().sprite(m, rr(.7, 1.1), '#ffffff', .09, { tex: TEX.star, k: 2.4 }); fx().ring(m, .9, mixH, .2, { inner: .9 }); fx().spark(m, 8, '#ffffff', { dir: t1.set(0, 1, 0), spread: 1.2, max: 10, life: .25 }); X.shake(.06); } } }
       const sp = 1 + .3 * (sg[0] + sg[1]);
-      core.position.copy(m); core.scale.setScalar(.75 * sp * (1 + .05 * Math.sin(tt * 23)));
-      h0.position.copy(m).x -= .2; h1.position.copy(m).x += .2; h0.scale.setScalar(1.3 * (1 + .4 * sg[0])); h1.scale.setScalar(1.3 * (1 + .4 * sg[1]));
-      wall.position.copy(m); wall.rotation.set(0, Math.PI / 2, tt * 1.2); wall.scale.setScalar(1.7 * sp * (1 + .06 * Math.sin(tt * 17)));
+      core.position.copy(m); core.scale.setScalar(.5 * sp * (1 + .05 * Math.sin(tt * 23)));
+      h0.position.copy(m).x -= .2; h1.position.copy(m).x += .2; h0.scale.setScalar(.95 * (1 + .3 * sg[0])); h1.scale.setScalar(.95 * (1 + .3 * sg[1]));
+      wall.position.copy(m); wall.rotation.set(0, Math.PI / 2, tt * 1.2); wall.scale.setScalar(1.3 * sp * (1 + .06 * Math.sin(tt * 17)));
       pool.position.set(m.x, .025, 0); pool.scale.setScalar(2.6 * sp);
-      if (Math.random() < dt * 26) fx().spark(m, 2, Math.random() < .5 ? C[0] : C[1], { dir: t1.set(rr(-.25, .25), rr(-1, 1), rr(-1, 1)), spread: .4, max: 9, life: .3, w: .035 });
-      if ((M[0] === 'beam' || M[1] === 'beam') && Math.random() < dt * 1.6) fx().bolt(m, m.clone().add(t1.set(rr(-.9, .9), rr(-.8, .8), rr(-.6, .6))), Math.random() < .5 ? C[0] : C[1], .09, { w: .035 });
-      if ((pulse -= dt) <= 0) { pulse = .55; fx().ring(m, 1.4, mixH, .45, { inner: .93 }); }
+      if (Math.random() < dt * 12) fx().spark(m, 2, Math.random() < .5 ? C[0] : C[1], { dir: t1.set(rr(-.25, .25), rr(-1, 1), rr(-1, 1)), spread: .4, max: 9, life: .3, w: .035 });
+      if ((M[0] === 'beam' || M[1] === 'beam') && Math.random() < dt * .8) fx().bolt(m, m.clone().add(t1.set(rr(-.9, .9), rr(-.8, .8), rr(-.6, .6))), Math.random() < .5 ? C[0] : C[1], .09, { w: .035 });
+      if ((pulse -= dt) <= 0) { pulse = .9; fx().ring(m, 1.1, mixH, .4, { inner: .93 }); }
       if ((dust -= dt) <= 0) { dust = .09; fx().smoke(t1.set(m.x, .05, rr(-.3, .3)), 1, '#3a3344', { max: 2.6, up: .08, a: .4, vz: rr(-1, 1) }); }
       if (Math.random() < dt * 2.5) X.shake(.05);
     }, () => { for (const b of B) if (b) b.kill(); for (const o of own) { S().remove(o); if (o.material) o.material.dispose(); else if (o.userData.mat) o.userData.mat.dispose(); } wallG.dispose(); poolG.dispose(); });
   }
   // empujón: el punto del choque avanza hacia quien cede; el que empuja se ensancha un instante y sale una onda
   function clashX(x) { const c = CL; if (!c) return; x = Math.max(.06, Math.min(.94, x)); if (x === c.tx) return; const w = x > c.tx ? 0 : 1; c.tx = x; c.surge[w] = 1;
-    fx().ring(c.m, 2, c.C[w], .4, { inner: .9 }); fx().sprite(c.m, 1.5, '#ffffff', .14, { k: 2 }); fx().spark(c.m, 14, c.C[w], { dir: t1.set(X.dir(w) * .6, .5, 0), spread: 1, max: 12, life: .35 }); fx().crater(c.m.x, 0, .7, c.C[w]);
+    fx().ring(c.m, 2, c.C[w], .4, { inner: .9 }); fx().sprite(c.m, .8, c.C[w], .12, { k: 1.2 }); fx().spark(c.m, 14, c.C[w], { dir: t1.set(X.dir(w) * .6, .5, 0), spread: 1, max: 12, life: .35 }); fx().crater(c.m.x, 0, .7, c.C[w]);
     X.kick(1.4); X.shake(.16); }
   // final: el rayo ganador atraviesa al rival; quien pega con el cuerpo se lanza a rematar; el Stand da el último golpe
   function clashEnd(l) { const c = CL; if (!c) return; CL = null; c.an.t = c.an.d; const w = l === 0 || l === 1 ? 1 - l : -1; X.shot(w >= 0 ? 'hit' : 'wide', w >= 0 ? l : 0, w >= 0 ? 800 : 1);

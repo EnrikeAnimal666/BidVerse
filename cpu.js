@@ -7,7 +7,7 @@
   const LV = { 1: { noise: .35, mult: .72, delay: [1100, 2700], open: .25 }, 2: { noise: .16, mult: 1, delay: [700, 1900], open: .4 }, 3: { noise: .06, mult: 1.12, delay: [450, 1300], open: .55 } };
   let tm = 0, sig = '';
   const lv = () => LV[(CPU && CPU.lvl) || 2] || LV[2];
-  const str = c => c.kind === 'futbol' ? c.ovr : c.pw;
+  const str = c => c.kind === 'futbol' ? c.ovr : c.kind === 'anime' ? BidEngine.vpw(c) : c.pw; // anime: Light Yagami vale como un fuerte (Death Note)
   const poolOf = c => c.kind === 'anime' ? POOLS.anime : (c.kind === 'ufc' ? UFC : FUTP).filter(x => x.cls === c.cls);
   const SORT = new Map();
   function pct(c) { // 0 = el peor de su categoría · 1 = el mejor
@@ -74,6 +74,6 @@
   window.cpuOrder = function () {
     const c = G.P[ME].c, idx = c.map((_, i) => i);
     if (!CPU || CPU.lvl === 1) { for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; } return idx; }
-    return idx.sort((a, b) => (c[b].pw || 0) - (c[a].pw || 0));
+    return idx.sort((a, b) => BidEngine.vpw(c[b]) - BidEngine.vpw(c[a]));
   };
 })();
