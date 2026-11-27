@@ -1032,7 +1032,8 @@ body.inlobby .wordmark{font-size:clamp(2.2rem,6vw,3.4rem)}
 #game.fut .slot:first-child{margin-top:2px}
 #game.fut .slot .av{width:30px;height:36px;font-size:1rem;border-radius:2px}
 #game.fut .slot b{font-size:.86rem;line-height:1.15}#game.fut .slot small{font-size:.66rem}
-#game.fut .slot:nth-child(2),#game.fut .slot:nth-child(6),#game.fut .slot:nth-child(9){margin-top:10px}
+#game.fut .slot.g0:not(:first-child){margin-top:10px} /* cada línea de la formación (POR · DEF · MED · DEL) un poco separada */
+.side header .fpb{display:block;margin-top:2px;font:800 .72rem var(--mono);letter-spacing:.06em;opacity:.85;white-space:nowrap}
 .fovr{position:absolute;left:12px;top:12px;z-index:1;display:grid;justify-items:center;padding:6px 10px 5px;background:#0a0a0b;color:#f3e6c8;border:2px solid #f3e6c8;box-shadow:4px 4px 0 rgba(0,0,0,.5)}
 .fovr b{font:900 2.6rem/1 'Big Shoulders Display',Impact,sans-serif}.fovr span{font:800 .72rem var(--mono);letter-spacing:.12em}
 .fovr.leg{background:#e8b04a;color:#0a0a0b;border-color:#0a0a0b}
@@ -1411,3 +1412,58 @@ button.ps-o:focus-visible,.ps-lv button:focus-visible{outline:3px solid #ffb02e;
 .cr-list{columns:2;column-gap:18px;margin:8px 0 0;padding:0;list-style:none;font:500 .75rem/1.7 var(--mono)}
 .cr-list a{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
 @media(max-width:560px){.cr-list{columns:1}}
+
+/* ---------- FORMACIÓN (fútbol): pantalla para elegir una de las 44 de FC 27 antes de la subasta ---------- */
+.fp-box{--c:var(--p1);--on:var(--on1);width:min(860px,100%);border-top:4px solid var(--c)}
+.fp-who{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.fp-pl{display:grid;gap:1px;min-width:0;padding:6px 12px;border:2px solid color-mix(in srgb,var(--c) 45%,transparent);border-radius:2px;opacity:.7}
+.fp-pl b{font:900 .8rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--c)}
+.fp-pl small{font:700 .7rem var(--mono);color:var(--mut)}
+.fp-pl.on{opacity:1;border-color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.fp-pl.ok small{color:var(--ink)}
+.fp-main{display:grid;grid-template-columns:minmax(190px,280px) minmax(0,1fr);gap:16px;align-items:start}
+.fp-pitch{margin:0;padding:8px;background:#0c2a14;border:2px solid color-mix(in srgb,var(--c) 60%,#000);border-radius:2px}
+.fp-svg{display:block;width:100%;height:auto;overflow:visible}
+.fp-turf{fill:#1d6b2c}.fp-ln{stroke:rgba(255,255,255,.55);stroke-width:.5}
+.fp-d{transition:transform .38s cubic-bezier(.3,1.25,.5,1)}
+.fp-d circle{stroke:#06110a;stroke-width:.9}
+.fp-d text{font:800 3.3px var(--mono);fill:#fff;text-anchor:middle;paint-order:stroke;stroke:#06110a;stroke-width:.9px}
+.fp-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 14px;margin-bottom:10px}
+.fp-name{font:900 clamp(1.6rem,4vw,2.2rem)/1 var(--disp,var(--serif));letter-spacing:.02em;color:var(--c)}
+.fp-cnt{display:flex;gap:6px}
+.fp-cnt span{display:flex;align-items:baseline;gap:4px;padding:3px 8px;font:800 .68rem var(--mono);letter-spacing:.08em;color:var(--mut);border-left:3px solid var(--dc);background:color-mix(in srgb,var(--dc) 12%,transparent)}
+.fp-cnt b{font:900 1.05rem/1 var(--mono);color:var(--ink)}
+.fp-list{max-height:min(46vh,360px);overflow-y:auto;overscroll-behavior:contain;padding-right:4px}
+.fp-list h5{margin:10px 0 6px;font:800 .66rem var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.fp-list h5:first-child{margin-top:0}
+.fp-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:6px}
+.fp-g button{padding:8px 6px;font:800 .78rem var(--mono);color:var(--ink);background:color-mix(in srgb,var(--ink) 5%,transparent);border:1.5px solid color-mix(in srgb,var(--ink) 22%,transparent);border-radius:2px;cursor:pointer;text-align:center;white-space:nowrap}
+.fp-g button:hover:not(:disabled){border-color:var(--c)}
+.fp-g button.on{background:var(--c);color:var(--on);border-color:var(--c)}
+.fp-g button:disabled:not(.on){opacity:.45;cursor:default}
+.fp-g button:focus-visible,.fp-rand:focus-visible,.fp .lu-go:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.fp-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+.fp-foot .lu-go{min-width:150px}
+.fp-rand{padding:10px 14px;font:800 .85rem var(--mono);text-transform:uppercase;color:var(--ink);background:transparent;border:2px solid color-mix(in srgb,var(--ink) 40%,transparent);border-radius:2px;cursor:pointer}
+.fp-rand:disabled{opacity:.4;cursor:default}
+@media (max-width:640px){ /* móvil: campo pequeño al lado del nombre, la lista debajo y el botón siempre a la vista */
+  .fp-box{padding:14px}
+  .fp-box .lu-sub{margin-bottom:10px}
+  .fp-who{margin-bottom:10px}
+  .fp-main{grid-template-columns:118px minmax(0,1fr);grid-template-areas:"pitch head" "list list";gap:10px 14px}
+  .fp-side{display:contents}
+  .fp-pitch{grid-area:pitch;padding:5px}
+  .fp-head{grid-area:head;flex-direction:column;align-items:flex-start;align-self:center;margin:0}
+  .fp-cnt{flex-wrap:wrap}
+  .fp-list{grid-area:list;max-height:30vh}
+  .fp-g{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+  .fp-foot{margin-top:10px}
+  .fp-foot .lu-go{flex:1}
+}
+@media (prefers-reduced-motion:reduce){.fp-d{transition:none}}
+/* repetición del gol (f3d/foot.js) */
+.fm3-rp{position:absolute;left:12px;top:12px;z-index:3;display:flex;align-items:center;gap:8px;padding:5px 12px 5px 9px;font:900 clamp(.7rem,1.5vw,.95rem)/1 var(--mono);letter-spacing:.16em;color:#fff;background:rgba(8,10,14,.82);border-left:4px solid #ff3344;pointer-events:none;opacity:0;transform:translateX(-12px);transition:opacity .25s,transform .25s}
+.fm3-rp.on{opacity:1;transform:none}
+.fm3-rp i{width:9px;height:9px;border-radius:50%;background:#ff3344;animation:fm3rp 1s steps(2) infinite}
+.fm3-rp small{font:800 .75em var(--mono);letter-spacing:.1em;color:#ffd23f}
+@keyframes fm3rp{50%{opacity:.15}}

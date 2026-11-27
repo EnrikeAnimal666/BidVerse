@@ -59,6 +59,16 @@ const J=(h,code)=>require('vm').runInContext(code,h.ctx);
 async function play(cat,seed){
   const h=run(cat,seed);
   J(h,`start('${cat}')`);
+  let forms=null;
+  if(cat==='futbol'){ // antes de la subasta: pantalla de formación. El jugador 1 elige una de la lista y el 2 pulsa "al azar"
+    const fc=ds=>J(h,`FP&&FP.el.onclick({target:{closest:()=>({disabled:false,dataset:${JSON.stringify(ds)}})}})`);
+    assert(J(h,'!!FP'),'sale la pantalla de formación');assert.strictEqual(J(h,'G.phase'),'idle','la subasta espera a las formaciones');
+    const F=J(h,'BidEngine.FORMS'),k0=F[seed%F.length];
+    fc({fk:'no existe'});fc({fk:k0});fc({fgo:'1'});fc({frand:'1'});fc({fgo:'1'});
+    assert(!J(h,'FP'),'la pantalla de formación se cierra');
+    await drain(h,()=>J(h,'G.phase')!=='idle');
+    forms=J(h,'G.form.slice()');assert.strictEqual(forms[0],k0,'el jugador 1 juega con la que eligió');assert(F.includes(forms[1]));
+  }
   let ticks=0;
   // un jugador "humano" pulsa botones al azar mientras la subasta está viva
   const human=()=>{
@@ -86,7 +96,9 @@ async function play(cat,seed){
   assert(done(),'el combate termina y muestra el resultado');
   const P=J(h,'G.P');
   assert(P[0].m>=0&&P[1].m>=0);
-  return{t:Math.round(h.clock.now/1000),n0:P[0].c.length,n1:P[1].c.length};
+  if(forms)for(const p of[0,1]){const nd=J(h,`BidEngine.formNeeds(${JSON.stringify(forms[p])})`); // nadie ficha más de lo que pide su formación
+    for(const k of['GK','DEF','MID','FWD'])assert(P[p].c.filter(c=>c.cls===k).length<=nd[k],`${forms[p]}: como mucho ${nd[k]} ${k}`)}
+  return{t:Math.round(h.clock.now/1000),n0:P[0].c.length,n1:P[1].c.length,...(forms?{f:forms}:{})};
 }
 process.on('unhandledRejection',e=>{throw e});
 (async()=>{

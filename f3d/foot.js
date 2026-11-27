@@ -3,7 +3,9 @@
    estirada del portero, celebraciones), balón con física sencilla, árbitro y cámara de retransmisión.
    El guion (quién pasa, a quién regatea, quién remata y qué pasa) lo pone el motor (engine.js · resolveFutbol); game.js lo va leyendo
    y llama aquí a cada jugada, esperando a que termine. Solo decora: no cambia ningún resultado. Sin WebGL2, game.js usa el campo 2D.
-   Coordenadas: x a lo largo del campo (−52,5 … 52,5), z a lo ancho (−34 … 34), y hacia arriba. El jugador 1 (p = 0) ataca hacia +x. */
+   Coordenadas: x a lo largo del campo (−52,5 … 52,5), z a lo ancho (−34 … 34), y hacia arriba. El jugador 1 (p = 0) ataca hacia +x.
+   Cada equipo sale con su formación (game.js manda u, v y la línea de cada hueco). Tras cada gol hay repetición desde otro ángulo:
+   se graban los últimos segundos (posiciones, poses, balón y redes) y se vuelven a ver con otras cámaras y a cámara lenta. */
 import * as THREE from 'three';
 
 const V3 = THREE.Vector3, TAU = Math.PI * 2;
@@ -12,13 +14,13 @@ const sm = t => t * t * (3 - 2 * t), sgn = v => v < 0 ? -1 : 1;
 const kf = (u, K) => { if (u <= K[0][0]) return K[0][1]; for (let i = 1; i < K.length; i++) if (u <= K[i][0]) { const [t0, a] = K[i - 1], [t1, b] = K[i]; return a + (b - a) * sm((u - t0) / ((t1 - t0) || 1)); } return K[K.length - 1][1]; };
 const L = 52.5, WD = 34, GW = 3.66, GH = 2.44, NET = 1.9, BR = .11;
 const D = p => p ? -1 : 1;                                     // hacia dónde ataca cada equipo
-const F433 = [[.03, 0], [.22, -.68], [.17, -.24], [.17, .24], [.22, .68], [.42, -.36], [.33, 0], [.42, .36], [.62, -.7], [.66, 0], [.62, .7]]; // [u, v]: u 0 = su portería … 1 = la rival · v −1 izquierda … 1 derecha
+const F433 = [[.03, 0], [.22, -.68], [.17, -.24], [.17, .24], [.22, .68], [.42, -.36], [.33, 0], [.42, .36], [.62, -.7], [.66, 0], [.62, .7]]; // [u, v] si no llega la formación: u 0 = su portería … 1 = la rival · v −1 izquierda … 1 derecha
 const wpt = (p, u, v) => ({ x: (u * 2 - 1) * L * D(p), z: v * WD * D(p) });
 const uOf = (p, x) => (x * D(p) / L + 1) / 2, vOf = (p, z) => z * D(p) / WD;
 
 let SUP = null, failed = false, R = null, scene = null, cam = null, cv = null, host = null, tagEl = null, fadeEl = null, ro = null, G = null;
 let on = false, gen = 0, last = 0, W = 0, H = 0, PR = 1, T = 0, SPEED = 1.38, lagT = 0, opts = {}, poss = 0, hype = 0, low = false, sizeT = 0;
-const P = [[], []], WAITS = [], NETS = [], KIT = [null, null];
+const P = [[], []], WAITS = [], NETS = [], KIT = [null, null], TM = [null, null]; // TM[p] = quién es quién en su formación (delantero centro, medio centro, centrales…)
 let ball = null, refP = null, crowdU = null, boards = null, focus = null;
 const RM = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const sleep = s => new Promise(r => WAITS.push({ t: T + s, r }));
@@ -189,7 +191,9 @@ function mkPlayer(p, i, info) {
   const gk = i === 0, b = mkBody(KIT[p], LOOK0, String(info.num || ''), gk);
   b.root.traverse(o => { if (o.isMesh) o.receiveShadow = false; });
   scene.add(b.root);
-  const pl = Object.assign(b, { p, i, info, gk, x: 0, z: 0, vx: 0, vz: 0, yaw: 0, ph: rr(0, TAU), home: { x: 0, z: 0 }, pin: null, urg: .6, act: null, faceT: null, mv: null, press: false,
+  const uv = info.u != null && info.v != null ? [info.u, info.v] : F433[i] || [.4, 0];
+  const pl = Object.assign(b, { p, i, info, gk, x: 0, z: 0, vx: 0, vz: 0, yaw: 0, yv: 0, lean: 0, acc: 0, ph: rr(0, TAU), home: { x: 0, z: 0 }, pin: null, urg: .6, act: null, faceT: null, mv: null, press: false, line: null,
+    fu: uv[0], fv: uv[1], ln: gk ? -1 : info.ln != null ? info.ln : i <= 4 ? 0 : i <= 7 ? 1 : 2, jr: new Float32Array(22),
     spd: 5.4 + clamp((info.pac || 70) - 50, 0, 50) / 50 * 3.6 });
   if (info.img) lookFromImg(info.img, lk => { if (P[p][i] === pl) setLook(pl, lk); });
   return pl;
@@ -198,8 +202,19 @@ function mkRef() {
   const k = { shirt: std('#111216'), shorts: std('#111216'), socks: std('#111216'), boot: std('#101114'), col: '#111', ink: '#fff' };
   const b = mkBody(k, { skin: '#c49372', hair: '#1c1612' }, '', false); scene.add(b.root);
   const card = new THREE.Mesh(G.card, new THREE.MeshBasicMaterial({ color: '#ffd23f', side: THREE.DoubleSide })); card.position.set(0, -.33, .02); card.visible = false; b.aR.el.add(card);
-  return Object.assign(b, { p: -1, i: -1, info: {}, gk: false, x: 0, z: WD - 10, vx: 0, vz: 0, yaw: 0, ph: 0, home: { x: 0, z: 0 }, pin: null, urg: .7, act: null, faceT: null, mv: null, spd: 7.2, card });
+  return Object.assign(b, { p: -1, i: -1, info: {}, gk: false, x: 0, z: WD - 10, vx: 0, vz: 0, yaw: 0, yv: 0, lean: 0, acc: 0, ph: 0, home: { x: 0, z: 0 }, pin: null, urg: .7, act: null, faceT: null, mv: null, line: null, fu: .5, fv: 0, ln: -1, jr: new Float32Array(22), spd: 7.2, card });
 }
+
+// quién es quién en cada formación: delantero centro, su pareja, medio centro, centrales, medios y delanteros
+function teamIdx(T) {
+  const out = T.filter(q => !q.gk), by = l => out.filter(q => q.ln === l), fw = by(2), md = by(1), df = by(0);
+  const st = fw.slice().sort((a, b) => Math.abs(a.fv) - Math.abs(b.fv))[0] || out.slice().sort((a, b) => b.fu - a.fu)[0];
+  const pa = fw.filter(q => q !== st).sort((a, b) => Math.abs(a.fv) - Math.abs(b.fv))[0] || out.filter(q => q !== st).sort((a, b) => b.fu - a.fu)[0];
+  const c0 = md.slice().sort((a, b) => Math.abs(a.fv) + a.fu - Math.abs(b.fv) - b.fu)[0] || out[0];
+  const cb = df.filter(q => q.info.pos ? q.info.pos === 'CB' : Math.abs(q.fv) < .45); if (!cb.length) cb.push(...df.slice(0, 2));
+  return { st, pa, c0, cb, md: md.length ? md : out, fw: fw.length ? fw : [st], df, am: md.slice().sort((a, b) => b.fu - a.fu)[0] || st };
+}
+const pickOf = a => a[Math.random() * a.length | 0];
 
 /* ---------------- animación (poses por articulación) ---------------- */
 const JK = ['bx', 'bz', 'by', 'py', 'sx', 'sy', 'sz', 'nx', 'lsx', 'lsz', 'lex', 'rsx', 'rsz', 'rex', 'lhx', 'lhz', 'lkx', 'lax', 'rhx', 'rhz', 'rkx', 'rax'];
@@ -261,12 +276,15 @@ function loco(pl, dt) {
   J.lax = -.3 * ka * Math.max(0, -c); J.rax = -.3 * ka * Math.max(0, c);
   J.lsx = s * aa; J.rsx = -s * aa; J.lex = -(.2 + .95 * a) * g - .12; J.rex = J.lex; J.lsz = .1 + .05 * a; J.rsz = -J.lsz;
   J.sx = .04 + .26 * a + (1 - g) * .012 * Math.sin(T * 1.7 + pl.i); J.sy = s * .13 * a; J.py = -.035 * a + .035 * a * Math.cos(2 * pl.ph) - .01 * g;
+  // se inclina hacia dentro en las curvas y hacia delante al arrancar (hacia atrás al frenar): menos de robot
+  pl.lean += (clamp(-pl.yv * v * .016, -.2, .2) - pl.lean) * (1 - Math.exp(-dt * 7)); J.bz = pl.lean; J.sx += clamp(pl.acc * .011, -.09, .12);
+  if (g < .35) { const br = Math.sin(T * 1.9 + pl.ph); J.sy += .05 * Math.sin(T * .7 + pl.ph); J.lsz += .03 * br; J.rsz -= .03 * br; J.nx = .04 * Math.sin(T * .9 + pl.i); } // de pie: respira y mira alrededor
   if (pl.gk && !pl.act && g < .6 && ball && Math.abs(ball.x - pl.x) < 34) { const X = {}; ACTS.ready(0, {}, X); const w = (1 - g / .6) * .85; for (const k in X) J[k] += (X[k] - J[k]) * w; }
 }
 function actPose(pl, dt) {
   const A = pl.act; if (!A) return; A.t += dt; const u = A.t / A.d;
   if (u >= 1 && !A.o.hold) { pl.act = null; return; }
-  const w = A.o.hold ? clamp(A.t / .1, 0, 1) : Math.min(clamp(A.t / .07, 0, 1), clamp((A.d - A.t) / .12, 0, 1)), X = {};
+  const w = sm(A.o.hold ? clamp(A.t / .12, 0, 1) : Math.min(clamp(A.t / .1, 0, 1), clamp((A.d - A.t) / .18, 0, 1))), X = {};
   ACTS[A.k](Math.min(u, 1), A.o, X, pl);
   for (const k in X) J[k] += (X[k] - J[k]) * w;
 }
@@ -282,20 +300,23 @@ function applyPose(pl) {
 const all = () => P[0].concat(P[1]);
 function pin(pl, x, z, urg = 1) { if (!pl) return; pl.pin = { x: clamp(x, -L - 3, L + 3), z: clamp(z, -WD - 2, WD + 2) }; pl.urg = urg; }
 const unpin = pl => { if (pl) { pl.pin = null; pl.faceT = null; } };
-const unpinAll = () => { for (const pl of all()) unpin(pl); };
-function place(pl, x, z, yaw) { pl.x = x; pl.z = z; pl.vx = pl.vz = 0; pl.mv = null; pl.act = null; pl.pin = { x, z }; pl.urg = .5; if (yaw != null) pl.yaw = yaw; }
+const unpinAll = () => { for (const pl of all()) { unpin(pl); pl.line = null; } };
+function place(pl, x, z, yaw) { pl.x = x; pl.z = z; pl.vx = pl.vz = 0; pl.yv = 0; pl.acc = 0; pl.mv = null; pl.act = null; pl.line = null; pl.pin = { x, z }; pl.urg = .5; if (yaw != null) pl.yaw = yaw; }
+// penaltis: el portero se queda SOBRE LA LÍNEA (solo se mueve de lado a lado) hasta que sale el balón
+function onLine(gk, x, sway) { gk.line = { x, sway: !!sway }; gk.pin = { x, z: gk.z }; }
 const yawTo = (pl, x, z) => Math.atan2(x - pl.x, z - pl.z);
 function shape() { // dónde estaría cada uno según el balón y quién lo tiene
   const bx = ball.x, bz = ball.z;
   for (const p of [0, 1]) {
     const ub = clamp(uOf(p, bx), 0, 1), vb = clamp(vOf(p, bz), -1, 1), mine = poss === p;
     P[p].forEach((pl, i) => {
-      const [u0, v0] = F433[i]; let u, v;
-      if (!i) { u = .03 + clamp(ub - .5, 0, .5) * .14; v = vb * .12; }
-      else { const ln = i <= 4 ? 0 : i <= 7 ? 1 : 2, sh = mine ? (ub - .35) * .55 + .06 : (ub - .55) * .5 - .04;
+      const u0 = pl.fu, v0 = pl.fv; let u, v;
+      if (pl.gk) { u = .03 + clamp(ub - .5, 0, .5) * .14; v = vb * .12; }
+      else { const ln = clamp(pl.ln, 0, 2), sh = mine ? (ub - .35) * .55 + .06 : (ub - .55) * .5 - .04;
         u = u0 + sh * [.85, 1, .8][ln]; u = clamp(u, [.06, .15, mine ? .32 : .36][ln], [mine ? .62 : .5, .8, mine ? .9 : .72][ln]);
         v = clamp(v0 * (mine ? 1.05 : .8) + vb * (mine ? .15 : .3), -.95, .95); }
-      const w = wpt(p, u, v); pl.home.x = w.x; pl.home.z = w.z; pl.press = false;
+      const w = wpt(p, u, v), k = pl.gk ? .25 : 1; // y nadie se queda clavado: cada uno se va recolocando un poco
+      pl.home.x = w.x + k * (Math.sin(T * .31 + pl.ph * 1.3) * 1.1 + Math.sin(T * .73 + pl.ph) * .45); pl.home.z = w.z + k * (Math.sin(T * .27 + pl.ph * 2.1) * 1.3 + Math.sin(T * .61 + pl.ph * .7) * .4); pl.press = false;
     });
   }
   // el más cercano del equipo que defiende va a presionar al que lleva el balón
@@ -309,12 +330,15 @@ function steer(pl, dt) {
     const m = pl.mv; if (T >= m.t1) pl.mv = null; else { if (T >= m.t0) { pl.vx = m.vx; pl.vz = m.vz; } else { pl.vx *= .8; pl.vz *= .8; } pl.x += pl.vx * dt; pl.z += pl.vz * dt; return; }
   }
   const lock = pl.act && ['dive', 'slide', 'fall', 'knee', 'down', 'catch', 'card', 'claim'].includes(pl.act.k) && !pl.act.o.move;
+  if (pl.line) { const Ln = pl.line; pl.pin = { x: Ln.x, z: Ln.sway && ball && ball.st !== 'fly' ? Math.sin(T * 2.3 + pl.ph) * .45 : pl.pin ? pl.pin.z : pl.z }; pl.urg = .3; }
   const t = pl.pin || pl.home, dx = t.x - pl.x, dz = t.z - pl.z, d = Math.hypot(dx, dz);
   const urg = pl.pin ? pl.urg : pl.press ? .82 : .55, mx = pl.spd * urg * (pl === refP ? .9 : 1);
-  let wx = 0, wz = 0; if (d > .25 && !lock) { const sp = Math.min(mx, d * 2.2); wx = dx / d * sp; wz = dz / d * sp; }
-  const ax = wx - pl.vx, az = wz - pl.vz, a = Math.hypot(ax, az), lim = (lock ? 14 : 11) * dt;
+  let wx = 0, wz = 0; if (d > .25 && !lock) { const sp = Math.min(mx, d * 1.8); wx = dx / d * sp; wz = dz / d * sp; }
+  const pvx = pl.vx, pvz = pl.vz, ax = wx - pl.vx, az = wz - pl.vz, a = Math.hypot(ax, az), lim = (lock ? 14 : 10) * dt;
   if (a > lim) { pl.vx += ax / a * lim; pl.vz += az / a * lim; } else { pl.vx = wx; pl.vz = wz; }
   pl.x += pl.vx * dt; pl.z += pl.vz * dt;
+  if (pl.line) pl.x = clamp(pl.x, pl.line.x - .15, pl.line.x + .15); // de la línea no se mueve
+  if (dt > 0) { const fa = ((pl.vx - pvx) * Math.sin(pl.yaw) + (pl.vz - pvz) * Math.cos(pl.yaw)) / dt; pl.acc += (clamp(fa, -10, 10) - pl.acc) * (1 - Math.exp(-dt * 6)); }
 }
 function separate() {
   const A = all(); A.push(refP);
@@ -327,11 +351,14 @@ function face(pl, dt) {
   else if (pl.act && ['dive', 'slide', 'fall', 'knee'].includes(pl.act.k)) ty = pl.yaw;
   else if (v > 1.3 && !(pl.gk && ball && Math.abs(ball.x - pl.x) < 30)) ty = Math.atan2(pl.vx, pl.vz);
   else if (ball) ty = yawTo(pl, ball.x, ball.z);
-  let d = ty - pl.yaw; d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI; pl.yaw += clamp(d, -9 * dt, 9 * dt);
+  // giro con inercia (arranca y frena suave) en vez de a velocidad fija
+  let d = ty - pl.yaw; d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
+  pl.yv += (clamp(d * 9, -10, 10) - pl.yv) * (1 - Math.exp(-dt * 18)); pl.yaw += pl.yv * dt;
 }
 function updPlayer(pl, dt) {
   steer(pl, dt); face(pl, dt); loco(pl, dt); actPose(pl, dt); applyPose(pl);
   pl.root.position.set(pl.x, 0, pl.z); pl.root.rotation.y = pl.yaw;
+  for (let q = 0; q < 22; q++) pl.jr[q] = J[JK[q]]; // para la repetición
 }
 const handPos = (pl, out = new V3()) => { const a = pl.aL.h.getWorldPosition(new V3()), b = pl.aR.h.getWorldPosition(new V3()); return out.copy(a).add(b).multiplyScalar(.5); };
 
@@ -349,7 +376,7 @@ function updBall(dt) {
   else if (b.st === 'gk' && b.own) { handPos(b.own, tmpV); const k = 1 - Math.exp(-dt * 20); b.x += (tmpV.x - b.x) * k; b.y += (Math.max(BR, tmpV.y) - b.y) * k; b.z += (tmpV.z - b.z) * k; }
   else if (b.st === 'fly' && b.F) { const F = b.F, u = clamp((T - F.t0) / F.d, 0, 1);
     let ex = F.b.x, ey = F.b.y, ez = F.b.z; if (F.home) { F.home(tmpW); const w = clamp((u - .35) / .65, 0, 1); ex = lerp(ex, tmpW.x, w); ey = lerp(ey, tmpW.y, w); ez = lerp(ez, tmpW.z, w); }
-    const e = F.ease ? sm(u) * .3 + u * .7 : u;
+    const e = F.ease ? sm(u) * .3 + u * .7 : F.ez ? F.ez * (1 - (1 - u) * (1 - u)) + (1 - F.ez) * u : u;
     b.x = lerp(F.a.x, ex, e) + (F.cz || 0) * Math.sin(Math.PI * u); b.z = lerp(F.a.z, ez, e) + (F.cx || 0) * Math.sin(Math.PI * u);
     b.y = Math.max(BR, lerp(F.a.y, ey, e) + F.peak * 4 * u * (1 - u));
     if (u >= 1) { const vx = (b.x - ox) / dt, vz = (b.z - oz) / dt; b.F = null; b.st = 'roll'; b.vx = vx * .45; b.vz = vz * .45; b.vy = 0; const f = b.end; b.end = null; if (f) f(); } }
@@ -368,7 +395,7 @@ async function strike(pl, x, y, z, o = {}) {
   const a = { x: ball.x, y: Math.max(BR, ball.y), z: ball.z }, dist = Math.hypot(x - a.x, z - a.z, (y - a.y) * .5);
   const dur = o.dur || Math.max(.22, dist / (o.spd || 21) + (o.peak ? .12 + o.peak * .045 : .03));
   ball.st = 'fly'; ball.own = null; ball.want = o.want || null; ball.end = o.end || null; ball.net = null;
-  ball.F = { a, b: { x, y, z }, t0: T, d: dur, peak: o.peak || 0, home: o.home || null, cx: o.cx || 0, cz: o.cz || 0, ease: !!o.ease };
+  ball.F = { a, b: { x, y, z }, t0: T, d: dur, peak: o.peak || 0, home: o.home || null, cx: o.cx || 0, cz: o.cz || 0, ease: !!o.ease, ez: o.ez || 0 };
   if (!o.silent) sfx('kick'); pl.faceT = null; focus = o.want || null;
   return dur + (T - t0) * 0;
 }
@@ -378,12 +405,12 @@ async function pass(from, to, o = {}) {
   if (!from || !to || from === to) return;
   const tg = o.at || lead(to, o.lead || 4); pin(to, tg.x, tg.z, 1);
   const d = Math.hypot(tg.x - from.x, tg.z - from.z), loft = o.loft || d > 34;
-  await strike(from, tg.x, BR, tg.z, { k: loft ? .75 : clamp(d / 40, .3, .65), spd: loft ? 21 : o.spd || 24, peak: loft ? clamp(d * .15, 2, 10) : 0, want: to, kd: o.kd });
+  await strike(from, tg.x, BR, tg.z, { k: loft ? .75 : clamp(d / 40, .3, .65), spd: loft ? 21 : o.spd || 19, peak: loft ? clamp(d * .15, 2, 10) : 0, ez: loft ? .2 : .5, want: to, kd: o.kd });
   await until(() => ball.own === to, 2.2);
   if (ball.own !== to) attach(to);
 }
 async function gain(p, i) { // el balón acaba en los pies del jugador i del equipo p (con un pase, un despeje del rival o recogiéndolo)
-  const to = P[p][i == null ? 6 : i]; if (ball.own === to && ball.st !== 'gk') return;
+  const to = i == null ? TM[p].c0 : P[p][i]; if (!to) return; if (ball.own === to && ball.st !== 'gk') return;
   if (ball.st === 'gk' && ball.own) { const g = ball.own; if (g.p === p && g === to) { ball.st = 'held'; g.act = null; return; } g.act = null; ball.st = 'held'; await sleep(.25); await punt(g, to); return; }
   if (ball.own && ball.own.p === p) { await pass(ball.own, to); return; }
   if (ball.own) { const fr = ball.own, tx = to.x + rr(-2, 2), tz = to.z + rr(-2, 2); pin(to, tx, tz, 1); await kickTo(fr, tx, BR, tz, { k: .8, spd: 22, peak: 7, want: to }); await until(() => ball.own === to, 2); if (ball.own !== to) attach(to); return; }
@@ -392,7 +419,11 @@ async function gain(p, i) { // el balón acaba en los pies del jugador i del equ
 async function punt(g, to) { const tx = to.x + rr(-2, 2), tz = to.z + rr(-2, 2); pin(to, tx, tz, 1); await kickTo(g, tx, BR, tz, { k: 1, spd: 24, peak: 11, want: to, kd: .6 }); await until(() => ball.own === to, 2.2); if (ball.own !== to) attach(to); }
 
 /* ---------------- cámara ---------------- */
-const CAM = { pos: new V3(0, 40, 70), look: new V3(), tp: new V3(), tl: new V3(), fov: 30, tf: 30, mode: 'wide', snap: true, k: 2.2, who: null, gx: L };
+const CAM = { pos: new V3(0, 40, 70), look: new V3(), tp: new V3(), tl: new V3(), pv: new V3(), lv: new V3(), fov: 30, tf: 30, mode: 'wide', snap: true, k: 2.2, who: null, gx: L };
+// muelle críticamente amortiguado (como SmoothDamp): la cámara arranca y frena suave en vez de dar tirones al cambiar de plano
+function damp(cur, tgt, vel, st, dt) { const w = 2 / Math.max(.05, st), x = w * dt, ex = 1 / (1 + x + .48 * x * x + .235 * x * x * x);
+  for (const k of ['x', 'y', 'z']) { const ch = cur[k] - tgt[k], tmp = (vel[k] + w * ch) * dt; vel[k] = (vel[k] - w * tmp) * ex; cur[k] = tgt[k] + (ch + tmp) * ex; } }
+const narrowK = () => Math.pow(clamp(1.78 / (W / Math.max(1, H)), .75, 1.7), .25) * (W < 560 ? .88 : 1); // en pantallas estrechas, algo más cerca
 function setCam(mode, o = {}) { CAM.mode = mode; Object.assign(CAM, o); }
 function camUpd(dt) {
   const asp = W / Math.max(1, H), nar = Math.pow(clamp(1.78 / asp, .75, 1.7), .25) * (W < 560 ? .88 : 1) /* en pantallas estrechas, algo más cerca */, bx = ball.x, bz = ball.z, f = focus || ball.own;
@@ -403,11 +434,11 @@ function camUpd(dt) {
   else if (CAM.mode === 'celeb' && CAM.who) { const w = CAM.who, s = D(w.p); tl.set(w.x, 1.1, w.z); tp.set(w.x - s * 3.5, 2.5, w.z + 8.5); tf = 30 * nar; k = 2.6; }
   else if (CAM.mode === 'pen') { const g = CAM.gx, s = sgn(g); tl.set(g, 1.2, 0); tp.set(g - s * 20, 3, 1.6); tf = 27 * nar; k = 3; }
   else if (CAM.mode === 'close' && f) { tl.set(f.x, 1, f.z); tp.set(f.x * .9, 9.5, f.z + 20); tf = 24 * nar; k = 2.2; }
-  if (CAM.snap) { CAM.pos.copy(tp); CAM.look.copy(tl); CAM.fov = tf; CAM.snap = false; }
-  else { const a = 1 - Math.exp(-dt * k); CAM.pos.lerp(tp, a); CAM.look.lerp(tl, Math.min(1, a * 1.4)); CAM.fov += (tf - CAM.fov) * a; }
+  if (CAM.snap) { CAM.pos.copy(tp); CAM.look.copy(tl); CAM.fov = tf; CAM.snap = false; CAM.pv.set(0, 0, 0); CAM.lv.set(0, 0, 0); }
+  else { damp(CAM.pos, tp, CAM.pv, 1.1 / k, dt); damp(CAM.look, tl, CAM.lv, .75 / k, dt); CAM.fov += (tf - CAM.fov) * (1 - Math.exp(-dt * k)); }
   cam.position.copy(CAM.pos); cam.lookAt(CAM.look); if (Math.abs(cam.fov - CAM.fov) > .01) { cam.fov = CAM.fov; cam.updateProjectionMatrix(); }
 }
-async function cut(fn) { if (fadeEl) fadeEl.style.opacity = 1; await sleep(.22); try { fn(); } finally { CAM.snap = true; } await sleep(.06); if (fadeEl) fadeEl.style.opacity = 0; }
+async function cut(fn) { if (fadeEl) fadeEl.style.opacity = 1; await sleep(.22); try { fn(); } finally { CAM.snap = true; RB.cuts.push(T); if (RB.cuts.length > 12) RB.cuts.shift(); } await sleep(.06); if (fadeEl) fadeEl.style.opacity = 0; }
 
 /* ---------------- bucle ---------------- */
 function init() {
@@ -428,6 +459,8 @@ function frame(fixed) { // fixed = segundos simulados (para depurar con la pesta
   const t = performance.now(), rdt = fixed != null ? fixed : Math.min(.05, (t - last) / 1000); last = t; if (fixed == null) quality(rdt);
   if (host.offsetParent === null) return;
   if ((sizeT -= rdt) <= 0) { sizeT = .5; resize(); }
+  if (FRZ) { R.render(scene, cam); return; } // congelado (solo para depurar)
+  if (RP) { rpFrame(rdt); return; } // repetición: el partido se queda en pausa
   const dt = rdt * SPEED; T += dt;
   for (let i = WAITS.length - 1; i >= 0; i--) if (WAITS[i].t <= T) { const w = WAITS.splice(i, 1)[0]; w.r(); }
   shape();
@@ -436,7 +469,8 @@ function frame(fixed) { // fixed = segundos simulados (para depurar con la pesta
   if (!refP.pin) { refP.home.x = clamp(ball.x - sgn(ball.x || 1) * 9, -L + 6, L - 6); refP.home.z = clamp(ball.z + (ball.z > 0 ? -10 : 10), -WD + 4, WD - 4); }
   updPlayer(refP, dt); separate(); updBall(dt);
   hype = Math.max(0, hype - dt * .22); crowdU.uT.value = T; crowdU.uH.value = hype; boards.offset.x = (T * .025) % 1;
-  for (const n of NETS) if (n.a > .001) { n.a *= Math.exp(-dt * 2.6); const a = n.geo.attributes.position, b = n.base; for (let k = 0; k < a.count; k++) { const x = b[k * 3], y = b[k * 3 + 1], d2 = (x - n.zl) ** 2 + (y - n.yl) ** 2; a.array[k * 3 + 2] = b[k * 3 + 2] - n.a * Math.exp(-d2 / .9) * Math.cos(T * 18) * .5 - n.a * Math.exp(-d2 / .9); } a.needsUpdate = true; }
+  for (const n of NETS) if (n.a > .001) { n.a *= Math.exp(-dt * 2.6); netDeform(n, n.a, T); }
+  record();
   camUpd(rdt);
   for (const pl of all()) pl.root.visible = Math.hypot(pl.x - cam.position.x, pl.z - cam.position.z) > 2.6 || cam.position.y > 6;
   if (tagEl) { const f = (ball.st === 'held' || ball.st === 'gk') ? ball.own : focus;
@@ -446,34 +480,123 @@ function frame(fixed) { // fixed = segundos simulados (para depurar con la pesta
     else tagEl.style.opacity = 0; }
   R.render(scene, cam);
 }
+function netDeform(n, a, t) { const pa = n.geo.attributes.position, b = n.base; for (let k = 0; k < pa.count; k++) { const x = b[k * 3], y = b[k * 3 + 1], d2 = (x - n.zl) ** 2 + (y - n.yl) ** 2; pa.array[k * 3 + 2] = b[k * 3 + 2] - a * Math.exp(-d2 / .9) * Math.cos(t * 18) * .5 - a * Math.exp(-d2 / .9); } pa.needsUpdate = true; }
+
+/* ---------------- REPETICIÓN DEL GOL ----------------
+   Se graban 40 fotos por segundo de juego de los últimos ~14 s: de cada uno de los 23 (22 + árbitro) posición, giro y las 22 articulaciones;
+   del balón posición y giro; de las redes cómo se abomban; la tarjeta del árbitro y el ánimo de la grada. Tras el gol se vuelve a ver:
+   primero la jugada desde la otra banda (contracampo) y después el remate a cámara lenta desde detrás de la portería (o pegado al goleador). */
+const RB = { n: 560, per: 25, st: 0, buf: null, t: null, head: 0, len: 0, last: -1e9, cuts: [], goal: null };
+let RP = null, rpEl = null, FRZ = false;
+const people = () => P[0].concat(P[1], [refP]);
+function recReset() { RB.st = 23 * RB.per + 7 + 6 + 2; if (!RB.buf || RB.buf.length !== RB.n * RB.st) { RB.buf = new Float32Array(RB.n * RB.st); RB.t = new Float64Array(RB.n); } RB.head = 0; RB.len = 0; RB.last = -1e9; RB.cuts = []; RB.goal = null; }
+function record() {
+  if (!RB.buf || T - RB.last < 1 / 40) return; RB.last = T;
+  const k = RB.head, b = RB.buf; let j = k * RB.st; RB.t[k] = T;
+  for (const pl of people()) { b[j++] = pl.x; b[j++] = pl.z; b[j++] = pl.yaw; for (let q = 0; q < 22; q++) b[j++] = pl.jr[q]; }
+  const m = ball.m; b[j++] = m.position.x; b[j++] = m.position.y; b[j++] = m.position.z; b[j++] = m.quaternion.x; b[j++] = m.quaternion.y; b[j++] = m.quaternion.z; b[j++] = m.quaternion.w;
+  for (let q = 0; q < 2; q++) { const n = NETS[q]; b[j++] = n ? n.a : 0; b[j++] = n ? n.zl || 0 : 0; b[j++] = n ? n.yl || 0 : 0; }
+  b[j++] = refP.card.visible ? 1 : 0; b[j++] = hype;
+  RB.head = (k + 1) % RB.n; RB.len = Math.min(RB.n, RB.len + 1);
+}
+const ringAt = i => (RB.head - RB.len + i + RB.n) % RB.n, recT = i => RB.t[ringAt(i)];
+function rpIdx(t) { let lo = 0, hi = RB.len - 1; if (t <= recT(0)) return [0, 0, 0]; if (t >= recT(hi)) return [hi, hi, 0];
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (recT(mid) <= t) lo = mid; else hi = mid; }
+  const ta = recT(lo), tb = recT(hi); return [lo, hi, tb > ta ? (t - ta) / (tb - ta) : 0]; }
+const angL = (a, b, w) => { let d = b - a; d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI; return a + d * w; };
+const QA = new THREE.Quaternion(), QB = new THREE.Quaternion();
+function rpApply(t) { // pinta la escena tal y como estaba en el instante t (interpolando entre dos fotos)
+  const [i0, i1, w] = rpIdx(t), A = ringAt(i0) * RB.st, B = ringAt(i1) * RB.st, b = RB.buf; let j = 0;
+  const lp = () => { const v = b[A + j] + (b[B + j] - b[A + j]) * w; j++; return v; };
+  for (const pl of people()) { const x = lp(), z = lp(), yaw = angL(b[A + j], b[B + j], w); j++;
+    for (let q = 0; q < 22; q++) J[JK[q]] = lp();
+    applyPose(pl); pl.root.position.set(x, 0, z); pl.root.rotation.y = yaw; pl.rx = x; pl.rz = z; }
+  const bx = lp(), by = lp(), bz = lp(); ball.m.position.set(bx, by, bz);
+  QA.set(b[A + j], b[A + j + 1], b[A + j + 2], b[A + j + 3]); QB.set(b[B + j], b[B + j + 1], b[B + j + 2], b[B + j + 3]); j += 4; ball.m.quaternion.slerpQuaternions(QA, QB, w);
+  for (let q = 0; q < 2; q++) { const n = NETS[q], a = lp(), zl = lp(), yl = lp(); if (n) { n.zl = zl; n.yl = yl; netDeform(n, a, t); } }
+  refP.card.visible = lp() > .5; crowdU.uH.value = lp();
+  return { x: bx, y: by, z: bz };
+}
+function rpCam(S, B, dt) { // cámaras de la repetición
+  const G0 = RB.goal, s = G0.s, gx = G0.gx, nar = narrowK(), tl = CAM.tl, tp = CAM.tp, sh = G0.sh; let tf = 24;
+  if (S.cam === 'rev') { const lx = clamp(B.x, -L + 8, L - 8); tl.set(lx, .9, clamp(B.z * .75, -WD + 4, WD - 4)); tp.set(lx - s * 5, 5.8, -(WD + 6)); tf = 22 * nar; }
+  else if (S.cam === 'goal') { tl.set(lerp(B.x, gx, .12), clamp(B.y * .7, .6, 2), clamp(B.z * .85, -GW * 2.5, GW * 2.5)); tp.set(gx + s * 8.2, 3.1, G0.zs * 2.2 + clamp(B.z * .2, -3, 3)); tf = 34 * nar; }
+  else { const px = sh.rx != null ? sh.rx : sh.x, pz = sh.rz != null ? sh.rz : sh.z; tl.set(lerp(px, gx, .3), 1.1, lerp(pz, 0, .3)); tp.set(px - s * 6.5, 2.3, pz + G0.zs * 3.2); tf = 32 * nar; }
+  if (S.snap) { CAM.pos.copy(tp); CAM.look.copy(tl); CAM.fov = tf; CAM.pv.set(0, 0, 0); CAM.lv.set(0, 0, 0); S.snap = false; }
+  else { damp(CAM.pos, tp, CAM.pv, S.cam === 'rev' ? .5 : .7, dt); damp(CAM.look, tl, CAM.lv, S.cam === 'rev' ? .28 : .35, dt); CAM.fov += (tf - CAM.fov) * (1 - Math.exp(-dt * 3)); }
+  cam.position.copy(CAM.pos); cam.lookAt(CAM.look); if (Math.abs(cam.fov - CAM.fov) > .01) { cam.fov = CAM.fov; cam.updateProjectionMatrix(); }
+}
+function rpFrame(rdt) {
+  const S = RP.seg; crowdU.uT.value += rdt * .8; boards.offset.x = (boards.offset.x + rdt * .02) % 1;
+  if (S) {
+    RP.t = Math.min(S.b, RP.t + rdt * S.r); const B = rpApply(RP.t); rpCam(S, B, rdt);
+    for (const pl of all()) pl.root.visible = Math.hypot(pl.rx - cam.position.x, pl.rz - cam.position.z) > 2.6 || cam.position.y > 6;
+    const f = RB.goal.sh; if (tagEl && f && f.info && f.info.sh) { f.head.getWorldPosition(prj); prj.y += .42; prj.project(cam); const vis = prj.z < 1 && Math.abs(prj.x) < 1.1 && Math.abs(prj.y) < 1.1;
+      tagEl.style.opacity = vis ? 1 : 0; tagEl.style.transform = `translate(${((prj.x + 1) / 2 * W).toFixed(1)}px,${((1 - prj.y) / 2 * H).toFixed(1)}px) translate(-50%,-100%)`;
+      if (tagEl._f !== f) { tagEl._f = f; tagEl.innerHTML = `<b>${f.info.num || ''}</b>${f.info.sh}`; tagEl.style.setProperty('--c', f.gk ? KIT[f.p].gk.col : KIT[f.p].col); } }
+  }
+  R.render(scene, cam);
+  if (S && RP.t >= S.b && RP.done) { const d = RP.done; RP.done = null; d(); }
+}
+function rpBadge(label, show) { if (!rpEl) return; const b = rpEl.querySelector('b'); if (b && label) b.textContent = label; rpEl.classList.toggle('on', !!show); }
+async function replay(o = {}) {
+  if (!on || !RB.goal || RB.len < 12 || !RB.goal.sh) return;
+  const G0 = RB.goal, g = G0.t, cutB = RB.cuts.filter(c => c <= g).pop(), t0 = Math.max(g - 4.4, (cutB != null ? cutB : -1e9) + .1, recT(0) + .02), t1 = Math.min(g + .95, recT(RB.len - 1));
+  if (t1 - t0 < .8) return;
+  const segs = [], split = g - 1.2; G0.zs = G0.zs || 1;
+  if (split - t0 > 1.2) segs.push({ a: t0, b: split + .1, r: SPEED * .95, cam: 'rev', snap: true });
+  segs.push({ a: Math.max(t0, g - 1.3), b: t1, r: .55, cam: Math.random() < .65 ? 'goal' : 'tight', snap: true });
+  const wait = ms => new Promise(r => setTimeout(r, ms)), fade = v => { if (fadeEl) fadeEl.style.opacity = v; };
+  fade(1); await wait(240); if (!on || RP) { fade(0); return; }
+  const live = NETS.map(n => ({ a: n.a, zl: n.zl, yl: n.yl })), hy = crowdU.uH.value;
+  RP = { seg: null, t: 0, done: null }; rpBadge(o.label || 'REPLAY', true); if (tagEl) { tagEl.style.opacity = 0; tagEl._f = null; }
+  try {
+    for (let i = 0; i < segs.length && on && RP; i++) {
+      RP.seg = segs[i]; RP.t = segs[i].a; await wait(40); fade(0);
+      await new Promise(r => { if (RP) RP.done = r; else r(); });
+      if (!on || !RP) break; fade(1); await wait(220);
+    }
+  } finally {
+    RP = null; rpBadge('', false); if (tagEl) tagEl._f = null;
+    if (on) { NETS.forEach((n, k) => { const v = live[k]; n.a = v.a; n.zl = v.zl; n.yl = v.yl; netDeform(n, v.a, T); }); crowdU.uH.value = hy; CAM.snap = true; }
+    await wait(60); fade(0);
+  }
+}
+
 function loop(g) { if (!on || g !== gen) return; if (!cv.isConnected) { stop(); return; } requestAnimationFrame(() => loop(g)); try { frame(); } catch (e) { console.warn('FOOT3D', e); } }
 function clearScene() { if (!scene) return; scene.traverse(o => { if (o.geometry && !Object.values(G || {}).includes(o.geometry)) o.geometry.dispose(); if (o.material) { const m = o.material; if (m.map) m.map.dispose(); if (!MATS.has([...MATS.keys()].find(k => MATS.get(k) === m))) m.dispose(); } }); scene = null; }
-function stop() { on = false; if (ro) ro.disconnect(); WAITS.splice(0).forEach(w => w.r()); clearScene(); P[0] = []; P[1] = []; NETS.length = 0; ball = null; refP = null; focus = null; }
+function stop() { on = false; if (ro) ro.disconnect(); if (RP) { const d = RP.done; RP = null; if (d) d(); } rpBadge('', false); WAITS.splice(0).forEach(w => w.r()); clearScene(); P[0] = []; P[1] = []; NETS.length = 0; ball = null; refP = null; focus = null; }
 
 /* ---------------- jugadas (las llama game.js) ---------------- */
 const gxOf = p => D(p) * L;
-const kickoffPos = (p, i, kicker) => { const [u0, v0] = F433[i]; let u = Math.min(.47, u0 * .92 + (i >= 8 ? .08 : 0)); if (!kicker && i) u = Math.min(u, .41); const w = wpt(p, u, v0 * .95); return w; };
+const kickoffPos = (pl, kicker) => { let u = Math.min(.47, pl.fu * .92 + (pl.ln === 2 ? .08 : 0)); if (!kicker && !pl.gk) u = Math.min(u, .41); return wpt(pl.p, u, pl.fv * .95); };
 async function kickoff(p) {
   await cut(() => { unpinAll(); hype = Math.max(hype, .25);
-    for (const q of [0, 1]) P[q].forEach((pl, i) => { const w = kickoffPos(q, i, q === p); place(pl, w.x, w.z, q ? -Math.PI / 2 : Math.PI / 2); unpin(pl); });
-    const k = P[p][9], m = P[p][8]; place(k, -D(p) * .35, .2, D(p) > 0 ? Math.PI / 2 : -Math.PI / 2); place(m, -D(p) * 1.2, -D(p) * 3.5); unpin(k);
+    for (const q of [0, 1]) P[q].forEach(pl => { const w = kickoffPos(pl, q === p); place(pl, w.x, w.z, q ? -Math.PI / 2 : Math.PI / 2); unpin(pl); });
+    const k = TM[p].st, m = TM[p].pa; // saca el delantero centro y se la da a su compañero place(k, -D(p) * .35, .2, D(p) > 0 ? Math.PI / 2 : -Math.PI / 2); place(m, -D(p) * 1.2, -D(p) * 3.5); unpin(k);
     ball.x = 0; ball.z = 0; ball.y = BR; attach(k); place(refP, -6, 8); unpin(refP); setCam('wide'); });
   await sleep(.6); setCam('broad');
 }
 async function walkout() {
-  await cut(() => { unpinAll(); for (const q of [0, 1]) P[q].forEach((pl, i) => { place(pl, (q ? 1 : -1) * (1.6 + i * 1.05), WD + 1.2, Math.PI); const w = kickoffPos(q, i, q === 0); pin(pl, w.x, w.z, .55); });
+  await cut(() => { unpinAll(); for (const q of [0, 1]) P[q].forEach((pl, i) => { place(pl, (q ? 1 : -1) * (1.6 + i * 1.05), WD + 1.2, Math.PI); const w = kickoffPos(pl, q === 0); pin(pl, w.x, w.z, .55); });
     place(refP, 0, WD + 1); pin(refP, -6, 8, .5); ball.st = 'loose'; ball.own = null; ball.x = 0; ball.z = 0; ball.y = BR; ball.vx = ball.vz = 0; setCam('wide'); hype = .8; });
   await sleep(3.2);
 }
 // posesión entre minutos: el equipo p mueve el balón por detrás y por el centro
 async function idle(sec, p) {
   if (!on) return; const t0 = T; if (p == null || p < 0) p = poss;
-  unpinAll(); setCam('broad'); if (ball.own && ball.own.p !== p || !ball.own || ball.st === 'gk') await gain(p, 2 + (Math.random() * 6 | 0));
+  unpinAll(); setCam('broad'); if (ball.own && ball.own.p !== p || !ball.own || ball.st === 'gk') await gain(p, pickOf(TM[p].df.concat(TM[p].md)).i);
   while (on && T - t0 < sec) {
     const h = ball.own; if (!h || h.p !== p) break;
-    const c = [1, 2, 3, 4, 5, 6, 7, 8, 10].filter(i => P[p][i] !== h).map(i => P[p][i]).filter(pl => { const d = Math.hypot(pl.x - h.x, pl.z - h.z); return d > 7 && d < 30; });
+    // a veces conduce unos metros antes de soltarla (si tiene espacio), como en un partido de verdad
+    const near = q => Math.min(...P[1 - p].map(r => Math.hypot(r.x - q.x, r.z - q.z)));
+    if (Math.random() < .55 && near(h) > 5 && T - t0 < sec - 1.2) { pin(h, clamp(h.x + D(p) * rr(4, 9), -L + 9, L - 9), clamp(h.z + rr(-5, 5), -WD + 4, WD - 4), rr(.5, .72)); await sleep(rr(.45, .9)); if (ball.own !== h) break; }
+    const c = P[p].filter(pl => !pl.gk && pl !== h && pl !== TM[p].st).filter(pl => { const d = Math.hypot(pl.x - h.x, pl.z - h.z); return d > 7 && d < 30; });
     if (!c.length || T - t0 > sec - .4) { pin(h, h.x + D(p) * 3, h.z, .4); await sleep(Math.min(.8, sec - (T - t0) + .1)); unpin(h); break; }
-    await pass(h, c[Math.random() * c.length | 0]); await sleep(.1); unpin(h);
+    // el pase va antes al compañero que está solo y más hacia delante
+    const wt = c.map(q => Math.max(.15, 1 + (q.x - h.x) * D(p) * .035) * clamp(near(q) / 6, .15, 1)), tot = wt.reduce((a, b) => a + b, 0); let r = Math.random() * tot, to = c[c.length - 1];
+    for (let k = 0; k < c.length; k++) { r -= wt[k]; if (r <= 0) { to = c[k]; break; } }
+    await pass(h, to); await sleep(rr(.08, .3)); unpin(h);
   }
 }
 // salida del balón: la cadena de pases del guion (portero/defensa → medios)
@@ -489,7 +612,7 @@ async function chance(e) {
   const toBall = async (pl, x, z, o2) => { if (ball.own === pl) return; if (!ball.own || ball.own.p !== p) await gain(p, pl.i); else await pass(ball.own, pl, Object.assign({ at: { x, z } }, o2 || {})); };
   const lostTo = async (d, how) => { // el defensor se queda el balón
     if (how === 'slide') { d.faceT = { x: ball.x, z: ball.z }; const dx = ball.x - d.x, dz = ball.z - d.z, n = Math.hypot(dx, dz) || 1; play(d, 'slide', 1.1); d.mv = { vx: dx / n * 6.5, vz: dz / n * 6.5, t0: T, t1: T + .38 }; await sleep(.3);
-      const own = ball.own; if (own && own !== d) play(own, 'stumble', .7, { s: Math.random() < .5 ? -1 : 1 }); const mate = P[o][[5, 6, 7, 2, 3][Math.random() * 5 | 0]];
+      const own = ball.own; if (own && own !== d) play(own, 'stumble', .7, { s: Math.random() < .5 ? -1 : 1 }); const mate = pickOf(TM[o].md.concat(TM[o].cb).filter(q => q !== d));
       ball.st = 'roll'; ball.own = null; ball.vx = -s * rr(4, 7) + rr(-2, 2); ball.vz = rr(-3, 3); ball.want = mate; sfx('save'); pin(mate, ball.x + ball.vx * .9, ball.z + ball.vz * .9, 1); await until(() => ball.own === mate, 2.2); if (ball.own !== mate) attach(mate); }
     else { play(d, 'tackle', .6); await sleep(.24); const own = ball.own; if (own && own !== d) play(own, 'stumble', .7, { s: 1 }); sfx('save'); attach(d); await sleep(.4); }
     unpinAll(); setCam('broad');
@@ -502,7 +625,7 @@ async function chance(e) {
   }
   if (e.k === 'run') { // pase al hueco y carrera
     const zc = clamp(c.z * .55, -13, 13), TP = { x: gx - s * 15, z: zc };
-    pin(c, gx - s * 23, zc + rr(-2, 2), .8); const pz = ball.own && ball.own.p === p ? ball.own : null; if (!pz) await gain(p, 6);
+    pin(c, gx - s * 23, zc + rr(-2, 2), .8); const pz = ball.own && ball.own.p === p ? ball.own : null; if (!pz) await gain(p, TM[p].c0.i);
     await sleep(.45); const fr = ball.own;
     if (e.out === 'lost') { const IP = { x: lerp(TP.x, dv.x, .45), z: lerp(TP.z, dv.z, .45) }; pin(c, TP.x, TP.z, 1); pin(dv, IP.x, IP.z, 1); focus = c;
       await strike(fr, IP.x, BR, IP.z, { k: .55, spd: 19, want: dv }); unpin(fr); await until(() => ball.own === dv, 2.4); if (ball.own !== dv) attach(dv); play(dv, 'tackle', .5); await sleep(.4); unpinAll(); return; }
@@ -522,25 +645,25 @@ async function chance(e) {
     await until(() => Math.hypot(c.x - SP.x, c.z - SP.z) < 1.3, 2.2); return;
   }
   if (e.k === 'cross') { // centro desde la banda
-    const zw = sgn(c.home.z || (e.c === 8 ? -s : s)) * (WD - 6), RP = { x: gx - s * 27, z: zw }; await toBall(c, RP.x, RP.z, { lead: 6 });
+    const zw = sgn(c.home.z || c.fv * D(p) || s) * (WD - 6), CP = { x: gx - s * 27, z: zw }; await toBall(c, CP.x, CP.z, { lead: 6 });
     pin(c, gx - s * 11, zw * .92, 1); setCam('shot', { gx });
-    const hz = -sgn(zw) * rr(.5, 3), HP = { x: gx - s * rr(7, 9), z: hz }, tgt = sh && sh !== c ? sh : P[p][9];
-    pin(tgt, HP.x - s * 4, HP.z * .5, .8); for (const i of [8, 9, 10, 7]) { const q = P[p][i]; if (q !== c && q !== tgt) pin(q, gx - s * rr(9, 14), rr(-8, 8), .8); }
-    const mk = dv && dv !== gk ? dv : P[o][2]; pin(mk, HP.x - s * 3, HP.z + 1, .8); pin(gk, gx - s * 1, zw * .1, .8);
+    const hz = -sgn(zw) * rr(.5, 3), HP = { x: gx - s * rr(7, 9), z: hz }, tgt = sh && sh !== c ? sh : TM[p].st;
+    pin(tgt, HP.x - s * 4, HP.z * .5, .8); for (const q of TM[p].fw.concat(TM[p].am)) { if (q !== c && q !== tgt) pin(q, gx - s * rr(9, 14), rr(-8, 8), .8); }
+    const mk = dv && dv !== gk ? dv : TM[o].cb[0]; pin(mk, HP.x - s * 3, HP.z + 1, .8); pin(gk, gx - s * 1, zw * .1, .8);
     await until(() => Math.abs(c.x - (gx - s * 11)) < 2, 2.6);
     pin(tgt, HP.x, HP.z, 1); pin(mk, HP.x + s * .6, HP.z + .5, 1);
     if (e.out === 'lost' && dv === gk) { pin(gk, HP.x + s * 1.5, HP.z, 1);
       await strike(c, HP.x + s * 1.5, 2.2, HP.z, { k: .8, peak: 3.2, spd: 20, want: gk, home: o2 => handPos(gk, o2) }); unpin(c);
       await sleep(Math.max(0, ball.F ? ball.F.d - .5 : 0)); play(gk, 'claim', .9); await until(() => ball.st !== 'fly', 1.5); attach(gk, true); await sleep(.5); unpinAll(); return; }
     const d = await strike(c, HP.x, 1.9, HP.z, { k: .8, peak: 3.4, spd: 20, want: tgt }); unpin(c); CAM.cross = { t: T + d, to: e.out === 'lost' ? mk : tgt };
-    if (e.out === 'lost') { await sleep(Math.max(0, d - .38)); play(mk, 'header', .8); await sleep(.36); const mate = P[o][6];
+    if (e.out === 'lost') { await sleep(Math.max(0, d - .38)); play(mk, 'header', .8); await sleep(.36); const mate = TM[o].c0;
       ball.st = 'fly'; ball.F = { a: { x: ball.x, y: Math.max(1.6, ball.y), z: ball.z }, b: { x: ball.x - s * 22, y: BR, z: ball.z * .5 + rr(-8, 8) }, t0: T, d: 1.2, peak: 6 }; ball.want = mate; ball.end = null; sfx('kick');
       pin(mate, ball.F.b.x, ball.F.b.z, 1); await until(() => ball.own === mate, 2.4); if (ball.own !== mate) attach(mate); unpinAll(); setCam('broad'); }
     return;
   }
   if (e.k === 'box') { // paredes en la frontal
     const zc = clamp(c.home.z * .5, -14, 14), RP = { x: gx - s * 21, z: zc }; await toBall(c, RP.x, RP.z); setCam('shot', { gx });
-    const tgt = sh || P[p][9], SP = { x: gx - s * rr(12, 15), z: clamp(zc + rr(-7, 7), -10, 10) }; pin(tgt, SP.x, SP.z, 1); if (dv) pin(dv, lerp(RP.x, SP.x, .6), lerp(RP.z, SP.z, .6) + 1.2, .8);
+    const tgt = sh || TM[p].st, SP = { x: gx - s * rr(12, 15), z: clamp(zc + rr(-7, 7), -10, 10) }; pin(tgt, SP.x, SP.z, 1); if (dv) pin(dv, lerp(RP.x, SP.x, .6), lerp(RP.z, SP.z, .6) + 1.2, .8);
     await sleep(.5);
     if (e.out === 'lost') { const IP = { x: lerp(c.x, SP.x, .55), z: lerp(c.z, SP.z, .55) }; pin(dv, IP.x, IP.z, 1); await strike(c, IP.x, BR, IP.z, { k: .4, spd: 20, want: dv }); unpin(c);
       await until(() => ball.own === dv, 2); if (ball.own !== dv) attach(dv); play(dv, 'tackle', .5); await sleep(.5); unpinAll(); setCam('broad'); return; }
@@ -548,7 +671,7 @@ async function chance(e) {
   }
   if (e.k === 'long') { // disparo lejano
     const RP = { x: gx - s * rr(25, 28), z: clamp(c.home.z * .4, -10, 10) }; await toBall(c, RP.x, RP.z); setCam('shot', { gx });
-    pin(c, RP.x + s * 2, RP.z, .5); for (const i of [2, 3, 6]) { const q = P[o][i]; pin(q, RP.x + s * rr(4, 7), RP.z + rr(-4, 4), .8); } await sleep(.55); return;
+    pin(c, RP.x + s * 2, RP.z, .5); for (const q of TM[o].cb.slice(0, 2).concat(TM[o].c0)) pin(q, RP.x + s * rr(4, 7), RP.z + rr(-4, 4), .8); await sleep(.55); return;
   }
 }
 // el remate y lo que pasa con él (gol, parada, palo, rechace o fuera)
@@ -565,9 +688,10 @@ async function outcome(e) {
   if (bl) { const bx = lerp(sh.x, gx, .2), bz = lerp(sh.z, 0, .2); pin(bl, bx, bz, 1); await until(() => Math.hypot(bl.x - bx, bl.z - bz) < .7, .6); if (Math.hypot(bl.x - bx, bl.z - bz) > 2) place(bl, bx, bz); }
   // portero: sobre la línea entre balón y portería, más adelantado si el tiro es de cerca
   if (!pen) { const dd = Math.hypot(gx - sh.x, sh.z), off = clamp(dd * .12, .6, 3.2); pin(gk, gx - s * off, sh.z * off / Math.max(dd, 1) * 1.1, 1); }
-  else { place(gk, gx - s * .3, 0, s > 0 ? -Math.PI / 2 : Math.PI / 2); unpin(gk); }
+  else { place(gk, gx - s * .3, 0, s > 0 ? -Math.PI / 2 : Math.PI / 2); onLine(gk, gx - s * .3, true); } // penalti: sobre la línea, nunca sale hacia el que tira
   if (pen) { const spot = gx - s * 11; place(sh, spot - s * 2.6, -.9, s > 0 ? Math.PI / 2 : -Math.PI / 2); ball.st = 'held'; ball.own = null; ball.x = spot; ball.z = 0; ball.y = BR; await sleep(.7); pin(sh, spot - s * .45, -.25, .5); await until(() => Math.abs(sh.x - (spot - s * .45)) < .35, 1.5); ball.own = sh; }
   // golpeo
+  if (gk.line) gk.line.sway = false;
   const gl = { x: gx + s * (out === 'goal' || out === 'var' ? NET - .35 : out === 'wide' ? 4 : 0), y: ty, z: tz };
   if (out === 'goal' || out === 'var') { gl.y = Math.min(ty, 1.5); }
   const spd = head ? 15 : k === 'long' ? 31 : pen ? 25 : 28, dist = Math.hypot(gl.x - (head ? ball.x : sh.x), gl.z - (head ? ball.z : sh.z));
@@ -589,7 +713,7 @@ async function outcome(e) {
     } else { if (save) play(gk, Math.abs(ty) > 1.4 ? 'claim' : 'catch', .8, {}); await sleep(dur); }
   } else await sleep(dur);
   // desenlace
-  if (out === 'goal' || out === 'var') {
+  if (out === 'goal' || out === 'var') { RB.goal = { t: T, s, gx, sh, p, zs: sgn(sh.z || 1) }; // para la repetición
     const n = NETS.find(q => q.s === s); if (n) { n.a = .55; n.zl = ball.z * -s; n.yl = ball.y - .8; }
     ball.st = 'roll'; ball.net = s; ball.vx = s * 2; ball.vz = 0; ball.vy = -1; ball.F = null; hype = 1; focus = sh;
   } else if (save) { const catchIt = Math.abs(tz) < 1.6 && ty < 1.6 && (e.xg || .3) < .32 && !head;
@@ -619,9 +743,9 @@ async function celebrate(p, i) {
   await sleep(1.1);
 }
 async function penFoul(e) { // el delantero entra en el área y le hacen penalti
-  const p = e.p, o = 1 - p, s = D(p), gx = gxOf(p), sh = P[p][e.sh], dv = P[o][e.dv >= 0 ? e.dv : 2];
+  const p = e.p, o = 1 - p, s = D(p), gx = gxOf(p), sh = P[p][e.sh], dv = e.dv >= 0 ? P[o][e.dv] : TM[o].cb[0];
   setCam('shot', { gx }); const RP = { x: gx - s * 20, z: rr(-8, 8) };
-  if (ball.own !== sh) { if (ball.own && ball.own.p === p) await pass(ball.own, sh, { at: RP }); else { await gain(p, 6); await pass(ball.own, sh, { at: RP }); } }
+  if (ball.own !== sh) { if (ball.own && ball.own.p === p) await pass(ball.own, sh, { at: RP }); else { await gain(p); await pass(ball.own, sh, { at: RP }); } }
   const IN = { x: gx - s * 13.5, z: RP.z * .6 }; pin(sh, IN.x, IN.z, 1); pin(dv, sh.x - s * 1, sh.z + 1.5, 1);
   await until(() => Math.abs(sh.x - IN.x) < 2.2, 2.4); dv.faceT = { x: sh.x, z: sh.z }; play(dv, 'slide', 1.1); dv.mv = { vx: (sh.x - dv.x) * 3, vz: (sh.z - dv.z) * 3, t0: T, t1: T + .3 };
   await sleep(.28); play(sh, 'fall', 1.6); sh.mv = { vx: s * 2, vz: 0, t0: T, t1: T + .3 }; ball.st = 'roll'; ball.own = null; ball.vx = s * 3; ball.vz = rr(-1, 1); ball.want = null; await sleep(1.2);
@@ -630,14 +754,14 @@ async function penSetup(e) {
   const p = e.p, o = 1 - p, s = D(p), gx = gxOf(p), sh = P[p][e.sh];
   await cut(() => { unpinAll(); const spot = gx - s * 11;
     for (const q of [0, 1]) P[q].forEach(pl => { if (pl === sh || pl === P[o][0]) return; const z = rr(-18, 18); place(pl, gx - s * rr(18, 22), z, s > 0 ? Math.PI / 2 : -Math.PI / 2); });
-    place(P[o][0], gx - s * .3, 0, s > 0 ? -Math.PI / 2 : Math.PI / 2); place(sh, spot - s * 2.6, -.9, s > 0 ? Math.PI / 2 : -Math.PI / 2);
+    place(P[o][0], gx - s * .3, 0, s > 0 ? -Math.PI / 2 : Math.PI / 2); onLine(P[o][0], gx - s * .3, true); place(sh, spot - s * 2.6, -.9, s > 0 ? Math.PI / 2 : -Math.PI / 2);
     place(refP, spot - s * 3, 7); ball.st = 'held'; ball.own = null; ball.x = spot; ball.z = 0; ball.y = BR; focus = sh; setCam('pen', { gx }); });
 }
 async function soSetup() { await cut(() => { unpinAll(); for (const q of [0, 1]) P[q].forEach((pl, i) => { place(pl, q ? 2 : -2, -9 + i * 1.7, Math.PI / 2 * (q ? -1 : 1)); pl.yaw = Math.PI / 2; });
   place(refP, 3, 9); ball.st = 'loose'; ball.own = null; ball.x = 0; ball.z = 0; setCam('wide'); }); await sleep(.5); }
 async function soKick(k) { // tanda: todos en la portería de la derecha
   const p = k.p, o = 1 - p, sh = P[p][k.s], gk = P[o][0], other = P[p][0];
-  await cut(() => { place(gk, L - .3, 0, -Math.PI / 2); unpin(gk); if (other !== sh) place(other, L - 18, 12, Math.PI / 2); for (const q of [0, 1]) P[q].forEach((pl, i) => { if (pl !== gk && pl !== other && pl !== sh) place(pl, q ? 2 : -2, -9 + i * 1.7, Math.PI / 2); }); });
+  await cut(() => { place(gk, L - .3, 0, -Math.PI / 2); onLine(gk, L - .3, true); if (other !== sh) place(other, L - 18, 12, Math.PI / 2); for (const q of [0, 1]) P[q].forEach((pl, i) => { if (pl !== gk && pl !== other && pl !== sh) place(pl, q ? 2 : -2, -9 + i * 1.7, Math.PI / 2); }); });
   await outcome({ p, sh: k.s, k: 'pen', pen: 1, out: k.out, d: k.d, xg: .76, gx: L });
   if (k.goal) hype = .8;
 }
@@ -654,23 +778,25 @@ const API = {
     try { if (!R) init(); } catch (e) { failed = true; console.warn('FOOT3D', e); return false; }
     host = el; opts = o || {}; scene = new THREE.Scene(); T = 0; hype = .3; poss = 0; focus = null; WAITS.length = 0;
     const cols = [readCol('--p1', '#ff3344'), readCol('--p2', '#4aa3ff')], gc = gkCols(cols); KIT[0] = kitOf(0, cols, gc); KIT[1] = kitOf(1, cols, gc);
-    try { buildStadium(cols); for (const p of [0, 1]) P[p] = (opts.teams[p] || []).slice(0, 11).map((info, i) => mkPlayer(p, i, info || {})); while (P[0].length < 11 || P[1].length < 11) throw new Error('teams'); refP = mkRef(); ball = mkBall(); }
+    try { buildStadium(cols); for (const p of [0, 1]) P[p] = (opts.teams[p] || []).slice(0, 11).map((info, i) => mkPlayer(p, i, info || {})); while (P[0].length < 11 || P[1].length < 11) throw new Error('teams'); refP = mkRef(); ball = mkBall(); TM[0] = teamIdx(P[0]); TM[1] = teamIdx(P[1]); recReset(); }
     catch (e) { console.warn('FOOT3D', e); stop(); return false; }
     host.prepend(cv); if (!tagEl) { tagEl = document.createElement('div'); tagEl.className = 'fm3-tag'; } host.appendChild(tagEl); tagEl.style.opacity = 0; tagEl._f = null;
     if (!fadeEl) { fadeEl = document.createElement('div'); fadeEl.className = 'fm3-fade'; } host.appendChild(fadeEl); fadeEl.style.opacity = 0;
+    if (!rpEl) { rpEl = document.createElement('div'); rpEl.className = 'fm3-rp'; rpEl.setAttribute('aria-hidden', 'true'); rpEl.innerHTML = '<i></i><b>REPLAY</b>'; } host.appendChild(rpEl); rpBadge('', false);
     W = H = 0; resize(); ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => resize()) : null; if (ro) ro.observe(host);
-    for (const p of [0, 1]) P[p].forEach((pl, i) => { const w = kickoffPos(p, i, p === 0); place(pl, w.x, w.z); });
+    for (const p of [0, 1]) P[p].forEach(pl => { const w = kickoffPos(pl, p === 0); place(pl, w.x, w.z); });
     place(refP, -6, 8); CAM.snap = true; setCam('wide');
     on = true; last = performance.now(); const g = ++gen; requestAnimationFrame(() => loop(g)); return true;
   },
   stop,
-  walkout, kickoff, idle, build, chance, outcome, after, celebrate, penFoul, penSetup, soSetup, soKick, card, whistle, finale,
+  walkout, kickoff, idle, build, chance, outcome, after, celebrate, penFoul, penSetup, soSetup, soKick, card, whistle, finale, replay,
   var(p) { const gk = P[1 - p] && P[1 - p][0]; if (gk && ball) { attach(gk, true); } },
   // posición en pantalla (en %) de un punto del campo: para colocar los rótulos
   scr(x, y, z) { if (!cam || !W) return { x: 50, y: 40 }; prj.set(x, y, z).project(cam); return { x: clamp((prj.x + 1) / 2 * 100, 6, 94), y: clamp((1 - prj.y) / 2 * 100, 8, 92) }; },
   goalScr(p) { return API.scr(gxOf(p), GH + 1.2, 0); },
-  _dbg() { return { P, ball, CAM, T, scene, R, poss }; },
+  _dbg() { return { P, ball, CAM, T, scene, R, poss, TM, RB, RP }; },
   _speed(k) { SPEED = k; },
+  _freeze(v) { FRZ = !!v; }, // congela la escena tal cual (depurar)
   _tick(n = 1, dt = 1 / 30) { if (!on) return; for (let i = 0; i < n; i++) frame(dt); }, // avanza la escena a mano (pestaña oculta)
 };
 window.FOOT3D = API;

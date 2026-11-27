@@ -1,5 +1,5 @@
 // BidVerse · fútbol. 300 jugadores de las 5 grandes ligas: 250 actuales (temporada 2026-27) + 50 leyendas en su mejor momento.
-// Media y estadísticas (ritmo, tiro, pase, regate, defensa, físico) de EA SPORTS FC 27. Formación 4-3-3.
+// Media y estadísticas (ritmo, tiro, pase, regate, defensa, físico) de EA SPORTS FC 27. Cada jugador elige formación (engine.js · FORMS); FUT_DIVS es el 4-3-3 por defecto.
 // Fila: [nombre, bandera, posición (GK/DEF/MID/FWD), media, rol, club, año del prime (solo leyendas)]
 // Roles: POR · DFC LI LD · MCD MC MCO · EI ED DC. Las fotos salen de Wikipedia automáticamente (o pics/fut-<nombre>.jpg).
 const FUT_DIVS=[{k:'GK',n:1},{k:'DEF',n:4},{k:'MID',n:3},{k:'FWD',n:3}];

@@ -20,7 +20,7 @@
     const g = G, c = g.P[ME].c;
     if (g.cat === 'anime') { const n = MAXC - c.length; return { all: n, now: n }; }
     const divs = g.cat === 'futbol' ? FDIVS : UFC_DIVS, i0 = Math.max(0, divs.findIndex(d => d.k === g.dv)); let all = 0, now = 0;
-    divs.forEach((d, i) => { const need = Math.max(0, (d.n || 1) - c.filter(x => x.cls === d.k).length); if (i >= i0) all += need; if (d.k === g.dv) now = need; });
+    divs.forEach((d, i) => { const need = Math.max(0, BidEngine.need(g, d.k, ME) - c.filter(x => x.cls === d.k).length); if (i >= i0) all += need; if (d.k === g.dv) now = need; }); // fútbol: lo que pide su formación
     return { all, now };
   }
   function value(c) { // lo máximo que está dispuesta a pagar por este lote
@@ -69,6 +69,11 @@
     const L = lv(); let d = L.delay[0] + Math.random() * (L.delay[1] - L.delay[0]);
     d = Math.min(d, Math.max(300, (g.left - 1.5) * 1000));
     const tk = bt; tm = setTimeout(() => { if (tk === bt) act(); }, d);
+  };
+  // formación (fútbol): cualquiera de las 44 de FC 27, con algo más de peso para las clásicas
+  window.cpuForm = function () {
+    const F = BidEngine.FORMS, fav = ['4-3-3', '4-4-2', '4-2-3-1', '4-1-2-1-2', '3-5-2', '5-3-2', '4-3-3 Attack', '3-4-3'];
+    return Math.random() < .45 ? fav[Math.floor(Math.random() * fav.length)] : F[Math.floor(Math.random() * F.length)];
   };
   // orden de combate (anime): normal y difícil sacan primero al más fuerte; fácil, al azar
   window.cpuOrder = function () {

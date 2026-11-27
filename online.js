@@ -61,6 +61,8 @@
     case 'fight':if(inGame&&net)netFight(m);break;
     case 'order':if(inGame&&net)netOrder(m);break;
     case 'orderReady':if(inGame&&net)netOrderReady(m.i);break;
+    case 'form':if(inGame&&net)netForm(m);break; // fútbol: elegir formación antes de la subasta
+    case 'formReady':if(inGame&&net)netFormReady(m.i);break;
     case 'peer':if(m.connected){peerOff=false;bar(u('olPeerBack'));setTimeout(()=>{if(!peerOff)bar('')},2500)}else{peerOff=true;bar(u('olPeerOff'))}break;
     case 'again':{const b=document.querySelector('.res p');if(b)b.textContent=u('olAgainAsk')}break;
     case 'peerleft':bar((m.timeout?u('olTimeout'):u('olPeerLeft'))+(m.pts&&window.bvPtsText?' '+bvPtsText(m.pts,m.you,true):''));if(net){const b=document.createElement('button');b.textContent=u('olBackMenu');b.onclick=()=>toMenu();$('netbar').appendChild(b)}room=null;inGame=false;break;
@@ -76,11 +78,11 @@
   /* ---------- PANTALLA DE ESPERA: al crear una sala te lleva aquí hasta que entra el rival ---------- */
   const LB={es:{title:'Sala creada',sub:'Pásale el código o el enlace a tu rival. La partida empieza sola en cuanto entre.',code:'Código de sala',link:'Copiar enlace',copy:'Copiar código',share:'Compartir',copied:'¡Copiado!',
       cat3:'Fútbol',you:'Tú',ready:'Listo',wait:'Esperando rival',notYet:'Todavía no ha entrado',waiting:'Esperando',cancel:'Cancelar sala',back:'← Menú',player:'Jugador',
-      anime:['3 personajes por jugador','$20 para pujar','10 s por puja','Combate por equipos'],ufc:['1 peleador por categoría','8 categorías','$40 para pujar','Noche de combates'],futbol:['11 jugadores · 4-3-3','100M para fichar','50 leyendas + 250 actuales','Partido simulado'],shareTxt:'¡Únete a mi sala de BidVerse! Código: ',
+      anime:['3 personajes por jugador','$20 para pujar','10 s por puja','Combate por equipos'],ufc:['1 peleador por categoría','8 categorías','$40 para pujar','Noche de combates'],futbol:['11 jugadores · 44 formaciones','100M para fichar','50 leyendas + 250 actuales','Partido simulado'],shareTxt:'¡Únete a mi sala de BidVerse! Código: ',
       seekT:'Buscando rival',seekSub:'Te emparejamos con el primero que busque partida en esta categoría. La partida empieza sola.',seekCpu:'Jugar contra la CPU mientras tanto',seekCancel:'Dejar de buscar',seekN:'{0} jugadores buscando ahora'},
     en:{title:'Room created',sub:'Send the code or the link to your rival. The game starts on its own as soon as they join.',code:'Room code',link:'Copy link',copy:'Copy code',share:'Share',copied:'Copied!',
       cat3:'Football',you:'You',ready:'Ready',wait:'Waiting for rival',notYet:'Not here yet',waiting:'Waiting',cancel:'Cancel room',back:'← Menu',player:'Player',
-      anime:['3 characters per player','$20 to bid','10 s per bid','Team battle'],ufc:['1 fighter per division','8 divisions','$40 to bid','Fight night'],futbol:['11 players · 4-3-3','100M to sign','50 legends + 250 current','Simulated match'],shareTxt:'Join my BidVerse room! Code: ',
+      anime:['3 characters per player','$20 to bid','10 s per bid','Team battle'],ufc:['1 fighter per division','8 divisions','$40 to bid','Fight night'],futbol:['11 players · 44 formations','100M to sign','50 legends + 250 current','Simulated match'],shareTxt:'Join my BidVerse room! Code: ',
       seekT:'Finding an opponent',seekSub:'You will be paired with the first player looking for a game in this category. The game starts on its own.',seekCpu:'Play the CPU meanwhile',seekCancel:'Stop searching',seekN:'{0} players searching now'}};
   const lt=k=>(LB[typeof lang!=='undefined'&&LB[lang]?lang:'es'])[k];
   let lbClock=0,lbT0=0,lbRoom=null;
