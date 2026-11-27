@@ -1244,8 +1244,8 @@ async function run(tk,script){
           const K=V.clash(),kc=Array.isArray(K)?K:['var(--p1)','var(--p2)'];
           // barra del choque (tira y afloja): la técnica de cada uno con su color, cuánto domina cada lado y quién empuja en cada momento
           const tug=tmp(`<div class="ab-tug" style="--c0:${kc[0]};--c1:${kc[1]};--x:.5"><div class="tg-top"><span class="tg-n l"><small>${dnh(cur[0])}</small><b>${tm[0]}</b></span><span class="tg-n r"><small>${dnh(cur[1])}</small><b>${tm[1]}</b></span></div><span class="tg-pc l">50%</span><div class="tg-bar"><i class="l"></i><i class="r"></i><b></b></div><span class="tg-pc r">50%</span></div>`,6500);
-          const pcs=tug.querySelectorAll('.tg-pc');let tx=.5;
-          const tugX=x=>{const pw=x>tx?0:1;tx=x;tug.style.setProperty('--x',x);const p0=Math.round(x*100);pcs[0].textContent=p0+'%';pcs[1].textContent=(100-p0)+'%';tug.classList.remove('p0','p1');void tug.offsetWidth;tug.classList.add('p'+pw)};
+          const pcs=[tug.querySelector('.tg-pc.l'),tug.querySelector('.tg-pc.r')];let tx=.5;
+          const tugX=x=>{const pw=x>tx?0:1;tx=x;tug.style.setProperty('--x',x);const p0=Math.round(x*100);if(pcs[0])pcs[0].textContent=p0+'%';if(pcs[1])pcs[1].textContent=(100-p0)+'%';tug.classList.remove('p0','p1');void tug.offsetWidth;tug.classList.add('p'+pw)};
           pop(abT('clashPop'),'',kc[a]);sfx('beam');shake();await z(600);
           for(const x of (h.fr||[.45,.55,l?1:0])){cl.style.setProperty('--x',x);tugX(x);V.clashX(x);if(x===0||x===1)break;sfx('hum');await z(330)}
           tug.classList.add('w'+w);
