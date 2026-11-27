@@ -24,14 +24,10 @@
   const pick = (rng, a) => a[rndi(rng, 0, a.length - 1)];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const shuffle = (rng, a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  /* Rareza (solo anime): los rotos (poder ≥ 900: God, Zeno, La Verdad, Gran Sacerdote, Whis, Saitama, Goku, Beerus) salen en 1 de cada 10 partidas.
-     Con probabilidad ROTO_P uno de ellos (al azar) entra entre los 6 primeros lotes, que toda partida llega a ver; los demás van al fondo del mazo. */
-  const ROTO_PW = 900, ROTO_P = 1 / 10;
-  function animeDeck(rng, pool) {
-    const roto = c => c.pw >= ROTO_PW, deck = shuffle(rng, pool.filter(c => !roto(c))), top = shuffle(rng, pool.filter(roto));
-    if (top.length && rng() < ROTO_P) deck.splice(rndi(rng, 0, Math.min(5, deck.length)), 0, top.shift());
-    return deck.concat(top);
-  }
+  /* Rotos (poder ≥ 900: God, Zeno, La Verdad, Gran Sacerdote, Whis, Saitama, Goku, Beerus): con tanto personaje ya no hay rareza,
+     salen con la misma probabilidad que cualquier otro (mazo barajado sin más). ROTO_PW solo lo usa la CPU para valorarlos. */
+  const ROTO_PW = 900;
+  const animeDeck = (rng, pool) => shuffle(rng, pool.slice());
 
   /* ---------- estado ---------- */
   function create({ cat, pool, divs = [], rng = Math.random }) {
@@ -729,5 +725,5 @@
     return { kind: 'anime', script: resolveAnime(g) };
   }
 
-  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, ROTO_PW, ROTO_P, order, FT, FUT_DIVS, futXI, fst, shotQ, resolveFutbol, resolve, create, can, out, gives, next, tick, place, skip, close, duel, stats, hpMax, decide, resolveAnime, resolveUfc, mulberry32 };
+  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, ROTO_PW, order, FT, FUT_DIVS, futXI, fst, shotQ, resolveFutbol, resolve, create, can, out, gives, next, tick, place, skip, close, duel, stats, hpMax, decide, resolveAnime, resolveUfc, mulberry32 };
 });

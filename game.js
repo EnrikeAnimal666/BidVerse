@@ -171,7 +171,7 @@ function onEv(e){switch(e.t){
     $('pic').innerHTML=(cur.img?lotImg(cur):`<div class="e">${cur.e}</div>`)+(cur.kind==='futbol'?`<div class="fovr${cur.leg?' leg':''}"><b>${cur.ovr}</b><span>${roleT(cur.role)}</span>${fstHtml(cur)}</div>`:'')+'<div class="stamp" id="stamp"><span id="st"></span></div>';
     $('pic').style.setProperty('--h',cur.h);
     $('lot').classList.toggle('ufc',cur.kind==='ufc'||cur.kind==='futbol');
-    lastBid=0;lotText();hint();render();timer();break;
+    lastBid=0;lotText();hint();render();timer();setTimeout(fitPic,0);break; // foto ya en caché: se mide con el recuadro ya colocado
   case 'forced':render();break;
   case 'tick':timer();tickSnd();break;
   case 'bid':
@@ -200,15 +200,18 @@ function onEv(e){switch(e.t){
     {const tk=++bt,go=()=>(cat==='ufc'?night:cat==='futbol'?match:run)(tk).catch(er=>{if(er!==0)throw er});
      if(cat==='anime'&&P.some(p=>p.c.length>1))lineup(CPU?{me:0,cpu:window.cpuOrder?cpuOrder():P[1].c.map((_,i)=>i)}:{me:null}).then(o=>{if(tk!==bt)return;o.forEach((x,p)=>BidEngine.order(G,p,x));go()});else go()}break;
 }}
-/* ---------- FOTO DEL LOTE: si el recuadro y la foto tienen formas muy distintas (p. ej. foto vertical en un portátil,
-   donde el recuadro queda ancho y bajo), se muestra la foto entera sobre una copia desenfocada en vez de recortarla ---------- */
+/* ---------- FOTO DEL LOTE: si el recuadro y la foto no tienen casi la misma forma (p. ej. foto vertical en un portátil,
+   donde el recuadro queda ancho y bajo), se muestra la foto entera sobre una copia desenfocada en vez de recortarla.
+   Se vuelve a medir cada vez que el recuadro cambia de tamaño (ResizeObserver): si la foto carga mientras el recuadro aún
+   está oculto o colocándose, antes se quedaba recortada hasta el siguiente lote ---------- */
 const lotImg=c=>`<img class="bk" src="${c.img}" alt="" aria-hidden="true"><img class="fg" src="${c.img}" alt="${c.n}" onload="fitPic()">`;
 function fitPic(){
   const p=$('pic'),i=p&&p.querySelector('img.fg');if(!i||!i.naturalWidth||!p.clientHeight)return;
   const ir=i.naturalWidth/i.naturalHeight,br=p.clientWidth/p.clientHeight;
-  p.classList.toggle('fit',Math.min(ir,br)/Math.max(ir,br)<.8); // con 'cover' se perdería más del 20 % de la foto
+  p.classList.toggle('fit',Math.min(ir,br)/Math.max(ir,br)<.92); // con 'cover' se perdería más del 8 % de la foto (cabezas cortadas)
 }
 addEventListener('resize',()=>fitPic());
+if(window.ResizeObserver&&$('pic'))new ResizeObserver(()=>fitPic()).observe($('pic'));
 /* ---------- LOGO = volver al inicio (como «← Menú»; en una partida online pide confirmación porque se abandona) ---------- */
 function goHome(ev){
   if(ev&&(ev.ctrlKey||ev.metaKey||ev.shiftKey||ev.button===1))return true; // abrir en otra pestaña: que lo haga el navegador

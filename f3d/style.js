@@ -22,7 +22,7 @@ export const STYLE = {
   'Yujiro Hanma': S('fist', { ...BARE, heavy: 1 }),
   'Fumihiko Takaba': S('fist', BARE), 'Reigen': S('fist', BARE),
   'Maki': S('blade', { ...BARE, fast: 1 }), 'Levi': S('blade', { ...BARE, w: 'dual', fast: 1 }), 'Mikasa': S('blade', { ...BARE, w: 'dual', fast: 1 }),
-  'King Bradley': S('blade', { ...BARE, w: 'dual', fast: 1 }), 'Guts': S('blade', { ...BARE, w: 'big', heavy: 1 }), 'Gintoki': S('blade', { ...BARE, w: 'bokken' }),
+  'Guts': S('blade', { ...BARE, w: 'big', heavy: 1 }), 'Gintoki': S('blade', { ...BARE, w: 'bokken' }),
   'Denji': S('blade', { ...BARE, w: 'chainsaw', el: 'blood' }), 'Lu Bu': S('pole', { ...BARE, w: 'spear', heavy: 1 }),
   // ---- cuerpo a cuerpo con aura (energía que refuerza el golpe, pero no la lanzan) ----
   'Luffy': S('fist', { ...NOCE, heavy: 1 }), 'Yuji': S('fist', NOCE), 'Todo': S('fist', { ...NOCE, heavy: 1 }), 'Kinji Hakari': S('fist', NOCE),
@@ -52,7 +52,7 @@ export const STYLE = {
   // ---- armas de asta, mazas, hachas y martillos ----
   'Whitebeard': S('pole', { w: 'spear', heavy: 1 }), 'Kaido': S('pole', { w: 'club', heavy: 1 }), 'Thor': S('pole', { w: 'hammer', heavy: 1, el: 'thunder' }),
   'Escanor': S('pole', { w: 'axe', heavy: 1, el: 'sun' }), 'Whis': S('pole', { w: 'staff' }), 'Buddha': S('pole', { w: 'staff' }), 'Hiruzen Sarutobi': S('pole', { w: 'staff' }),
-  'Hajime Kashimo': S('pole', { w: 'staff', el: 'thunder' }), 'Nami': S('pole', { w: 'staff', el: 'thunder' }), 'Mei Mei': S('pole', { w: 'axe' }),
+  'Hajime Kashimo': S('pole', { w: 'staff', el: 'thunder' }), 'Mei Mei': S('pole', { w: 'axe' }),
   'Nobara Kugisaki': S('pole', { w: 'hammer' }), 'Kurapika': S('pole', { w: 'chain' }),
   // ---- garras, colas, látigos y kagune ----
   'Meruem': S('claw', { w: 'tail' }), 'Muzan': S('claw', { w: 'whip', el: 'blood' }), 'Kaneki': S('claw', { w: 'kagune', el: 'blood' }), 'Mahito': S('claw'),
@@ -63,7 +63,7 @@ export const STYLE = {
   'Josuke Higashikata': S('stand', { sc: '#ff8fc8' }), 'Jolyne Cujoh': S('stand', { sc: '#4aa3ff' }), 'Yoshikage Kira': S('stand', { sc: '#ff9ec4' }),
   'Diavolo': S('stand', { sc: '#ff2a3a' }), 'Enrico Pucci': S('stand', { sc: '#e8e8f0' }),
   // ---- telequinesis, gravedad y mente ----
-  'Tatsumaki': S('psy'), 'Mob': S('psy'), 'Zeno': S('psy'), 'Pain': S('psy'), 'Kenjaku': S('psy'), 'Lucifero': S('psy'), 'Onoki': S('psy'), 'Nanika': S('psy'),
+  'Tatsumaki': S('psy'), 'Mob': S('psy'), 'Zeno': S('psy'), 'Pain': S('psy'), 'Kenjaku': S('psy'), 'Lucifero': S('psy'), 'Nanika': S('psy'),
   'Toge Inumaki': S('psy'), 'Lelouch': S('psy'), 'C.C.': S('psy'), 'Light Yagami': S('psy'), 'Truth': S('psy'), 'God': S('psy'),
   // ---- magia, jutsu y alquimia ----
   'Roy Mustang': S('mage', { el: 'fire' }), 'Itachi': S('mage', { el: 'fire' }), 'Gaara': S('mage', { el: 'sand' }), 'Hashirama': S('mage', { el: 'wood' }),
