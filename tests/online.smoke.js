@@ -28,7 +28,11 @@ function client(port,acc){
 const until=async(f,ms=20000,msg='condición')=>{const t0=Date.now();while(Date.now()-t0<ms){if(f())return;await sleep(10)}throw new Error('timeout: '+msg)};
 const done=c=>/class="res[ "]/.test(String(c.el('end').innerHTML));
 // anime: en la pantalla de orden cada cliente pulsa "Listo" con su orden (si no, el servidor usa el de compra al acabar el tiempo)
-const ready=c=>{if(c.J('!!LU&&!LU.ready[net.me]'))c.J("LU.el.onclick({target:{closest:()=>({disabled:false,dataset:{go:String(net.me)}})}})")};
+const ready=c=>{if(c.J('!!LU&&!LU.ready[net.me]'))c.J("LU.el.onclick({target:{closest:()=>({disabled:false,dataset:{go:String(net.me)}})}})");formReady(c)};
+// fútbol: en la pantalla de formación Ana elige 5-3-2 y Beto 3-4-2-1 (intentar elegir por el rival no hace nada)
+const FORMS=['5-3-2','3-4-2-1'];
+const formReady=c=>{if(!c.J('!!FP&&!FP.ready[net.me]'))return;const me=c.J('net.me'),k=FORMS[me];
+  c.J(`FP.el.onclick({target:{closest:()=>({disabled:false,dataset:{fk:${JSON.stringify(k)}}})}})`);c.J(`FP.el.onclick({target:{closest:()=>({disabled:false,dataset:{fgo:'1'}})}})`)};
 
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'bidverse-online-'));
 (async()=>{
@@ -76,6 +80,9 @@ const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'bidverse-online-'));
       assert(cut||true);
       assert.strictEqual(JSON.stringify(A.J('G.P.map(p=>[p.m,p.c.map(c=>c.n)])')),JSON.stringify(B.J('G.P.map(p=>[p.m,p.c.map(c=>c.n)])')),'los dos ven el mismo resultado');
       assert(!A.alerts.length&&!B.alerts.length,'sin alertas de error');
+      if(cat==='futbol'){assert.strictEqual(A.J('G.form.join()'),FORMS.join(),'el servidor usa la formación de cada uno');assert.strictEqual(B.J('G.form.join()'),FORMS.join());
+        const nd=FORMS.map(k=>A.J(`BidEngine.formNeeds(${JSON.stringify(k)})`));
+        for(const p of[0,1])for(const k of['DEF','MID','FWD'])assert(A.J(`G.P[${p}].c.filter(c=>c.cls==='${k}').length`)<=nd[p][k],'cupo de la formación');}
       // revancha
       A.J('again()');B.J('again()');
       await until(()=>!done(A)&&!done(B),5000,'revancha empieza');

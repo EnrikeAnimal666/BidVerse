@@ -7,10 +7,10 @@ const byN=new Map([...POOLS.anime,...UFC,...FUTP].map(c=>[c.n,c])),imgOf=n=>(byN
 /* ---------- IDIOMAS: u() = plantilla {0},{1}… de lang/xx.js · X = mensajes compuestos · t() = ambos ---------- */
 let lang='en'; // idioma oficial: inglés. El traductor del navegador se encarga del resto (no hay botón de idioma).
 const EXT={ // textos que no están en lang/*.js (fútbol); FUTX solo se usa durante una partida de fútbol (dinero en millones)
- es:{cat3:'Fútbol',cat3d:'Ficha un once de leyendas y cracks actuales. 4-3-3 y 100 millones para gastar.',nPlayers:'{0} futbolistas',tabFut:'Fútbol',olCreateFutbol:'Crear sala · Fútbol',
+ es:{cat3:'Fútbol',cat3d:'Ficha un once de leyendas y cracks actuales. Elige tu formación (las 44 de FC 27) y gasta 100 millones.',nPlayers:'{0} futbolistas',tabFut:'Fútbol',olCreateFutbol:'Crear sala · Fútbol',
   div_GK:'Porteros',div_DEF:'Defensas',div_MID:'Centrocampistas',div_FWD:'Delanteros',legend:'Leyenda',
   scaleNoteFut:'Media y estadísticas de EA SPORTS FC 27 (ritmo, tiro, pase, regate, defensa y físico). Las leyendas llevan su carta Icono (las que no tienen Icono, su mejor carta de FIFA/FC). En el partido cuentan: el tiro decide cuánto mete cada uno. Las fotos salen de Wikipedia.'},
- en:{cat3:'Football',cat3d:'Sign an XI of legends and current stars. 4-3-3 and 100 million to spend.',nPlayers:'{0} players',tabFut:'Football',olCreateFutbol:'Create room · Football',
+ en:{cat3:'Football',cat3d:'Sign an XI of legends and current stars. Pick your formation (all 44 from FC 27) and spend 100 million.',nPlayers:'{0} players',tabFut:'Football',olCreateFutbol:'Create room · Football',
   div_GK:'Goalkeepers',div_DEF:'Defenders',div_MID:'Midfielders',div_FWD:'Forwards',legend:'Legend',
   scaleNoteFut:'Ratings and stats from EA SPORTS FC 27 (pace, shooting, passing, dribbling, defending and physical). Legends use their Icon card (or their best FIFA/FC card if they have no Icon). They count in the match: shooting decides how much each player scores. Photos come from Wikipedia.'}};
 const FUTX={es:{paid:'{0}M',forPrice:'{0}M',errMoney:'Solo te quedan {0}M.',errOver:'Tienes que pujar más de {0}M.',bidPh:'Millones'},
@@ -92,7 +92,7 @@ function popBid(e,prev){ // efecto visual de la última puja: número que salta,
 function lotText(){$('fr').textContent=cur.kind==='ufc'||cur.kind==='futbol'?u('div_'+cur.cls):an(cur.a);
   if(cur.kind==='futbol'){$('nm').innerHTML=dnh(cur)+`<small>${cur.e} ${roleT(cur.role)} · ${cur.club}${cur.leg?` ${cur.yr} · <em class="lg">${u('legend')}</em>`:''}</small>`;return}
   $('nm').innerHTML=dnh(cur)+(cur.kind==='anime'&&cur.tr?`<small class="trl">${UNQ.has(cur.tr)?'★':'✦'} <b>${trT(cur.tr,0)}</b> · ${trT(cur.tr,1)}</small>`:'')+(cur.kind==='ufc'?`<small>${cur.e} ${cur.nick?'“'+cur.nick+'” · ':''}${u('sty_'+cur.sty)}</small>`:'')}
-function menuInfo(){if($('ch-foot'))$('ch-foot').textContent=u('nPlayers',FUTP.length)+' · 4-3-3';$('ch-anime').textContent=u('nChars',POOLS.anime.length);$('ch-ufc').textContent=u('nFighters',UFC.length)+' · '+u('nDivs',UFC_DIVS.length)}
+function menuInfo(){if($('ch-foot'))$('ch-foot').textContent=u('nPlayers',FUTP.length)+' · '+BidEngine.FORMS.length+(lang==='es'?' formaciones':' formations');$('ch-anime').textContent=u('nChars',POOLS.anime.length);$('ch-ufc').textContent=u('nFighters',UFC.length)+' · '+u('nDivs',UFC_DIVS.length)}
 function applyLang(){
   document.documentElement.lang=lang;
   document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));
@@ -108,7 +108,7 @@ function setLang(l){
 }
 applyLang();
 function panel(p){const n=p+1;return `<section class="side" style="--c:var(--p${n});--on:var(--on${n})">
-<header>${padAv(p)||`<div class="pad">${n}</div>`}<div><h2>${t('player',n)}</h2></div><div class="money" id="m${p}"></div></header>
+<header>${padAv(p)||`<div class="pad">${n}</div>`}<div><h2>${t('player',n)}</h2>${cat==='futbol'?`<small class="fpb" id="fb${p}"></small>`:''}</div><div class="money" id="m${p}"></div></header>
 <div id="s${p}"></div>
 <div class="ctl"><label class="inp"><span>${cat==='futbol'?'€':'$'}</span><input id="i${p}" type="number" min="1" step="1" inputmode="numeric" placeholder="${t('bidPh')}" onkeydown="if(event.key==='Enter')place(${p})"></label>
 <button class="go" id="g${p}" onmousedown="event.preventDefault()" onclick="place(${p})">${t('bidBtn')}</button><button class="go plus" id="u${p}" onmousedown="event.preventDefault()" onclick="plus(${p})" title="${cat==='futbol'?'+1M':'+$1'}">${cat==='futbol'?'+1M':'+$1'}</button></div>
@@ -122,6 +122,9 @@ function start(c,keepCpu){
   $('P1').innerHTML=panel(0);$('P2').innerHTML=panel(1);
   $('menu').style.display='none';$('game').style.display='block';$('end').style.display='none';
   if(CPU)$('P1').firstElementChild.classList.add('me');
+  if(c==='futbol'){ // fútbol: antes del primer lote cada uno elige su formación (contra la CPU, solo tú)
+    const tk=bt;render();$('info').textContent=fpT('sub');
+    pickForm({me:null,cpu:!!CPU}).then(ks=>{if(tk!==bt)return;ks.forEach((k,p)=>BidEngine.setForm(G,p,k));render();apply(BidEngine.next(G))});return}
   apply(BidEngine.next(G));
 }
 // Jugar solo contra la CPU (cpu.js): el jugador es el 1; la CPU, el 2. lvl 1 fácil · 2 normal · 3 difícil
@@ -136,17 +139,19 @@ function startOnline(cat_,names,me,send,avs){
   CPU=null;closeLineup();gameBg(cat_);bt++;clearInterval(tick);tick=0;$('wipe').className='wipe';document.querySelector('.board').style.display='';
   $('end').className='end';$('end').innerHTML='';$('end').style.display='none';
   cat=cat_;net={names,me,send,avs:avs||[]};$('game').classList.toggle('ufc',cat==='ufc');$('game').classList.toggle('fut',cat==='futbol');
-  G={cat,divs:cat==='futbol'?FDIVS:[],P:[{m:0,c:[]},{m:0,c:[]}],dv:'',phase:'idle',cur:null,bid:0,leader:-1,left:SECS,free:-1,fp:false,passed:[false,false],skips:[2,2],locked:true};mirror();
+  G={cat,divs:cat==='futbol'?FDIVS:[],P:[{m:0,c:[]},{m:0,c:[]}],dv:'',phase:'idle',cur:null,bid:0,leader:-1,left:SECS,free:-1,fp:false,passed:[false,false],skips:[2,2],locked:true};netForms(G,null);mirror();
   wantImg(POOLS[cat]);
   $('P1').innerHTML=panel(0);$('P2').innerHTML=panel(1);
   $('menu').style.display='none';$('game').style.display='block';
   $('P'+(me+1)).firstElementChild.classList.add('me');
 }
+function netForms(g,f){if(g.cat!=='futbol')return;g.form=[0,1].map(p=>BidEngine.form(f&&f[p]).k);g.needs=g.form.map(BidEngine.formNeeds)} // online: formaciones que manda el servidor
 function mismatch(){const b=$('netbar');if(!b)return;b.style.display='block';b.textContent=lang==='en'?'The server runs a different game version than this page. Restart the server with the updated files and reload with Ctrl+F5.':'El servidor tiene una versión distinta del juego que esta página. Reinicia el servidor con los archivos actualizados y recarga con Ctrl+F5.'}
 const unk=l=>{const m=l.some(n=>n&&!byN.has(n));if(m)mismatch();return m}; // nombres que el servidor manda y esta página no conoce = versiones mezcladas
 function netState(s,ev){if(unk([s.cur,...s.P.flatMap(p=>p.c.map(c=>c.n))]))return; // estado completo del servidor + eventos que lo han provocado
   G={cat:s.cat,divs:s.cat==='futbol'?FDIVS:[],dv:s.dv,phase:s.phase,cur:s.cur?byN.get(s.cur):null,bid:s.bid,leader:s.leader,left:s.left,free:s.free,fp:!!s.fp,passed:s.passed,skips:s.skips,locked:s.locked,
      P:s.P.map(p=>({m:p.m,c:p.c.map(c=>({...byN.get(c.n),paid:c.paid,free:c.free}))}))};
+  netForms(G,s.form);if(s.phase!=='idle')closeForm(); // la subasta ya ha empezado: fuera la pantalla de formación
   mirror();
   for(const e of ev)onEv(e);
 }
@@ -223,7 +228,7 @@ function goHome(ev){
   scrollTo(0,0);return false;
 }
 function timer(){$('bar').style.width=Math.max(left,0)/SECS*100+'%';$('barw').classList.toggle('low',left<=3);$('tm').textContent='0:'+pad2(Math.max(left,0))}
-function futSlot(p,c){let off=0;for(const d of FDIVS){if(d.k===c.cls)return off+P[p].c.filter(x=>x.cls===d.k).length-1;off+=d.n}return 0}
+function futSlot(p,c){return Math.max(0,BidEngine.futLine(P[p].c,(G.form||[])[p]).findIndex(o=>o.c&&o.c.n===c.n))} // el hueco de la formación donde ha encajado
 const POS_S={es:{GK:'POR',DEF:'DEF',MID:'MED',FWD:'DEL'},en:{GK:'GK',DEF:'DEF',MID:'MID',FWD:'FWD'}};
 function render(){
   $('bid').textContent=leader<0?'—':bid?money(bid):t('free');
@@ -233,10 +238,17 @@ function render(){
   for(let p=0;p<2;p++){
     $('m'+p).textContent=money(P[p].m);
     let h='';
+    if(cat==='futbol'){ // fútbol: los 11 huecos de su formación, cada carta donde mejor encaja (igual que en el partido)
+      const fb=$('fb'+p);if(fb)fb.textContent=(G.form||[])[p]||'';let prev='';
+      BidEngine.futLine(P[p].c,(G.form||[])[p]).forEach(({s,c})=>{const g0=s.cls!==prev?' g0':'';prev=s.cls;
+        h+=c?`<div class="slot full${g0}" style="--h:${c.h}"><div class="av">${imgOf(c.n)?`<img src="${imgOf(c.n)}" alt="${c.n}">`:c.e}</div><div><b>${dnh(c)}</b><small>${posT(s.pos)}${POS_ROLE[s.pos]&&POS_ROLE[s.pos]!==c.role?` (${roleT(c.role)})`:''} · ${c.ovr} · ${c.paid?t('paid',c.paid):c.free?t('free'):t('random')}</small></div></div>`
+            :`<div class="slot${g0}"><div class="av"></div><div><small>${s.cls==='GK'?posT('GK'):(POS_S[lang]||POS_S.es)[s.cls]+' · '+posT(s.pos)}</small></div></div>`});
+    }else{
     const SL=cat==='ufc'?UFC_DIVS.map(d=>P[p].c.find(c=>c.cls===d.k)||d.k):cat==='futbol'?FDIVS.flatMap(d=>{const got=P[p].c.filter(c=>c.cls===d.k);return Array.from({length:d.n},(_,i)=>got[i]||d.k)}):Array.from({length:MAXC},(_,i)=>P[p].c[i]);
     SL.forEach(c=>{const dl=typeof c==='string'?c:c&&cat!=='anime'?c.cls:'',dt=cat==='futbol'?(c&&c.n?`${roleT(c.role)} · ${c.ovr} · `:(POS_S[lang]||POS_S.es)[dl]):dl?u('div_'+dl).split(' · ')[0]+(c&&c.n?' · ':''):'';
       h+=c&&c.n?`<div class="slot full" style="--h:${c.h}"><div class="av">${imgOf(c.n)?`<img src="${imgOf(c.n)}" alt="${c.n}">`:c.e}</div><div><b>${dnh(c)}</b><small>${dt}${c.paid?t('paid',c.paid):c.free?t('free'):t('random')}</small></div></div>`
           :`<div class="slot"><div class="av"></div>${dl?`<div><small>${dt}</small></div>`:''}</div>`});
+    }
     $('s'+p).innerHTML=h;
     $('g'+p).disabled=$('i'+p).disabled=locked||passed[p];
     $('u'+p).disabled=locked||passed[p]||free===p||bid+1>P[p].m;
@@ -262,7 +274,7 @@ const LU_T={en:{title:'Battle order',sub:'Who fights first? The winner of each d
  es:{title:'Orden de combate',sub:'¿Quién sale primero? El que gana un duelo sigue con la vida que le quede.',ready:'Listo',waiting:'Eligiendo…',done:'Listo ✓',up:'Subir',down:'Bajar'}};
 const luT=k=>(LU_T[lang]||LU_T.en)[k];
 let LU=null;
-function closeLineup(){if(!LU)return;clearInterval(LU.clock);LU.el.remove();LU=null}
+function closeLineup(){closeForm();if(!LU)return;clearInterval(LU.clock);LU.el.remove();LU=null}
 function lineup(o){ // o: { me: null (local) | 0 | 1, ms?, done?, send? } → en local devuelve una promesa con los dos órdenes
   closeLineup();
   return new Promise(res=>{
@@ -283,6 +295,63 @@ function lineup(o){ // o: { me: null (local) | 0 | 1, ms?, done?, send? } → en
 }
 function netOrder(m){if(cat==='anime')lineup({me:net.me,ms:m.ms,done:m.done,send:o=>net.send({t:'order',order:o})})}
 function netOrderReady(i){if(LU){LU.ready[i]=true;LU.paint()}}
+
+/* ---------- FORMACIÓN (fútbol): antes de la subasta cada jugador elige una de las 44 de EA SPORTS FC 27 ----------
+   La formación decide por cuántos jugadores de cada posición puede pujar (5-3-2 = 5 defensas, 3 medios y 2 delanteros).
+   Local: primero elige el Jugador 1 y luego el 2. Contra la CPU: solo tú (la CPU elige la suya). Online: cada uno la suya, con tiempo. */
+const FP_T={en:{title:'Choose your formation',sub:'You will bid for exactly the players your formation needs.',b3:'3 at the back',b4:'4 at the back',b5:'5 at the back',ready:'Ready',rand:'Random',waiting:'Choosing…',done:'Ready ✓',you:'You'},
+ es:{title:'Elige tu formación',sub:'Pujarás exactamente por los jugadores que pide tu formación.',b3:'Defensa de 3',b4:'Defensa de 4',b5:'Defensa de 5',ready:'Listo',rand:'Al azar',waiting:'Eligiendo…',done:'Listo ✓',you:'Tú'}};
+const fpT=k=>(FP_T[lang]||FP_T.en)[k];
+const POS_L={es:{GK:'POR',CB:'DFC',LB:'LI',RB:'LD',LWB:'CAI',RWB:'CAD',CDM:'MCD',CM:'MC',LM:'MI',RM:'MD',CAM:'MCO',LW:'EI',RW:'ED',ST:'DC'}};
+const posT=k=>(POS_L[lang]||{})[k]||k;
+const POS_ROLE={GK:'POR',CB:'DFC',LB:'LI',LWB:'LI',RB:'LD',RWB:'LD',CDM:'MCD',CM:'MC',CAM:'MCO',LW:'EI',RW:'ED',ST:'DC'}; // el rol de la carta que es "su sitio"
+const FP_C={GK:'#ffd23f',DEF:'#4aa3ff',MID:'#3ed37a',FWD:'#ff5a4a'};
+// campo en vertical (ataca hacia arriba) con los 11 de la formación; los puntos se deslizan al cambiar de formación
+const fpX=s=>34+s.v*27,fpY=s=>92-s.u/.7*82;
+function formSvg(){return `<svg class="fp-svg" viewBox="0 0 68 100" role="img"><rect x="1" y="1" width="66" height="98" class="fp-turf"/><g class="fp-ln" fill="none"><rect x="1" y="1" width="66" height="98"/><line x1="1" y1="50" x2="67" y2="50"/><circle cx="34" cy="50" r="8"/><rect x="15" y="1" width="38" height="15"/><rect x="25" y="1" width="18" height="5.5"/><rect x="15" y="84" width="38" height="15"/><rect x="25" y="93.5" width="18" height="5.5"/></g>${Array.from({length:11},(_,i)=>`<g class="fp-d" data-i="${i}"><circle r="3.6"/><text y="7.8"></text></g>`).join('')}</svg>`}
+function paintFormSvg(svg,k){const f=BidEngine.form(k);svg.setAttribute('aria-label',f.k);svg.querySelectorAll('.fp-d').forEach((g,i)=>{const s=f.slots[i];g.style.transform=`translate(${fpX(s).toFixed(2)}px,${fpY(s).toFixed(2)}px)`;g.querySelector('circle').setAttribute('fill',FP_C[s.cls]);g.querySelector('text').textContent=posT(s.pos)})}
+let FP=null;
+function closeForm(){if(!FP)return;clearInterval(FP.clock);FP.el.remove();FP=null}
+function pickForm(o){ // o: { me: null (local) | 0 | 1 (online), cpu?, ms?, done?, send? } → en local devuelve una promesa con las dos formaciones
+  closeForm();
+  return new Promise(res=>{
+    const F=BidEngine.FORMS,sel=[0,1].map(p=>BidEngine.form((G.form||[])[p]).k),ready=(o.done||[false,false]).slice(),end=o.ms?Date.now()+o.ms:0;
+    let turn=o.me==null?0:o.me;
+    const el=document.createElement('div');el.className='modal open lu fp';document.body.appendChild(el);
+    FP={el,ready,sel,paint:null,clock:0};
+    const mine=p=>o.me==null?p===turn:o.me===p,nameOf=p=>o.cpu&&p===1?'CPU':o.cpu&&p===0?fpT('you'):t('player',p+1);
+    const grp=[['b3',3],['b4',4],['b5',5]].map(([k,n])=>`<h5>${fpT(k)}</h5><div class="fp-g">${F.filter(f=>BidEngine.form(f).need.DEF===n).map(f=>`<button type="button" data-fk="${f}">${f}</button>`).join('')}</div>`).join('');
+    el.innerHTML=`<div class="mbox lu-box fp-box"><div class="mh"><h3>${fpT('title')}</h3>${end?'<b class="lu-tm" id="fptm"></b>':''}</div><p class="lu-sub">${fpT('sub')}</p>
+<div class="fp-who" id="fpwho"></div>
+<div class="fp-main"><figure class="fp-pitch">${formSvg()}</figure>
+<div class="fp-side"><div class="fp-head"><b class="fp-name" id="fpname"></b><div class="fp-cnt" id="fpcnt"></div></div><div class="fp-list">${grp}</div></div></div>
+<div class="fp-foot"><button type="button" class="fp-rand" data-frand="1">${fpT('rand')}</button><button type="button" class="lu-go" data-fgo="1" id="fpgo"></button></div></div>`;
+    const box=el.querySelector('.fp-box'),svg=el.querySelector('.fp-svg'),q=id=>el.querySelector('#'+id);
+    const paint=()=>{
+      const k=sel[turn],f=BidEngine.form(k),lock=ready[turn]||!mine(turn),PS=POS_S[lang]||POS_S.es;
+      if(box.style){box.style.setProperty('--c',`var(--p${turn+1})`);box.style.setProperty('--on',`var(--on${turn+1})`)}
+      q('fpname').textContent=k;q('fpcnt').innerHTML=['DEF','MID','FWD'].map(c=>`<span style="--dc:${FP_C[c]}"><b>${f.need[c]}</b>${PS[c]}</span>`).join('');
+      paintFormSvg(svg,k);
+      el.querySelectorAll('[data-fk]').forEach(b=>{b.classList.toggle('on',b.dataset.fk===k);b.disabled=lock});
+      const rb=el.querySelector('[data-frand]');rb.disabled=lock;
+      const go=q('fpgo');go.disabled=lock;go.textContent=fpT(ready[turn]?'done':'ready');
+      q('fpwho').innerHTML=[0,1].map(p=>{const vis=o.me==null||o.me===p,st=ready[p]?(vis||o.cpu?sel[p]+' ✓':fpT('done')):fpT('waiting');
+        return `<span class="fp-pl${p===turn?' on':''}${ready[p]?' ok':''}" style="--c:var(--p${p+1});--on:var(--on${p+1})"><b>${nameOf(p)}</b><small>${o.cpu&&p===1?'—':st}</small></span>`}).join('');
+      tm()};
+    const tm=()=>{const e=q('fptm');if(e)e.textContent=Math.max(0,Math.ceil((end-Date.now())/1000))+'s'};
+    FP.paint=paint;if(end)FP.clock=setInterval(tm,250);
+    const show=k=>{const b=el.querySelector(`[data-fk="${k}"]`);if(b&&b.scrollIntoView)b.scrollIntoView({block:'nearest'})};
+    el.onclick=ev=>{const b=ev.target.closest('button');if(!b||b.disabled)return;const d=b.dataset;
+      if(d.fk!=null){if(BidEngine.isForm(d.fk)){sel[turn]=d.fk;paint()}return}
+      if(d.frand!=null){let k=sel[turn];while(F.length>1&&k===sel[turn])k=F[Math.floor(Math.random()*F.length)];sel[turn]=k;paint();show(k);return}
+      if(d.fgo!=null){const p=turn;ready[p]=true;if(o.send)o.send(sel[p]);
+        if(o.me==null&&!o.cpu&&p===0){turn=1;paint();show(sel[1]);return} // local: ahora elige el Jugador 2
+        paint();if(o.me==null){closeForm();res([sel[0],o.cpu?(window.cpuForm?cpuForm():BidEngine.FORM0):sel[1]])}}};
+    paint();show(sel[turn]);
+  });
+}
+function netForm(m){if(cat==='futbol'&&G&&G.phase==='idle')pickForm({me:net.me,ms:m.ms,done:m.done,send:k=>net.send({t:'form',k})})}
+function netFormReady(i){if(FP){FP.ready[i]=true;FP.paint()}}
 
 /* ---------- COMBATE FINAL ---------- */
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -1191,7 +1260,7 @@ const FM_T={
   ovr:'MED',lines:['POR','DEF','MED','DEL'],pen1:'penalti',penPop:'¡PENALTI!',
   run:'¡Pase al hueco para <b>{a}</b>!',drib:'<b>{a}</b> encara a {d}…',dribOk:'¡<b>{a}</b> se va de {d}!',cross:'<b>{a}</b> centra al área…',header:'¡Cabezazo de <b>{s}</b>!',
   box:'<b>{a}</b> combina con {s}…',long:'¡<b>{s}</b> lo intenta desde lejos!',oneOnOne:'¡<b>{a}</b> se queda solo ante {g}!',claim:'<b>{g}</b> sale y atrapa el centro',clear:'<b>{d}</b> despeja de cabeza',
-  lost:['<b>{d}</b> le roba el balón a {a}','¡Entradón de <b>{d}</b>!','<b>{d}</b> corta el pase']},
+  lost:['<b>{d}</b> le roba el balón a {a}','¡Entradón de <b>{d}</b>!','<b>{d}</b> corta el pase'],replay:'REPETICIÓN',replayGoal:'Así fue el gol de <b>{s}</b>',varRp:'VAR · revisando la jugada'},
  en:{half1:'1st half',half2:'2nd half',ht:'Half-time',ft:'Full time',pens:'Penalties',kick:'Kick-off!',kick2:'Second half under way!',
   lineups:'Both XIs walk out',goal:'GOOOAL!',assist:'Ast.',save:['Great save by <b>{g}</b>!','<b>{g}</b> holds {s}’s shot','<b>{g}</b> to the rescue'],
   wide:['<b>{s}</b> drags it wide','<b>{s}</b> blazes it over','Just past the post from <b>{s}</b>!'],post:'OFF THE POST! So close for <b>{s}</b>',
@@ -1202,7 +1271,7 @@ const FM_T={
   ovr:'OVR',lines:['GK','DEF','MID','FWD'],pen1:'penalty',penPop:'PENALTY!',
   run:'Through ball for <b>{a}</b>!',drib:'<b>{a}</b> takes on {d}…',dribOk:'<b>{a}</b> skips past {d}!',cross:'<b>{a}</b> whips in a cross…',header:'Header from <b>{s}</b>!',
   box:'<b>{a}</b> plays a one-two with {s}…',long:'<b>{s}</b> tries one from distance!',oneOnOne:'<b>{a}</b> is one-on-one with {g}!',claim:'<b>{g}</b> comes out and claims the cross',clear:'<b>{d}</b> heads it clear',
-  lost:['<b>{d}</b> wins the ball off {a}','Crunching tackle by <b>{d}</b>!','<b>{d}</b> cuts out the pass']}};
+  lost:['<b>{d}</b> wins the ball off {a}','Crunching tackle by <b>{d}</b>!','<b>{d}</b> cuts out the pass'],replay:'REPLAY',replayGoal:'Another look at <b>{s}</b>’s goal',varRp:'VAR · checking the play'}};
 const fmT=(k,i)=>{let s=(FM_T[lang]||FM_T.es)[k];if(Array.isArray(s))s=s[(i||0)%s.length];return String(s??k)};
 const FST_L={es:{f:['RIT','TIR','PAS','REG','DEF','FÍS'],g:['EST','PAR','SAQ','REF','VEL','COL']},en:{f:['PAC','SHO','PAS','DRI','DEF','PHY'],g:['DIV','HAN','KIC','REF','SPD','POS']}};
 const fstL=c=>(FST_L[lang]||FST_L.en)[c.cls==='GK'?'g':'f'];
@@ -1213,16 +1282,21 @@ const ROLE_EN={POR:'GK',DFC:'CB',LI:'LB',LD:'RB',MCD:'CDM',MC:'CM',MCO:'CAM',EI:
 const roleT=r=>lang==='en'?(ROLE_EN[r]||r):r;
 const PART=new Set(['van','de','di','da','dos','du','der','den','Van','De','Di','Da','Mac','Le','La','del']);
 const shortN=n=>{if(!n)return'';const c=C(n),w=(c?dn(c):n).split(' ');if(w.length<2)return w[0];if(/^(Júnior|Junior|Jr\.?)$/.test(w[w.length-1]))return w[w.length-2];let k=w.length-1;while(k>0&&PART.has(w[k-1]))k--;return w.slice(k).join(' ')};
-const FM_NUM=[1,3,4,5,2,8,6,10,11,9,7];
-const FM_BASE=[[5,50],[23,15],[19,37],[19,63],[23,85],[37,27],[32,50],[37,73],[47,17],[48,50],[47,83]];
+// dorsales clásicos según el hueco de la formación (4-3-3 = 1 3 4 5 2 8 6 10 11 9 7); si se repiten, del 12 en adelante
+const NUM_PREF={GK:[1],LB:[3],LWB:[3],RB:[2],RWB:[2],CB:[4,5,6,15],CDM:[6,8,4,16],CM:[8,10,6,14,16],LM:[11,17],RM:[7,17],CAM:[10,20,18],LW:[11,17],RW:[7,19],ST:[9,19,20,21]};
+const fmNums=sl=>{const used=new Set();return sl.map(s=>{let n=(NUM_PREF[s.pos]||[]).find(x=>!used.has(x));if(n==null){n=12;while(used.has(n))n++}used.add(n);return n})};
+// índices de cada línea (los mismos que usa el motor): defensas, medios, delanteros, centrales y el medio centro que recibe la salida
+const fmIdx=sl=>{const by=k=>sl.map((o,i)=>o.cls===k?i:-1).filter(i=>i>=0),DF=by('DEF'),MD=by('MID'),FW=by('FWD');
+  return {DF,MD,FW,CB:DF.filter(i=>sl[i].pos==='CB').concat(DF.length?[]:[1]),C0:MD.slice().sort((a,b)=>Math.abs(sl[a].v)+sl[a].u-Math.abs(sl[b].v)-sl[b].u)[0],ST:FW.slice().sort((a,b)=>Math.abs(sl[a].v)-Math.abs(sl[b].v))[0]}};
 const FMS=1; // velocidad fija: el partido no se puede acelerar ni saltar (igual que el combate anime)
 async function match(tk,script){
   const S0=script||BidEngine.resolveFutbol(G),ev=S0.ev,L=ev.find(e=>e.t==='lineups')||{L:[[],[]],T:[{},{}]};
   const z=async ms=>{await sleep(ms/FMS);if(tk!==bt)throw 0};
   const team=p=>L.L[p].map(n=>C(n)||null);
   const XI=[team(0),team(1)];
-  const tok=(p,i)=>{const c=XI[p][i];return `<div class="fm-pl a${p}${i===0?' gk':''}" id="fp${p}_${i}" style="--c:var(--p${p+1})"><i class="fm-dot"${c?` data-n="${c.n}"`:''}>${c&&imgOf(c.n)?`<img src="${imgOf(c.n)}" alt="">`:`<b>${FM_NUM[i]}</b>`}</i><span>${c?shortN(c.n):'—'}</span></div>`};
-  const lineTxt=p=>{const T=L.T[p]||{};return (FM_T[lang]||FM_T.es).lines.map((l,i)=>`${l} ${[T.G,T.D,T.M,T.A][i]??'—'}`).join(' · ')};
+  const FK=[0,1].map(p=>BidEngine.form((L.F||[])[p]).k),FSL=FK.map(k=>BidEngine.form(k).slots),NUM=FSL.map(fmNums),IX=FSL.map(fmIdx); // la formación de cada uno
+  const tok=(p,i)=>{const c=XI[p][i];return `<div class="fm-pl a${p}${i===0?' gk':''}" id="fp${p}_${i}" style="--c:var(--p${p+1})"><i class="fm-dot"${c?` data-n="${c.n}"`:''}>${c&&imgOf(c.n)?`<img src="${imgOf(c.n)}" alt="">`:`<b>${NUM[p][i]}</b>`}</i><span>${c?shortN(c.n):'—'}</span></div>`};
+  const lineTxt=p=>{const T=L.T[p]||{};return FK[p]+' · '+(FM_T[lang]||FM_T.es).lines.map((l,i)=>`${l} ${[T.G,T.D,T.M,T.A][i]??'—'}`).join(' · ')};
   const html=`<div class="fm" id="fm">
 <div class="fm-sb"><div class="fm-t a0" style="--c:var(--p1)"><i class="fm-sw"></i><div><b>${t('player',1)}</b><small>${lineTxt(0)}</small></div></div>
 <div class="fm-c"><div class="fm-sc"><b id="fms0">0</b><i>–</i><b id="fms1">0</b></div><div class="fm-clk"><span id="fmclk">0'</span><small id="fmhalf">${fmT('half1')}</small></div></div>
@@ -1240,7 +1314,7 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
   const E=await arenaIn(async ms=>{await sleep(ms);if(tk!==bt)throw 0},html);
   const FM=$('fm'),FX=$('fmfx'),B=$('fmb');
   let F3=null; // estadio 3D (f3d/foot.js) si hay WebGL2; si no, el campo 2D de siempre
-  try{const info=p=>XI[p].map((c,i)=>({n:c?c.n:'',sh:c?shortN(c.n):'—',num:FM_NUM[i],pac:c&&c.fs?c.fs[c.cls==='GK'?4:0]:60,img:c?imgOf(c.n)||'':''}));
+  try{const LN={GK:-1,DEF:0,MID:1,FWD:2},info=p=>XI[p].map((c,i)=>{const s=FSL[p][i];return {n:c?c.n:'',sh:c?shortN(c.n):'—',num:NUM[p][i],pac:c&&c.fs?c.fs[c.cls==='GK'?4:0]:60,img:c?imgOf(c.n)||'':'',u:s.u,v:s.v,pos:s.pos,ln:LN[s.cls]}});
     if(window.FOOT3D&&FOOT3D.ok()&&FOOT3D.start($('fmp'),{teams:[info(0),info(1)],sfx:k=>SND.fx(k)})){F3=FOOT3D;$('fmp').classList.add('d3')}}catch(er){console.warn('FOOT3D',er);F3=null}
   try{localStorage.removeItem('bvfms')}catch(e){} // limpia la velocidad que se guardaba antes
   const say=h=>{$('fmdl').innerHTML='<span>'+h+'</span>'};
@@ -1248,16 +1322,18 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
   const nm=(p,i)=>{const c=XI[p][i];return c?dn(c):'—'};
   const P_=p=>t('player',p+1);
   const el=(p,i)=>$('fp'+p+'_'+i);
-  const base=(p,i)=>{const [x,y]=FM_BASE[i];return p?[100-x,100-y]:[x,y]};
+  const base=(p,i)=>{const s=FSL[p][i],x=Math.min(49,3+70*s.u),y=50+s.v*52;return p?[100-x,100-y]:[x,y]}; // del hueco de la formación (u, v) al campo 2D
+  const LNo=(p,i)=>FSL[p][i].cls,rndOf=a=>a[Math.floor(Math.random()*a.length)];
   const put=(e,x,y,ms)=>{e.style.transitionDuration=(ms==null?700:ms)/FMS+'ms';e.style.left=x+'%';e.style.top=y+'%'};
   const jit=()=>Math.random()*4-2;
   const layout=(att,ms)=>{ // att: equipo que ataca (-1 = neutro, -2 = saque de centro)
     const T=[[],[]];
     for(let p=0;p<2;p++)for(let i=0;i<11;i++){let [x,y]=base(p,i);const dir=p?-1:1;
-      if(att===p)x+=dir*[4,13,13,13,13,17,15,17,26,30,26][i];
-      else if(att>=0)x-=dir*[0,3,4,4,3,6,7,6,10,12,10][i];
-      else if(att===-1)x+=dir*[2,6,6,6,6,p?4:9,p?3:8,p?4:9,p?9:13,p?11:15,p?9:13][i];
-      else if(i>=8)x-=dir*(i===9&&p===0?1:5);
+      const k=LNo(p,i),st=i===IX[p].ST;
+      if(att===p)x+=dir*{GK:4,DEF:13,MID:FSL[p][i].pos==='CDM'?15:17,FWD:st?30:26}[k];
+      else if(att>=0)x-=dir*{GK:0,DEF:3.5,MID:6.5,FWD:st?12:10}[k];
+      else if(att===-1)x+=dir*{GK:2,DEF:6,MID:p?4:9,FWD:p?(st?11:9):(st?15:13)}[k];
+      else if(k==='FWD')x-=dir*(st&&p===0?1:5);
       if(att>=-1&&i)y+=jit();
       T[p][i]=[Math.max(2,Math.min(98,x)),Math.max(5,Math.min(95,y))]}
     for(let it=0;it<4;it++)for(let a=0;a<22;a++)for(let b=a+1;b<22;b++){ // separa las fichas que se pisan (en metros: 105 x 68)
@@ -1275,7 +1351,7 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
   const setClk=m=>{$('fmclk').textContent=m+"'"};
   const advance=async to=>{const n=parseInt(to)||0;let side=Math.random()<.5?0:1;
     while(clock<n){clock++;setClk(clock);await z(95);
-      if(clock%4===0){side=Math.random()<.7?side:1-side;const i=5+Math.floor(Math.random()*3);const [x,y]=at(side,i);hold(side,i);put(B,x+(side?-1.2:1.2),y,520)}}
+      if(clock%4===0){side=Math.random()<.7?side:1-side;const i=rndOf(IX[side].MD);const [x,y]=at(side,i);hold(side,i);put(B,x+(side?-1.2:1.2),y,520)}}
     if(String(to).includes('+'))setClk(to)};
   const sc=[0,0],logs=[$('fml0'),$('fml1')];
   const log=(p,h)=>logs[p].insertAdjacentHTML('beforeend',`<div>${h}</div>`);
@@ -1285,7 +1361,7 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
   const confetti=p=>{for(let k=0;k<44;k++){const x=40+Math.random()*20,dx=(Math.random()-.5)*90,dy=-30-Math.random()*60;
     tmp(`<i class="fm-cf" style="left:${x}%;top:55%;--dx:${dx}vw;--dy:${dy}vh;--r:${Math.random()*720-360}deg;--d:${.9+Math.random()*.9}s;background:${k%3?`var(--p${p+1})`:'#fff'}"></i>`,2200)}};
   const goalBanner=async(p,s,as,m,pen)=>{const c=XI[p][s];
-    tmp(`<div class="fm-gb" style="--c:var(--p${p+1});--on:var(--on${p+1})"><b>${fmT('goal')}</b><div><i class="fm-gp">${c&&imgOf(c.n)?`<img src="${imgOf(c.n)}" alt="">`:`<em>${FM_NUM[s]}</em>`}</i><span><strong>${nm(p,s)}</strong><small>${m}'${pen?' · '+fmT('pen1'):''}${as>=0?' · '+fmT('assist')+' '+nm(p,as):''}</small></span></div></div>`,2600);
+    tmp(`<div class="fm-gb" style="--c:var(--p${p+1});--on:var(--on${p+1})"><b>${fmT('goal')}</b><div><i class="fm-gp">${c&&imgOf(c.n)?`<img src="${imgOf(c.n)}" alt="">`:`<em>${NUM[p][s]}</em>`}</i><span><strong>${nm(p,s)}</strong><small>${m}'${pen?' · '+fmT('pen1'):''}${as>=0?' · '+fmT('assist')+' '+nm(p,as):''}</small></span></div></div>`,2600);
     confetti(p);sfx('goal');await z(2300)};
   const pensRow=()=>{const host=$('fmpens');host.classList.add('on');host.innerHTML=[0,1].map(p=>`<div class="a${p}" style="--c:var(--p${p+1})"><small>${P_(p)}</small><span id="fpr${p}"></span></div>`).join('')};
   const penMark=(p,ok)=>$('fpr'+p).insertAdjacentHTML('beforeend',`<i class="${ok?'ok':'ko'}">${ok?'●':'✕'}</i>`);
@@ -1294,6 +1370,7 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
     const tick=async to=>{const n=parseInt(to)||0;while(clock<n){clock++;setClk(clock);await z(90)}if(String(to).includes('+'))setClk(to)};
     const adv=async(to,p)=>{const n=parseInt(to)||0;let pr=null;try{pr=F3.idle(Math.max(.3,(n-clock)*.09),p)}catch(er){console.warn('FOOT3D',er)}await tick(to);await w3(()=>pr)};
     const gp=p=>{try{return F3.goalScr(p)}catch(er){return {x:p?12:88,y:30}}};
+    const replay3=async(txt,tag)=>{if(!F3.replay)return;say(txt);await w3(()=>F3.replay({label:tag||fmT('replay')}))}; // la jugada otra vez, desde otro ángulo y a cámara lenta
     for(const e of ev){
       if(e.t==='lineups'){say(fmT('lineups'));await w3(()=>F3.walkout())}
       else if(e.t==='ko'){half=e.h;$('fmhalf').textContent=fmT(half===1?'half1':'half2');clock=half===1?0:45;setClk(clock);const kp=half===1?0:1;
@@ -1305,7 +1382,7 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
           await w3(()=>F3.penFoul(e));sfx('whistle');{const g0=gp(p);pop(fmT('penPop'),g0.x,g0.y,'big')}say(fmT('pen').replace('{p}',P_(p)));await z(1100);
           await w3(()=>F3.penSetup(e));say(fmT('shoot',0).replace('{s}',sN));await z(400);
           await w3(()=>F3.outcome(e));
-          if(e.out==='goal'){score(e.sc,1);say(fmT('penGoal').replace('{s}',sN));log(p,`⚽ ${e.m}' ${sN} (p)`);F3.celebrate(p,s);await goalBanner(p,s,-1,e.m,1);await w3(()=>F3.kickoff(o));await w3(()=>F3.idle(.8,o))}
+          if(e.out==='goal'){score(e.sc,1);say(fmT('penGoal').replace('{s}',sN));log(p,`⚽ ${e.m}' ${sN} (p)`);F3.celebrate(p,s);await goalBanner(p,s,-1,e.m,1);await replay3(fmT('replayGoal').replace('{s}',sN));await w3(()=>F3.kickoff(o));await w3(()=>F3.idle(.8,o))}
           else{if(e.out==='save'){const g1=gp(p);pop(fmT('saveP'),g1.x,g1.y);say(fmT('penSave').replace('{g}',nm(o,0)))}else say(fmT('penWide').replace('{s}',sN));await z(600);await w3(()=>F3.after(e))}
           continue;
         }
@@ -1318,13 +1395,13 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
         await w3(()=>F3.outcome(e));
         if(e.out==='goal'||e.out==='var'){
           const sc2=e.out==='var'?e.sc.map((v,i)=>i===p?v+1:v):e.sc;score(sc2,1);say(`${fmT('goal')} <b>${sN}</b> · ${sc2[0]} – ${sc2[1]}`);F3.celebrate(p,s);await goalBanner(p,s,e.as,e.m);
-          if(e.out==='var'){tmp(`<div class="fm-ov var"><b>${fmT('var')}</b></div>`,1600);say(fmT('var'));await z(1500);score(e.sc);tmp(`<div class="fm-ov no"><b>${fmT('varNo')}</b></div>`,1700);say(fmT('varNo'));await z(1500);await w3(()=>F3.after(e))}
-          else{log(p,`⚽ ${e.m}' ${sN}${e.as>=0?` <small>(${nm(p,e.as)})</small>`:''}`);await w3(()=>F3.kickoff(o));await w3(()=>F3.idle(.8,o))}
+          if(e.out==='var'){tmp(`<div class="fm-ov var"><b>${fmT('var')}</b></div>`,1600);say(fmT('var'));await z(1300);await replay3(fmT('varRp'),'VAR');score(e.sc);tmp(`<div class="fm-ov no"><b>${fmT('varNo')}</b></div>`,1700);say(fmT('varNo'));await z(1500);await w3(()=>F3.after(e))}
+          else{log(p,`⚽ ${e.m}' ${sN}${e.as>=0?` <small>(${nm(p,e.as)})</small>`:''}`);await replay3(fmT('replayGoal').replace('{s}',sN));await w3(()=>F3.kickoff(o));await w3(()=>F3.idle(.8,o))}
         }else{
           const g2=gp(p);
           if(e.out==='save'){pop(fmT('saveP'),g2.x,g2.y);say(fmT('save',e.d).replace('{g}',nm(o,0)).replace('{s}',sN))}
           else if(e.out==='post'){pop(fmT('postP'),g2.x,g2.y,'post');say(fmT('post').replace('{s}',sN))}
-          else if(e.out==='block')say(fmT('block').replace('{b}',nm(o,e.bl>=0?e.bl:2)).replace('{s}',sN));
+          else if(e.out==='block')say(fmT('block').replace('{b}',nm(o,e.bl>=0?e.bl:IX[o].CB[0])).replace('{s}',sN));
           else say(fmT('wide',e.d).replace('{s}',sN));
           await z(350);await w3(()=>F3.after(e));
         }
@@ -1348,7 +1425,7 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
       half=e.h;$('fmhalf').textContent=fmT(half===1?'half1':'half2');clock=half===1?0:45;setClk(clock);
       layout(-2,600);B.style.opacity=1;await ball(50,50,300);
       tmp(`<div class="fm-ov"><b>${fmT(half===1?'kick':'kick2')}</b></div>`,1400);say(fmT(half===1?'kick':'kick2'));sfx('whistle');
-      await z(1200);await passTo(half===1?0:1,6,420);
+      await z(1200);await passTo(half===1?0:1,IX[half===1?0:1].C0,420);
     }else if(e.t==='att'){
       await advance(e.m);
       const p=e.p,o=1-p,s=e.sh,gk=[...at(o,0)];
@@ -1364,14 +1441,14 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
         else if(e.out==='save'){await ball(goalX(p,false)+(p?2:-2),ty,380);pop(fmT('saveP'),p?8:92,ty-8);sfx('save');say(fmT('penSave').replace('{g}',nm(o,0)));await ball(goalX(p,false)+(p?7:-7),ty+(ty<50?-14:14),400)}
         else{await ball(goalX(p,true),ty<50?36:64,420,1);say(fmT('penWide').replace('{s}',nm(p,s)))}
         await z(900);el(o,0).classList.remove('dive');
-        if(e.out==='goal'){layout(-2,600);await ball(50,50,400);await passTo(o,6,400)}else{layout(-1,700);await passTo(o,0,500)}
+        if(e.out==='goal'){layout(-2,600);await ball(50,50,400);await passTo(o,IX[o].C0,400)}else{layout(-1,700);await passTo(o,0,500)}
         continue;
       }
       layout(p,650);
       const ch=e.ch||[];
       for(let k=0;k<ch.length;k++){await passTo(p,ch[k],k?320:420);if(k===ch.length-1||Math.random()<.4)say(fmT('build',Math.floor(Math.random()*3)).replace('{a}',nm(p,ch[k])));await z(150)}
-      if(e.out==='lost'){const dv=e.dv>=0?e.dv:6;if(e.c>=0)await passTo(p,e.c,320);await passTo(o,dv,300);el(o,dv).classList.add('blk');
-        say(fmT('lost',Math.floor(Math.random()*3)).replace('{d}',nm(o,dv)).replace('{a}',e.c>=0?nm(p,e.c):nm(p,ch[ch.length-1]||6)));await z(700);el(o,dv).classList.remove('blk');layout(-1,700);continue}
+      if(e.out==='lost'){const dv=e.dv>=0?e.dv:IX[o].C0;if(e.c>=0)await passTo(p,e.c,320);await passTo(o,dv,300);el(o,dv).classList.add('blk');
+        say(fmT('lost',Math.floor(Math.random()*3)).replace('{d}',nm(o,dv)).replace('{a}',e.c>=0?nm(p,e.c):nm(p,ch[ch.length-1]||IX[p].C0)));await z(700);el(o,dv).classList.remove('blk');layout(-1,700);continue}
       // el rematador se mete en el área
       const [sx0,sy0]=at(p,s),sx=p?Math.min(sx0,26):Math.max(sx0,74),sy=Math.max(28,Math.min(72,sy0));put(el(p,s),sx,sy,420);
       if(e.out==='block'&&e.bl>=0)put(el(o,e.bl),sx+(p?-5:5),sy+(sy>50?-3:3),420);
@@ -1387,16 +1464,16 @@ ${[0,1].map(p=>XI[p].map((c,i)=>tok(p,i)).join('')).join('')}
           tmp(`<div class="fm-ov no"><b>${fmT('varNo')}</b></div>`,1700);say(fmT('varNo'));await z(1500)}
         else log(p,`⚽ ${e.m}' ${nm(p,s)}${e.as>=0?` <small>(${nm(p,e.as)})</small>`:''}`);
         el(o,0).classList.remove('dive');
-        if(e.out==='goal'){layout(-2,700);await ball(50,50,450);await passTo(o,6,400)}else{layout(-1,700);await passTo(o,0,500)}
+        if(e.out==='goal'){layout(-2,700);await ball(50,50,450);await passTo(o,IX[o].C0,400)}else{layout(-1,700);await passTo(o,0,500)}
       }else if(e.out==='save'){
         put(el(o,0),goalX(p,false),ty,320);el(o,0).classList.add('dive');
         await ball(goalX(p,false)+(p?1.5:-1.5),ty,340);sfx('save');pop(fmT('saveP'),p?9:91,ty-9);say(fmT('save',e.d).replace('{g}',nm(o,0)).replace('{s}',nm(p,s)));
-        await z(650);el(o,0).classList.remove('dive');layout(-1,700);await passTo(o,0,300);await z(400);await passTo(o,2+Math.floor(Math.random()*2),500);
+        await z(650);el(o,0).classList.remove('dive');layout(-1,700);await passTo(o,0,300);await z(400);await passTo(o,rndOf(IX[o].CB),500);
       }else if(e.out==='post'){
         const py=e.d<1?44.6:55.4;await ball(goalX(p,false)+(p?-.6:.6),py,360);sfx('post');pop(fmT('postP'),p?9:91,py-9,'post');say(fmT('post').replace('{s}',nm(p,s)));
-        await ball(goalX(p,false)+(p?9:-9),py+(py<50?-12:12),420);await z(500);layout(-1,700);await passTo(o,1+Math.floor(Math.random()*4),500);
+        await ball(goalX(p,false)+(p?9:-9),py+(py<50?-12:12),420);await z(500);layout(-1,700);await passTo(o,rndOf(IX[o].DF),500);
       }else if(e.out==='block'){
-        const b=e.bl>=0?e.bl:2,[bx,by]=at(o,b);await ball(bx,by,240);sfx('save');el(o,b).classList.add('blk');say(fmT('block').replace('{b}',nm(o,b)).replace('{s}',nm(p,s)));
+        const b=e.bl>=0?e.bl:IX[o].CB[0],[bx,by]=at(o,b);await ball(bx,by,240);sfx('save');el(o,b).classList.add('blk');say(fmT('block').replace('{b}',nm(o,b)).replace('{s}',nm(p,s)));
         await z(500);el(o,b).classList.remove('blk');await ball(bx+(p?12:-12),by+(Math.random()*20-10),420);layout(-1,700);await passTo(o,b,400);
       }else{ // fuera
         await ball(goalX(p,true)+(p?-2:2),e.d===0?38:e.d===2?62:30,420,1);say(fmT('wide',e.d).replace('{s}',nm(p,s)));

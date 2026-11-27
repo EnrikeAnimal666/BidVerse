@@ -19,6 +19,7 @@ const snap = g => ({
   cat: g.cat, dv: g.dv, phase: g.phase, cur: g.cur ? g.cur.n : null, bid: g.bid, leader: g.leader, left: g.left, free: g.free, fp: !!g.fp,
   passed: [...g.passed], skips: [...g.skips], locked: g.locked,
   P: g.P.map(p => ({ m: p.m, c: p.c.map(c => ({ n: c.n, paid: c.paid, free: !!c.free })) })),
+  ...(g.form ? { form: [...g.form] } : {}), // fútbol: la formación de cada uno (fija cuántos jugadores de cada posición puede fichar)
 });
 
 class Room {
@@ -36,8 +37,20 @@ class Room {
     this.g = BE.create({ cat: this.cat, pool: this.hub.pools[this.cat], divs: this.cat === 'futbol' ? (this.hub.futDivs || BE.FUT_DIVS) : this.hub.divs, rng: this.hub.rng });
     Object.assign(this, { phase: 'auction', time: 0, sched: null, ticking: false, pausedMs: 0, wantAgain: [false, false], fight: null, scored: false });
     [0, 1].forEach(i => this.send(i, { t: 'start', cat: this.cat, names: this.names(), avs: this.avs(), you: i }));
-    this.apply(BE.next(this.g), null);
+    if (this.cat === 'futbol') this.startForm(); else this.apply(BE.next(this.g), null);
   }
+  // FORMACIÓN (fútbol): antes de la subasta cada jugador elige la suya; si se acaba el tiempo, se queda la que tenga (4-3-3)
+  startForm() {
+    Object.assign(this, { phase: 'form', fm: [false, false], fmAt: this.time + this.hub.formMs });
+    this.all({ t: 'form', ms: this.hub.formMs, done: [false, false] });
+  }
+  setForm(s, k) {
+    const i = this.idx(s);
+    if (i < 0 || this.phase !== 'form' || this.fm[i] || !BE.setForm(this.g, i, k)) return;
+    this.fm[i] = true; this.all({ t: 'formReady', i });
+    if (this.fm[0] && this.fm[1]) this.beginAuction();
+  }
+  beginAuction() { this.phase = 'auction'; this.apply(BE.next(this.g), null); }
 
   // Reparte lo que ha pasado en el motor. actor = jugador que hizo la acción (para enviarle solo a él los errores).
   apply(res, actor) {
@@ -101,6 +114,10 @@ class Room {
     const anyConn = this.players.some(s => s && s.conn);
     this.idleMs = anyConn ? 0 : this.idleMs + dt;
     if (this.phase === 'order') { this.time += dt; if (this.time >= this.ordAt) this.fightNow(); return; }
+    if (this.phase === 'form') { // el reloj de la formación se para si falta alguien (y si no vuelve, abandono)
+      if (this.paused()) { this.pausedMs += dt; if (this.pausedMs > this.hub.abandonMs) this.abandon(); return; }
+      this.pausedMs = 0; this.time += dt; if (this.time >= this.fmAt) this.beginAuction(); return;
+    }
     if (this.phase !== 'auction') return;
     if (this.paused()) { this.pausedMs += dt; if (this.pausedMs > this.hub.abandonMs) this.abandon(); return; }
     this.pausedMs = 0;
@@ -122,6 +139,7 @@ class Room {
     s.conn.send({ t: 'start', cat: this.cat, names: this.names(), avs: this.avs(), you: i, resume: true });
     s.conn.send({ t: 'state', s: snap(this.g), ev: this.g.cur ? [{ t: 'lot' }] : [] });
     if (this.phase === 'order') s.conn.send({ t: 'order', ms: Math.max(0, this.ordAt - this.time), done: this.ord.map(Boolean) });
+    if (this.phase === 'form') s.conn.send({ t: 'form', ms: Math.max(0, this.fmAt - this.time), done: [...this.fm] });
     if (this.phase === 'fight' && this.fight) s.conn.send(this.fight);
     this.send(1 - i, { t: 'peer', i, connected: true });
   }
@@ -134,7 +152,7 @@ class Room {
   leave(s) {
     const i = this.idx(s); if (i < 0) return;
     const other = this.players[1 - i];
-    const p = other && (this.phase === 'auction' || this.phase === 'order') ? this.score(1 - i, 'leave') : null; // abandonar a mitad = derrota
+    const p = other && (this.phase === 'auction' || this.phase === 'order' || this.phase === 'form') ? this.score(1 - i, 'leave') : null; // abandonar a mitad = derrota
     if (other) { other.room = null; other.idx = -1; }
     s.room = null; s.idx = -1; this.hub.rooms.delete(this.code);
     if (other) Promise.resolve(p).then(pts => { if (!other.room) this.send(1 - i, { t: 'peerleft', pts, you: 1 - i }); });
@@ -150,8 +168,8 @@ class Room {
 
 class Hub {
   // users = base de datos de cuentas (server/db.js). Con ella, para crear o entrar en una sala hay que haber iniciado sesión.
-  constructor({ pools, divs, futDivs, rng, speed = 1, maxRooms = 300, abandonMs = 90000, orderMs = 25000, users = null }) {
-    Object.assign(this, { pools, divs, futDivs, rng, speed, maxRooms, abandonMs, orderMs, users, rooms: new Map(), sessions: new Map(), queue: new Map(), real: 0, sweep: 0 }); // queue: categoría → jugadores buscando partida
+  constructor({ pools, divs, futDivs, rng, speed = 1, maxRooms = 300, abandonMs = 90000, orderMs = 25000, formMs = 30000, users = null }) {
+    Object.assign(this, { pools, divs, futDivs, rng, speed, maxRooms, abandonMs, orderMs, formMs, users, rooms: new Map(), sessions: new Map(), queue: new Map(), real: 0, sweep: 0 }); // queue: categoría → jugadores buscando partida
     this.avNames = new Set(((pools && pools.anime) || []).map(c => c.n)); // solo se aceptan avatares de esta lista
   }
   cleanAv(v) { return typeof v === 'string' && this.avNames.has(v) ? v : null; }
@@ -244,6 +262,7 @@ class Hub {
       case 'bid': if (s.room) s.room.bid(s, msg.amount); return;
       case 'skip': if (s.room) s.room.skip(s); return;
       case 'order': if (s.room) s.room.setOrder(s, msg.order); return;
+      case 'form': if (s.room) s.room.setForm(s, msg.k); return;
       case 'rematch': if (s.room) s.room.again(s); return;
       case 'leave': this.unseek(s); if (s.room) s.room.leave(s); return;
     }

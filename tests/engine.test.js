@@ -105,4 +105,31 @@ for(let s=1;s<=200;s++){bot('anime',s);bot('ufc',s)}
  const gm=st('Goku','Madara');ok(gm.one<.1&&gm.weak>.1&&gm.weak<.3&&gm.h>3,'Goku no revienta a Madara de un golpe (+195: gana ~80 %)');
  const gr=st('Goku','Reigen');ok(gr.one>.6&&gr.weak<.01,'Goku sí revienta a Reigen');
  const ns=st('Naruto','Sasuke');ok(ns.weak>.4&&ns.weak<.6,'Naruto-Sasuke igualados');}
+// ---- fútbol: formaciones (las 44 de FC 27) ----
+{const fc={};new Function('fc',load('data-futbol.js')+';fc.FUT=FUT')(fc);const FUT=fc.FUT;
+ ok(E.FORMS.length===44,'44 formaciones');
+ for(const k of E.FORMS){const f=E.form(k),d=k.split(' ')[0].split('-').map(Number),nd=f.need;
+   ok(f.slots.length===11&&nd.GK===1&&nd.DEF===d[0]&&nd.FWD===d[d.length-1]&&nd.MID===d.slice(1,-1).reduce((a,b)=>a+b,0),k+': '+JSON.stringify(nd));
+   ok(f.slots.every(s=>s.u>0&&s.u<1&&s.v>=-1&&s.v<=1),k+': posiciones dentro del campo')}
+ ok(JSON.stringify(E.formNeeds('5-3-2'))==='{"GK":1,"DEF":5,"MID":3,"FWD":2}'&&JSON.stringify(E.formNeeds('3-5-2'))==='{"GK":1,"DEF":3,"MID":5,"FWD":2}','5-3-2 y 3-5-2');
+ const g=E.create({cat:'futbol',pool:FUT,rng:E.mulberry32(7)});
+ ok(g.form.join()==='4-3-3,4-3-3','sin elegir: 4-3-3');
+ ok(!E.setForm(g,0,'9-9-9')&&!E.setForm(g,2,'4-4-2')&&g.form[0]==='4-3-3','formación o jugador inexistente');
+ ok(E.setForm(g,0,'5-3-2')&&E.setForm(g,1,'3-4-2-1'),'cada uno elige la suya');
+ E.next(g);ok(!E.setForm(g,0,'4-4-2')&&g.form[0]==='5-3-2','ya no se cambia con la subasta empezada');
+ // los dos se llevan todo lo que pueden: cada uno acaba con lo que pide su formación
+ const rng=E.mulberry32(11);let w=E.next(g).wait,steps=0;
+ while(g.phase!=='fight'&&steps++<40000){if(w){w=(w.act==='close'?E.close(g,false):E.next(g)).wait;continue}
+   const a=rng(),p=rng()<.5?0:1;w=(a<.45?E.place(g,p,1+Math.floor(rng()*12)):a<.6?E.skip(g,p):a<.85?E.tick(g):E.place(g,p,(g.bid||0)+1)).wait;
+   for(const q of[0,1])ok(g.P[q].c.filter(c=>c.cls===g.dv).length<=E.formNeeds(g.form[q])[g.dv]||!g.dv,'nunca más de los que pide la formación')}
+ ok(g.phase==='fight','la subasta acaba');
+ ok(g.P[0].c.filter(c=>c.cls==='DEF').length===5&&g.P[1].c.filter(c=>c.cls==='DEF').length===3,'5 defensas con 5-3-2 y 3 con 3-4-2-1');
+ ok(g.P[1].c.filter(c=>c.cls==='MID').length===6&&g.P[1].c.filter(c=>c.cls==='FWD').length===1,'3-4-2-1: 6 medios y 1 delantero');
+ for(const p of[0,1]){const nd=E.formNeeds(g.form[p]);for(const k of['GK','DEF','MID','FWD'])ok(g.P[p].c.filter(c=>c.cls===k).length<=nd[k],g.form[p]+' '+k)}
+ const r=E.resolveFutbol(g),L=r.ev.find(e=>e.t==='lineups');
+ ok(L.F.join()==='5-3-2,3-4-2-1'&&L.L[0].length===11&&L.L[1].length===11,'el partido usa las formaciones');
+ const X=E.futLine(g.P[0].c,'5-3-2');ok(X.filter(o=>o.s.cls==='DEF').length===5&&X.every(o=>!o.c||o.c.cls===o.s.cls),'cada carta en un hueco de su posición');
+ const lb=X.find(o=>o.s.pos==='LWB'),c=lb&&lb.c;ok(!c||c.role!=='DFC'||!g.P[0].c.some(x=>x.role==='LI'&&x.cls==='DEF'),'el lateral izquierdo va al carril izquierdo');
+ for(const e of r.ev)if(e.t==='att')for(const i of[e.c,e.sh,e.dv,e.as,e.bl].concat(e.ch||[]))ok(i==null||(i>=-1&&i<=10),'índices dentro del once');
+}
 console.log('OK',n,'comprobaciones');

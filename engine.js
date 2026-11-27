@@ -11,11 +11,80 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '2026-11-27c';
+  const VERSION = '2026-11-27d';
   const CFG = { anime: { start: 20 }, ufc: { start: 40 }, futbol: { start: 100 } }, MAXC = 3, SECS = 10;
-  // Fútbol: 4-3-3 (1 portero, 4 defensas, 3 medios, 3 delanteros). Se subasta por posiciones, igual que la UFC por categorías.
+  // Fútbol: se subasta por posiciones (porteros, defensas, medios, delanteros), igual que la UFC por categorías.
+  // Antes de pujar cada jugador elige su formación (FORMS) y eso fija cuántos necesita de cada posición: con un 5-3-2 puja por 5 defensas,
+  // 3 medios y 2 delanteros. Sin elegir, 4-3-3. FUT_DIVS da el orden de la subasta (y los huecos del 4-3-3).
   const FUT_DIVS = [{ k: 'GK', n: 1 }, { k: 'DEF', n: 4 }, { k: 'MID', n: 3 }, { k: 'FWD', n: 3 }];
   const NONE = () => ({ ev: [], wait: null });
+
+  /* ---------- FORMACIONES (las 44 de EA SPORTS FC 27) ----------
+     Cada formación es una lista de líneas, de atrás adelante, igual que su nombre (4-2-3-1 = 4 líneas de 4, 2, 3 y 1).
+     La primera línea son los defensas, la última los delanteros y las de en medio los centrocampistas: 3-5-2 = 3 DEF · 5 MED · 2 DEL.
+     Cada hueco: "POS@u,v" · POS = posición de FC (LB CB RB LWB RWB · CDM CM LM RM CAM · LW ST RW)
+     u = altura (0 su portería … 1 la rival) · v = banda (−1 izquierda … 1 derecha, mirando a la portería rival). Las usan el partido 2D y el 3D. */
+  const B3 = 'CB@.17,-.4 CB@.15,0 CB@.17,.4', B4 = 'LB@.22,-.68 CB@.17,-.24 CB@.17,.24 RB@.22,.68';
+  const B5W = 'LWB@.27,-.8 CB@.16,-.36 CB@.14,0 CB@.16,.36 RWB@.27,.8', B5 = 'LB@.21,-.76 CB@.16,-.36 CB@.14,0 CB@.16,.36 RB@.21,.76';
+  const ST2 = 'ST@.65,-.18 ST@.65,.18', ST1 = 'ST@.66,0', W3 = 'LW@.62,-.7 ST@.66,0 RW@.62,.7';
+  const FORM_SRC = {
+    '3-1-4-2': [B3, 'CDM@.29,0', 'LM@.45,-.76 CM@.41,-.24 CM@.41,.24 RM@.45,.76', ST2],
+    '3-4-1-2': [B3, 'LM@.42,-.76 CM@.37,-.24 CM@.37,.24 RM@.42,.76', 'CAM@.52,0', ST2],
+    '3-4-2-1': [B3, 'LM@.42,-.78 CDM@.33,-.22 CM@.36,.22 RM@.42,.78', 'CAM@.55,-.3 CAM@.55,.3', 'ST@.67,0'],
+    '3-4-3': [B3, 'LM@.42,-.78 CM@.36,-.22 CM@.36,.22 RM@.42,.78', 'LW@.61,-.62 ST@.66,0 RW@.61,.62'],
+    '3-4-3 Flat': [B3, 'LM@.4,-.74 CM@.4,-.25 CM@.4,.25 RM@.4,.74', 'LW@.65,-.6 ST@.65,0 RW@.65,.6'],
+    '3-5-2': [B3, 'LM@.43,-.78 CDM@.32,-.22 CAM@.5,0 CDM@.32,.22 RM@.43,.78', ST2],
+    '4-1-2-1-2': [B4, 'CDM@.3,0', 'CM@.41,-.34 CM@.41,.34', 'CAM@.52,0', ST2],
+    '4-1-2-1-2 (2)': [B4, 'CDM@.3,0', 'LM@.43,-.7 RM@.43,.7', 'CAM@.52,0', ST2],
+    '4-1-2-1-2 Narrow': [B4, 'CDM@.3,0', 'CM@.4,-.26 CM@.4,.26', 'CAM@.51,0', 'ST@.64,-.15 ST@.64,.15'],
+    '4-1-2-1-2 Wide': [B4, 'CDM@.31,0', 'LM@.45,-.78 RM@.45,.78', 'CAM@.53,0', 'ST@.65,-.2 ST@.65,.2'],
+    '4-1-3-2': [B4, 'CDM@.3,0', 'LM@.44,-.74 CM@.42,0 RM@.44,.74', ST2],
+    '4-1-4-1': [B4, 'CDM@.3,0', 'LM@.45,-.74 CM@.42,-.24 CM@.42,.24 RM@.45,.74', ST1],
+    '4-2-1-3': [B4, 'CDM@.31,-.2 CDM@.31,.2', 'CAM@.48,0', W3],
+    '4-2-2-2': [B4, 'CDM@.31,-.22 CDM@.31,.22', 'CAM@.5,-.5 CAM@.5,.5', ST2],
+    '4-2-3-1': [B4, 'CDM@.31,-.2 CDM@.31,.2', 'LM@.52,-.7 CAM@.5,0 RM@.52,.7', ST1],
+    '4-2-3-1 (2)': [B4, 'CDM@.31,-.2 CDM@.31,.2', 'CAM@.5,-.42 CAM@.52,0 CAM@.5,.42', ST1],
+    '4-2-3-1 Narrow': [B4, 'CDM@.31,-.18 CDM@.31,.18', 'CAM@.5,-.3 CAM@.51,0 CAM@.5,.3', ST1],
+    '4-2-3-1 Wide': [B4, 'CDM@.31,-.22 CDM@.31,.22', 'LM@.55,-.78 CAM@.5,0 RM@.55,.78', ST1],
+    '4-2-4': [B4, 'CM@.38,-.22 CM@.38,.22', 'LW@.62,-.72 ST@.66,-.18 ST@.66,.18 RW@.62,.72'],
+    '4-3-1-2': [B4, 'CM@.39,-.4 CM@.36,0 CM@.39,.4', 'CAM@.51,0', ST2],
+    '4-3-2-1': [B4, 'CM@.38,-.4 CM@.35,0 CM@.38,.4', 'CAM@.55,-.3 CAM@.55,.3', 'ST@.67,0'],
+    '4-3-3': [B4, 'CM@.42,-.36 CDM@.33,0 CM@.42,.36', W3],
+    '4-3-3 (2)': [B4, 'CM@.43,-.32 CDM@.3,0 CM@.43,.32', W3],
+    '4-3-3 (3)': [B4, 'CM@.39,-.34 CAM@.5,0 CM@.39,.34', W3],
+    '4-3-3 (4)': [B4, 'CM@.41,-.42 CM@.41,0 CM@.41,.42', W3],
+    '4-3-3 Attack': [B4, 'CM@.42,-.34 CAM@.53,0 CM@.42,.34', 'LW@.65,-.72 ST@.68,0 RW@.65,.72'],
+    '4-3-3 Defend': [B4, 'CDM@.3,-.22 CM@.43,0 CDM@.3,.22', 'LW@.6,-.68 ST@.65,0 RW@.6,.68'],
+    '4-3-3 Flat': [B4, 'CM@.4,-.36 CM@.4,0 CM@.4,.36', 'LW@.64,-.72 ST@.65,0 RW@.64,.72'],
+    '4-3-3 Holding': [B4, 'CM@.45,-.3 CDM@.28,0 CM@.45,.3', W3],
+    '4-4-1-1 Midfield': [B4, 'LM@.43,-.72 CM@.37,-.22 CM@.37,.22 RM@.43,.72', 'CAM@.54,0', 'ST@.67,0'],
+    '4-4-2': [B4, 'LM@.44,-.72 CM@.38,-.22 CM@.38,.22 RM@.44,.72', ST2],
+    '4-4-2 (2)': [B4, 'LM@.41,-.7 CM@.35,-.2 CM@.35,.2 RM@.41,.7', 'ST@.62,-.14 ST@.62,.14'],
+    '4-4-2 Flat': [B4, 'LM@.4,-.72 CM@.4,-.24 CM@.4,.24 RM@.4,.72', 'ST@.65,-.2 ST@.65,.2'],
+    '4-4-2 Holding': [B4, 'LM@.44,-.72 CDM@.31,-.18 CM@.43,.18 RM@.44,.72', ST2],
+    '4-5-1': [B4, 'LM@.45,-.76 CM@.4,-.32 CM@.36,0 CM@.4,.32 RM@.45,.76', ST1],
+    '4-5-1 (2)': [B4, 'LM@.46,-.76 CDM@.32,-.22 CAM@.52,0 CDM@.32,.22 RM@.46,.76', ST1],
+    '4-5-1 Attack': [B4, 'LM@.5,-.76 CM@.4,-.24 CAM@.54,0 CM@.4,.24 RM@.5,.76', ST1],
+    '4-5-1 Flat': [B4, 'LM@.4,-.8 CM@.4,-.4 CM@.4,0 CM@.4,.4 RM@.4,.8', ST1],
+    '5-2-1-2': [B5W, 'CM@.38,-.24 CM@.38,.24', 'CAM@.5,0', ST2],
+    '5-2-3': [B5W, 'CM@.38,-.24 CM@.38,.24', 'LW@.61,-.62 ST@.66,0 RW@.61,.62'],
+    '5-3-2': [B5W, 'CM@.4,-.36 CM@.37,0 CM@.4,.36', ST2],
+    '5-3-2 Holding': [B5W, 'CM@.44,-.3 CDM@.28,0 CM@.44,.3', ST2],
+    '5-4-1': [B5W, 'LM@.43,-.74 CM@.38,-.22 CM@.38,.22 RM@.43,.74', 'ST@.65,0'],
+    '5-4-1 Flat': [B5, 'LM@.38,-.72 CM@.38,-.24 CM@.38,.24 RM@.38,.72', 'ST@.63,0'],
+  };
+  const FORMS = Object.keys(FORM_SRC), FORM0 = '4-3-3', FORMC = new Map();
+  const isForm = k => typeof k === 'string' && Object.prototype.hasOwnProperty.call(FORM_SRC, k);
+  // form(k) = { k, slots: 11 × { pos, cls: GK|DEF|MID|FWD, u, v } (portero, defensas, medios y delanteros, cada línea de izquierda a derecha), need: { GK, DEF, MID, FWD } }
+  function form(k) {
+    if (!isForm(k)) k = FORM0;
+    let f = FORMC.get(k); if (f) return f;
+    const L = FORM_SRC[k], slots = [{ pos: 'GK', cls: 'GK', u: .03, v: 0 }];
+    L.forEach((s, li) => s.split(' ').forEach(t => { const [pos, uv] = t.split('@'), [u, v] = uv.split(',').map(Number); slots.push({ pos, cls: li === 0 ? 'DEF' : li === L.length - 1 ? 'FWD' : 'MID', u, v }); }));
+    const need = { GK: 0, DEF: 0, MID: 0, FWD: 0 }; slots.forEach(s => { need[s.cls]++; });
+    f = { k, slots, need }; FORMC.set(k, f); return f;
+  }
+  const formNeeds = k => Object.assign({}, form(k).need);
 
   /* ---------- utilidades (siempre con el rng recibido: en el servidor será criptográfico) ---------- */
   const pad2 = n => String(n).padStart(2, '0');
@@ -54,24 +123,31 @@
   }
 
   /* ---------- estado ---------- */
-  function create({ cat, pool, divs = [], rng = Math.random }) {
+  function create({ cat, pool, divs = [], rng = Math.random, forms }) {
     if (!CFG[cat]) throw new Error('categoría desconocida: ' + cat);
     if (cat === 'futbol' && !(divs && divs.length)) divs = FUT_DIVS;
     const deck = cat !== 'anime'
       ? divs.flatMap(d => shuffle(rng, pool.filter(x => x.cls === d.k)))
       : animeDeck(rng, pool);
-    return {
+    const g = {
       cat, rng, divs, deck, idx: -1, dv: '', cur: null, bid: 0, leader: -1, left: SECS, free: -1, fp: false,
       passed: [false, false], skips: [2, 2], locked: false,
       phase: 'idle', // idle → bidding → (forced) → closing → … → fight
       P: [{ m: CFG[cat].start, c: [] }, { m: CFG[cat].start, c: [] }],
     };
+    if (cat === 'futbol') { g.form = [0, 1].map(p => form(forms && forms[p]).k); g.needs = g.form.map(formNeeds); }
+    return g;
+  }
+  // Fútbol: cada jugador elige su formación antes de que salga el primer lote. Devuelve false si no se puede (ya empezó o no existe).
+  function setForm(g, p, k) {
+    if (!g || g.cat !== 'futbol' || (p !== 0 && p !== 1) || g.phase !== 'idle' || g.idx >= 0 || !isForm(k)) return false;
+    g.form[p] = k; g.needs[p] = formNeeds(k); return true;
   }
 
-  // anime: hasta 3 personajes · UFC: un peleador por categoría · fútbol: los huecos de cada posición (dv = categoría/posición en subasta)
+  // anime: hasta 3 personajes · UFC: un peleador por categoría · fútbol: los huecos que pide la formación de cada uno (dv = categoría/posición en subasta)
   const DIVC = g => g.cat !== 'anime';
-  const need = (g, k) => { const d = (g.divs || []).find(d => d.k === k); return (d && d.n) || 1; };
-  const can = (g, p) => DIVC(g) ? g.P[p].c.filter(c => c.cls === g.dv).length < need(g, g.dv) : g.P[p].c.length < MAXC;
+  const need = (g, k, p) => { if (g.needs && g.needs[p]) return g.needs[p][k] || 0; const d = (g.divs || []).find(d => d.k === k); return (d && d.n) || 1; };
+  const can = (g, p) => DIVC(g) ? g.P[p].c.filter(c => c.cls === g.dv).length < need(g, g.dv, p) : g.P[p].c.length < MAXC;
   const out = (g, p) => !can(g, p) || g.P[p].m < 1;
   const divEnd = g => { let n = g.idx; while (n < g.deck.length && g.deck[n].cls === g.dv) n++; return n; };
   /* Lote gratis (g.free = quien se lo puede quedar sin pagar). Hay dos motivos:
@@ -623,6 +699,8 @@
        Un 91 de tiro (Mbappé) mete más de la mitad de lo que remata, un 75 uno de cada 5 y un defensa casi nunca.
      Calibrado con miles de partidos simulados entre onces al azar (victoria en 90' / contando penaltis):
        iguales ≈ 2,7 goles y 25 % de empates · +2 de media ≈ 52 % / 66 % · +4 ≈ 64 % / 75 % · +6 ≈ 77 % / 87 % · +10 ≈ 92 % / 94 %.
+     Formación: la de cada uno (44 de FC 27) decide quién ocupa cada hueco y suma o resta un poco en cada línea (FB). Simulado con plantillas
+       al azar del mismo nivel: todas ganan entre el 47 y el 53 % de los partidos y salen ≈ 2,5 goles por partido.
      Si hay empate se decide en una tanda de penaltis. */
   const FT = { ATT: .15, CARD: .03, PEN: .025, SH: 30, GKK: 45, POSS: 40, DU: 75, B: { run: .34, drib: .23, cross: .19, box: .21, long: .075 } };
   // estadísticas de la carta (los huecos vacíos son un jugador muy flojo)
@@ -632,46 +710,66 @@
     const [pac, sho, pas, dri, def, phy] = v || [o - 5, o - 15, o - 10, o - 10, o - 10, o - 5];
     return { pac, sho, pas, dri, def, phy };
   }
-  function futXI(cards) { // 11 huecos: 0 POR · 1-4 DEF (LI, DFC, DFC, LD) · 5-7 MED (MC, MCD, MC) · 8-10 DEL (EI, DC, ED)
-    const by = k => cards.filter(c => c.cls === k), fill = (a, n, k) => { a = a.slice(0, n); while (a.length < n) a.push({ n: '', ovr: 45, cls: k, role: '', ghost: 1 }); return a; };
-    const take = (a, roles) => { const i = a.findIndex(c => roles.includes(c.role)); return i >= 0 ? a.splice(i, 1)[0] : a.shift(); };
-    const d = fill(by('DEF'), 4, 'DEF'), m = fill(by('MID'), 3, 'MID'), f = fill(by('FWD'), 3, 'FWD'), gk = fill(by('GK'), 1, 'GK')[0];
-    const lb = take(d, ['LI']), rb = take(d, ['LD']), cdm = take(m, ['MCD']), st = take(f, ['DC']), lw = take(f, ['EI']);
-    return [gk, lb, d[0], d[1], rb, m[0], cdm, m[1], lw, st, f[0]];
+  // Afinidad carta → hueco: cada hueco de la formación prefiere unos roles de la carta (DFC LI LD · MCD MC MCO · EI ED DC)
+  const AFF = { GK: { POR: 3 }, CB: { DFC: 3, LI: 1.2, LD: 1.2 }, LB: { LI: 3, LD: 1.6, DFC: 1 }, RB: { LD: 3, LI: 1.6, DFC: 1 }, LWB: { LI: 3, LD: 1.6, DFC: .7 }, RWB: { LD: 3, LI: 1.6, DFC: .7 },
+    CDM: { MCD: 3, MC: 2, MCO: .7 }, CM: { MC: 3, MCD: 2, MCO: 2 }, CAM: { MCO: 3, MC: 2, MCD: .6 }, LM: { MCO: 2.4, MC: 2.2, MCD: 1 }, RM: { MCO: 2.4, MC: 2.2, MCD: 1 },
+    LW: { EI: 3, ED: 2, DC: 1.4 }, RW: { ED: 3, EI: 2, DC: 1.4 }, ST: { DC: 3, EI: 1.4, ED: 1.4 } };
+  // Coloca las cartas fichadas en los huecos de la formación (cada una donde mejor encaja). Devuelve 11 × { s: hueco, c: carta | null }
+  function futLine(cards, k) {
+    const out = form(k).slots.map(s => ({ s, c: null }));
+    for (const cls of ['GK', 'DEF', 'MID', 'FWD']) {
+      const sl = out.filter(o => o.s.cls === cls), cs = (cards || []).filter(c => c && c.cls === cls).slice(0, sl.length), pr = [];
+      sl.forEach((o, i) => cs.forEach((c, j) => pr.push({ i, j, w: ((AFF[o.s.pos] || {})[c.role] || 0) * 100 + (c.ovr || 0) * .01 - i * 1e-4 - j * 1e-5 })));
+      pr.sort((a, b) => b.w - a.w); const ui = new Set(), uj = new Set();
+      for (const q of pr) if (!ui.has(q.i) && !uj.has(q.j)) { ui.add(q.i); uj.add(q.j); sl[q.i].c = cs[q.j]; }
+    }
+    return out;
   }
+  // 11 huecos en el orden de la formación: 0 portero · defensas · medios · delanteros (los vacíos son un jugador muy flojo)
+  function futXI(cards, k) { return futLine(cards, k).map(o => o.c || { n: '', ovr: 45, cls: o.s.cls, role: '', ghost: 1 }); }
   function wpick(rng, ids, w) { const t = ids.reduce((s, i) => s + w(i), 0); let r = rng() * t; for (const i of ids) { r -= w(i); if (r <= 0) return i; } return ids[ids.length - 1]; }
-  const ROLEW = { DC: 3.2, EI: 2.3, ED: 2.3, MCO: 1.5, MC: .8, MCD: .35, LI: .2, LD: .2, DFC: .08 };
-  const roleW = c => !c || c.ghost ? .05 : ROLEW[c.role] != null ? ROLEW[c.role] : c.cls === 'FWD' ? 2.4 : c.cls === 'MID' ? .8 : c.cls === 'DEF' ? .12 : 0;
+  // quién encara y quién remata, según el hueco que ocupa
+  const SLOTW = { ST: 3.2, LW: 2.3, RW: 2.3, CAM: 1.5, LM: 1.1, RM: 1.1, CM: .8, CDM: .35, LWB: .3, RWB: .3, LB: .2, RB: .2, CB: .08, GK: 0 };
   const fduel = (a, d, b = .55) => clamp(b + (a - d) / FT.DU, .18, .9);
-  function futTeam(x) {
-    const s = x.map(fst), mean = (ids, f) => ids.reduce((a, i) => a + f(s[i]), 0) / ids.length, ML = [5, 6, 7];
-    return { s, G: s[0].gk,
-      D: mean([1, 2, 3, 4], q => .6 * q.def + .25 * q.phy + .15 * q.pac),
-      Mc: mean(ML, q => .45 * q.pas + .35 * q.dri + .2 * q.phy), // control del balón
-      Mp: mean(ML, q => .55 * q.def + .3 * q.phy + .15 * q.pac), // presión
-      A: mean([8, 9, 10], q => .3 * q.pac + .3 * q.dri + .2 * q.sho + .2 * q.pas) };
+  // Medias de cada línea. Lo que da la formación: más defensas defienden mejor (y ganan algún duelo más), más medios dominan el balón y más delanteros atacan mejor.
+  // Y cuantos más jugadores quedan por detrás de los delanteros (defensas + medios), más le cuesta al rival: gana menos duelos y remata peor.
+  const FB = { D: 2.4, M: 1.2, A: 2.4, DU: .015, BK: .012, SQ: .028 };
+  function futTeam(x, sl) {
+    const s = x.map(fst), by = k => sl.map((o, i) => o.cls === k ? i : -1).filter(i => i >= 0), DF = by('DEF'), MD = by('MID'), FW = by('FWD');
+    const mean = (ids, f) => ids.reduce((a, i) => a + f(s[i]), 0) / ids.length;
+    const C0 = MD.slice().sort((a, b) => Math.abs(sl[a].v) + sl[a].u - Math.abs(sl[b].v) - sl[b].u)[0]; // el medio centro más retrasado: el que recibe la salida
+    return { s, sl, G: s[0].gk, DF, MD, FW, C0, CB: DF.filter(i => sl[i].pos === 'CB'),
+      D: mean(DF, q => .6 * q.def + .25 * q.phy + .15 * q.pac) + (DF.length - 4) * FB.D,
+      Mc: mean(MD, q => .45 * q.pas + .35 * q.dri + .2 * q.phy) + (MD.length - 3) * FB.M, // control del balón
+      Mp: mean(MD, q => .55 * q.def + .3 * q.phy + .15 * q.pac) + (MD.length - 3) * FB.M, // presión
+      A: mean(FW, q => .3 * q.pac + .3 * q.dri + .2 * q.sho + .2 * q.pas) + (FW.length - 3) * FB.A,
+      dB: (DF.length - 4) * FB.DU + (DF.length + MD.length - 8) * FB.BK, // lo que pierde el rival en cada duelo
+      qm: 1 - (DF.length + MD.length - 8) * FB.SQ };                      // y en cada remate
   }
   // P(gol) de un remate: el tiro de quien remata manda; el portero resta
   const shotQ = (k, sho, G, rng) => clamp(FT.B[k] * Math.pow(10, (sho - 80) / FT.SH) * Math.pow(10, (84 - G) / FT.GKK) * (.75 + .5 * rng()), .01, .86);
   function resolveFutbol(g) {
-    const rng = g.rng, X = g.P.map(p => futXI(p.c)), T = X.map(futTeam);
+    const rng = g.rng, FK = [0, 1].map(p => form(g.form && g.form[p]).k), X = g.P.map((p, i) => futXI(p.c, FK[i])), T = X.map((x, p) => futTeam(x, form(FK[p]).slots));
     const ctl = p => .6 * T[p].Mc + .25 * (T[p].Mc - T[1 - p].Mp) + .15 * (T[p].A - T[1 - p].D);
     const sh0 = clamp(1 / (1 + Math.pow(10, -(ctl(0) - ctl(1)) / FT.POSS)), .28, .72);
     const sc = [0, 0], st = { sh: [0, 0], sot: [0, 0], xg: [0, 0], yc: [0, 0], att: [0, 0] }, R = X.map(x => x.map(c => c.ghost ? 0 : 6.4 + ((c.ovr || 45) - 80) / 40)), yc = [new Set(), new Set()];
-    const ov = v => Math.round(v);
-    const ev = [{ t: 'lineups', L: X.map(x => x.map(c => c.n)),
-      T: T.map((t, p) => ({ G: ov(X[p][0].ovr || 45), D: ov(X[p].slice(1, 5).reduce((a, c) => a + (c.ovr || 45), 0) / 4), M: ov(X[p].slice(5, 8).reduce((a, c) => a + (c.ovr || 45), 0) / 3), A: ov(X[p].slice(8).reduce((a, c) => a + (c.ovr || 45), 0) / 3) })) }, { t: 'ko', h: 1 }];
-    const ids = [...Array(11).keys()], FW = [8, 9, 10], MD = [5, 6, 7], DF = [1, 2, 3, 4];
-    const S = (p, i) => T[p].s[i];
+    const ov = v => Math.round(v), avg = (p, ids) => ov(ids.reduce((a, i) => a + (X[p][i].ovr || 45), 0) / ids.length);
+    const ev = [{ t: 'lineups', L: X.map(x => x.map(c => c.n)), F: FK,
+      T: T.map((t, p) => ({ G: ov(X[p][0].ovr || 45), D: avg(p, t.DF), M: avg(p, t.MD), A: avg(p, t.FW) })) }, { t: 'ko', h: 1 }];
+    const ids = [...Array(11).keys()];
+    const S = (p, i) => T[p].s[i], SL = (p, i) => T[p].sl[i], ghost = (p, i) => !!X[p][i].ghost;
+    const roleW = (p, i) => ghost(p, i) ? .05 : SLOTW[SL(p, i).pos] != null ? SLOTW[SL(p, i).pos] : .5;
+    // defensor que sale a por él: el de su misma banda (v del atacante = −v del defensor, porque se miran de frente)
+    const dvOf = (o, va) => wpick(rng, T[o].DF, i => .08 + Math.exp(-Math.pow(SL(o, i).v + va, 2) / .12));
     const shoot = (m, p, o, k, s, as, extra) => { // remate: gol, parada, palo, rechace o fuera
-      const sv = S(p, s), sho = k === 'cross' ? .55 * sv.sho + .45 * sv.phy : sv.sho, G = T[o].G, q = shotQ(k, sho, G, rng);
+      const sv = S(p, s), sho = k === 'cross' ? .55 * sv.sho + .45 * sv.phy : sv.sho, G = T[o].G, q = shotQ(k, sho, G, rng) * T[o].qm;
       const r = rng(); let out;
       if (r < q) out = rng() < .05 ? 'var' : 'goal';
       else { const u = rng(), sv0 = clamp(.4 + (G - 84) / 100, .26, .58), bl = k === 'run' ? 0 : k === 'long' ? .24 : .14; out = u < sv0 ? 'save' : u < sv0 + .06 ? 'post' : u < sv0 + .06 + bl ? 'block' : 'wide'; }
       st.sh[p]++; st.xg[p] += q; if (out === 'goal' || out === 'save' || out === 'var') st.sot[p]++;
-      if (out === 'goal') { sc[p]++; R[p][s] += 1.1; R[o][0] -= .25; for (const i of DF) R[o][i] -= .1; if (as >= 0) R[p][as] += .6; else if (as < 0) as = -1; }
+      if (out === 'goal') { sc[p]++; R[p][s] += 1.1; R[o][0] -= .25; for (const i of T[o].DF) R[o][i] -= .1; if (as >= 0) R[p][as] += .6; else if (as < 0) as = -1; }
       else if (out === 'save') R[o][0] += .25 + q;
-      const bl = out === 'block' ? wpick(rng, DF.concat(6), i => S(o, i).def) : -1; if (bl >= 0) R[o][bl] += .2;
+      const bl = out === 'block' ? wpick(rng, T[o].DF.concat(T[o].C0), i => S(o, i).def) : -1; if (bl >= 0) R[o][bl] += .2;
       ev.push(Object.assign({ t: 'att', m, p, k, sh: s, as: out === 'goal' || out === 'var' ? as : -1, out, xg: +q.toFixed(2), sc: [...sc], d: rndi(rng, 0, 2), bl }, extra));
     };
     const lost = (m, p, o, k, ch, c, dv, z) => { // el defensor gana el duelo y se queda el balón
@@ -679,10 +777,10 @@
       ev.push({ t: 'att', m, p, k, ch, c, dv, sh: -1, as: -1, out: 'lost', z, sc: [...sc], d: rndi(rng, 0, 2) });
     };
     const attack = (m, p) => {
-      const o = 1 - p, x = X[p];
+      const o = 1 - p, x = X[p], DF = T[p].DF, MD = T[p].MD, dB = T[o].dB;
       st.att[p]++;
       if (rng() < FT.PEN) { // penalti: lo tira el que mejor tira de los de arriba
-        const s = wpick(rng, ids.slice(5), i => Math.pow(S(p, i).sho / 80, 8) * (x[i].ghost ? .01 : 1)), dv = wpick(rng, DF.concat(6), i => 1), G = T[o].G;
+        const s = wpick(rng, MD.concat(T[p].FW), i => Math.pow(S(p, i).sho / 80, 8) * (x[i].ghost ? .01 : 1)), dv = wpick(rng, T[o].DF.concat(T[o].C0), i => 1), G = T[o].G;
         const q = clamp(.72 + (S(p, s).sho - G) / 120, .5, .93), goal = rng() < q, out = goal ? 'goal' : rng() < .65 ? 'save' : 'wide';
         st.sh[p]++; st.xg[p] += .76; if (out !== 'wide') st.sot[p]++;
         if (goal) { sc[p]++; R[p][s] += 1; R[o][0] -= .3; } else if (out === 'save') R[o][0] += .9;
@@ -691,54 +789,53 @@
         return;
       }
       // salida del balón: portero o defensa y uno o dos medios
-      const ch = [rng() < .15 ? 0 : rndi(rng, 1, 4)];
-      const nm = rng() < .5 ? 1 : 2; for (let i = 0; i < nm; i++) { let j = rndi(rng, 5, 7); if (j === ch[ch.length - 1]) j = 5 + (j - 4) % 3; ch.push(j); }
+      const ch = [rng() < .15 ? 0 : DF[rndi(rng, 0, DF.length - 1)]];
+      const nm = rng() < .5 ? 1 : 2; for (let i = 0; i < nm; i++) { let j = rndi(rng, 0, MD.length - 1); if (MD[j] === ch[ch.length - 1]) j = (j + 1) % MD.length; ch.push(MD[j]); }
       // pérdida en el centro del campo (la presión del rival contra el control propio)
       if (rng() < clamp(.11 + (T[o].Mp - T[p].Mc) / 110, .05, .22)) {
-        const c = ch[ch.length - 1], dv = wpick(rng, MD, i => Math.pow(S(o, i).def / 70, 3));
+        const c = ch[ch.length - 1], dv = wpick(rng, T[o].MD, i => Math.pow(S(o, i).def / 70, 3));
         return lost(m, p, o, 'mid', ch, c, dv, 'mid');
       }
       // ¿quién encara? y ¿qué ocasión busca?
-      const c = wpick(rng, ids.slice(1), i => roleW(x[i]) * Math.pow(Math.max(30, (S(p, i).dri + S(p, i).pac) / 2) / 80, 4) * (i === ch[ch.length - 1] ? .5 : 1));
+      const c = wpick(rng, ids.slice(1), i => roleW(p, i) * Math.pow(Math.max(30, (S(p, i).dri + S(p, i).pac) / 2) / 80, 4) * (i === ch[ch.length - 1] ? .5 : 1));
       if (ch[ch.length - 1] === c) ch.pop();
-      const cv = S(p, c), pz = ch.length ? ch[ch.length - 1] : 6, pv = S(p, pz), wing = c === 8 || c === 10 || x[c].role === 'EI' || x[c].role === 'ED';
-      const fw = c >= 8, w = {
-        run: fw ? Math.pow(cv.pac / 80, 6) * (x[c].role === 'DC' ? 1.2 : .9) : .05,
-        drib: Math.pow(cv.dri / 80, 6) * (fw || x[c].role === 'MCO' ? 1 : .35),
+      const cs = SL(p, c), cv = S(p, c), pz = ch.length ? ch[ch.length - 1] : T[p].C0, pv = S(p, pz);
+      const wing = ['LW', 'RW', 'LM', 'RM', 'LWB', 'RWB'].includes(cs.pos) || x[c].role === 'EI' || x[c].role === 'ED';
+      const fw = cs.cls === 'FWD', w = {
+        run: fw ? Math.pow(cv.pac / 80, 6) * (cs.pos === 'ST' ? 1.2 : .9) : .05,
+        drib: Math.pow(cv.dri / 80, 6) * (fw || cs.pos === 'CAM' ? 1 : .35),
         cross: wing ? .9 * Math.pow(cv.pas / 80, 4) : .08,
         box: .8,
-        long: c >= 5 && c <= 7 ? 1.1 * Math.pow(cv.sho / 80, 4) : .12 };
+        long: cs.cls === 'MID' ? 1.1 * Math.pow(cv.sho / 80, 4) : .12 };
       const k = wpick(rng, Object.keys(w), q => w[q]);
-      // defensor que sale a por él (centrales para el centro, laterales para las bandas)
-      const dvOf = side => wpick(rng, DF, i => (side === 0 ? [0, 1.3, .7, .5, .3] : side === 2 ? [0, .3, .5, .7, 1.3] : [0, .3, 1, 1, .3])[i]);
-      const side = c === 8 ? (p ? 2 : 0) : c === 10 ? (p ? 0 : 2) : 1; // lado del campo visto desde el equipo que defiende
       if (k === 'run') {
-        const dv = dvOf(side === 1 ? 1 : side), dd = S(o, dv), ok = rng() < fduel(.4 * pv.pas + .6 * cv.pac, .55 * dd.pac + .45 * dd.def);
+        const dv = dvOf(o, cs.v), dd = S(o, dv), ok = rng() < fduel(.4 * pv.pas + .6 * cv.pac, .55 * dd.pac + .45 * dd.def) - dB;
         if (!ok) return lost(m, p, o, k, ch, c, dv, 'att');
         return shoot(m, p, o, 'run', c, pz, { ch, c, dv });
       }
       if (k === 'drib') {
-        const dv = dvOf(side), dd = S(o, dv), ok = rng() < fduel(cv.dri, .7 * dd.def + .3 * dd.phy);
+        const dv = dvOf(o, cs.v), dd = S(o, dv), ok = rng() < fduel(cv.dri, .7 * dd.def + .3 * dd.phy) - dB;
         if (!ok) return lost(m, p, o, k, ch, c, dv, 'att');
         return shoot(m, p, o, 'drib', c, pz, { ch, c, dv });
       }
       if (k === 'cross') { // el extremo centra; remata el que mejor cabecea de los de arriba
-        const s = wpick(rng, [9, 8, 10, 5, 7, 2, 3].filter(i => i !== c), i => (i === 9 ? 3 : i >= 8 ? 1.2 : .45) * Math.pow(S(p, i).phy / 75, 4) * (x[i].ghost ? .01 : 1));
-        const dv = wpick(rng, [2, 3], () => 1), dd = S(o, dv), sv = S(p, s), gk = T[o].s[0];
+        const HW = { ST: 3, LW: 1.2, RW: 1.2, CAM: .7, CM: .45, LM: .45, RM: .45, CB: .45 }, hc = ids.slice(1).filter(i => i !== c && HW[SL(p, i).pos]);
+        const s = wpick(rng, hc.length ? hc : ids.slice(1).filter(i => i !== c), i => (HW[SL(p, i).pos] || .3) * Math.pow(S(p, i).phy / 75, 4) * (x[i].ghost ? .01 : 1));
+        const cb = T[o].CB.length ? T[o].CB : T[o].DF, dv = cb[rndi(rng, 0, cb.length - 1)], dd = S(o, dv), sv = S(p, s), gk = T[o].s[0];
         if (rng() < clamp(.08 + (gk.pos - 80) / 200, .03, .16)) return lost(m, p, o, k, ch.concat(c), s, 0, 'box'); // el portero sale y la atrapa
-        const ok = rng() < fduel(.5 * cv.pas + .5 * sv.phy, .5 * dd.phy + .5 * dd.def, .5);
+        const ok = rng() < fduel(.5 * cv.pas + .5 * sv.phy, .5 * dd.phy + .5 * dd.def, .5) - dB;
         if (!ok) return lost(m, p, o, k, ch.concat(c), s, dv, 'box');
         return shoot(m, p, o, 'cross', s, c, { ch: ch.concat(c), c, dv });
       }
       if (k === 'long') return shoot(m, p, o, 'long', c, pz, { ch, c, dv: -1 });
       // box: paredes en la frontal y remata uno de los de arriba
-      const s = wpick(rng, ids.slice(1).filter(i => i !== c), i => roleW(x[i]) * Math.pow(Math.max(30, S(p, i).sho) / 80, 5));
-      const dv = dvOf(1), ok = rng() < fduel(.5 * cv.pas + .5 * S(p, s).dri, T[o].D);
+      const s = wpick(rng, ids.slice(1).filter(i => i !== c), i => roleW(p, i) * Math.pow(Math.max(30, S(p, i).sho) / 80, 5));
+      const dv = dvOf(o, 0), ok = rng() < fduel(.5 * cv.pas + .5 * S(p, s).dri, T[o].D) - dB;
       if (!ok) return lost(m, p, o, k, ch.concat(c), s, dv, 'att');
       return shoot(m, p, o, 'box', s, c, { ch: ch.concat(c), c, dv });
     };
     const card = (m) => {
-      const p = rng() < .5 ? 0 : 1, i = wpick(rng, ids.slice(1), i => i <= 4 ? 1.6 : i <= 7 ? 1.2 : .5);
+      const p = rng() < .5 ? 0 : 1, i = wpick(rng, ids.slice(1), i => SL(p, i).cls === 'DEF' ? 1.6 : SL(p, i).cls === 'MID' ? 1.2 : .5);
       if (X[p][i].ghost || yc[p].has(i)) return;
       yc[p].add(i); st.yc[p]++; R[p][i] -= .3;
       ev.push({ t: 'yc', m, p, i });
@@ -779,5 +876,5 @@
     return { kind: 'anime', script: resolveAnime(g) };
   }
 
-  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, ROTO_PW, vpw, order, FT, FUT_DIVS, futXI, fst, shotQ, resolveFutbol, resolve, create, can, out, gives, next, tick, place, skip, close, duel, stats, hpMax, decide, resolveAnime, resolveUfc, mulberry32 };
+  return { VERSION, CFG, MAXC, SECS, AN, TR, TROUPE, ROTO_PW, vpw, order, FT, FUT_DIVS, FORMS, FORM0, form, formNeeds, isForm, setForm, futLine, futXI, fst, shotQ, resolveFutbol, resolve, create, need, can, out, gives, next, tick, place, skip, close, duel, stats, hpMax, decide, resolveAnime, resolveUfc, mulberry32 };
 });
