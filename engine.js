@@ -149,7 +149,7 @@
       const p = g.leader;
       g.P[p].m -= g.bid; g.P[p].c.push({ ...g.cur, paid: g.bid, free: g.free === p });
       ev.push({ t: 'sold', p, price: g.bid, free: g.free === p });
-    } else if (afk) return giveRandom(g, false); // se acabó el tiempo sin pujas: SOLO este lote va a uno de los dos al azar
+    } else if (afk) return giveRandom(g, false); // se acabó el tiempo sin pujas: SOLO este lote se reparte solo (equilibrado)
     else if (g.free >= 0 && !g.fp) { // pasa quien lo tenía gratis porque el rival no podía pujar
       const o = 1 - g.free;
       if (can(g, o)) { g.P[o].c.push({ ...g.cur, paid: 0, free: true }); ev.push({ t: 'sold', p: o, price: 0, free: true, gift: true }); } // el rival sin dinero pero con hueco se lo queda gratis (no cuesta saltos)
@@ -159,12 +159,22 @@
     return { ev, wait: { ms: 2600, act: 'next' } };
   }
 
-  // Nadie puja (o nadie tiene dinero): el lote actual, y solo ese, se lo lleva uno de los dos al azar. La subasta sigue.
+  /* Nadie puja (o nadie tiene dinero): el lote actual, y solo ese, se reparte solo. La subasta sigue.
+     REPARTO EQUILIBRADO (no es una moneda al aire): cada equipo vale lo que sus personajes pasan (o no llegan) de la media de su
+     categoría (anime: todo el mazo · UFC/fútbol: su división/posición); así un hueco vacío cuenta como uno normal.
+     El lote va a quien deja los equipos más igualados: uno flojo (bajo la media) al que va más fuerte, uno bueno al que va más flojo.
+     Solo se sortea si quedan empatados. El mensaje no cambia: sigue saliendo como "asignado al azar". */
+  const avgOf = (g, c) => { const s = DIVC(g) ? g.deck.filter(x => x.cls === c.cls) : g.deck; return s.reduce((t, x) => t + vpw(x), 0) / (s.length || 1); };
+  const edge = (g, p) => g.P[p].c.reduce((t, c) => t + vpw(c) - avgOf(g, c), 0);
   function giveRandom(g, broke) {
     g.locked = true; g.phase = 'closing';
     const o = [0, 1].filter(p => can(g, p));
     if (!o.length) return { ev: [{ t: 'discard' }], wait: { ms: 2600, act: 'next' } };
-    const p = o.length === 1 ? o[0] : (g.rng() < .5 ? 0 : 1);
+    let p = o[0];
+    if (o.length > 1) {
+      const d = vpw(g.cur) - avgOf(g, g.cur), gap = edge(g, 0) - edge(g, 1), a = Math.abs(gap + d), b = Math.abs(gap - d); // a: diferencia si va al 0 · b: si va al 1
+      p = Math.abs(a - b) < 1e-6 ? (g.rng() < .5 ? 0 : 1) : a < b ? 0 : 1;
+    }
     g.leader = p; g.bid = 0;
     g.P[p].c.push({ ...g.cur, paid: 0, rand: true });
     return { ev: [{ t: 'sold', p, price: 0, free: false, rand: true, broke: !!broke }], wait: { ms: 2800, act: 'next' } };
