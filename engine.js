@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '2026-11-27b';
+  const VERSION = '2026-11-27c';
   const CFG = { anime: { start: 20 }, ufc: { start: 40 }, futbol: { start: 100 } }, MAXC = 3, SECS = 10;
   // Fútbol: 4-3-3 (1 portero, 4 defensas, 3 medios, 3 delanteros). Se subasta por posiciones, igual que la UFC por categorías.
   const FUT_DIVS = [{ k: 'GK', n: 1 }, { k: 'DEF', n: 4 }, { k: 'MID', n: 3 }, { k: 'FWD', n: 3 }];
@@ -24,17 +24,17 @@
   const pick = (rng, a) => a[rndi(rng, 0, a.length - 1)];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const shuffle = (rng, a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  /* MAZO DE ANIME. Barajado sin más, el 40 % eran débiles y salían rachas largas de flojos: la subasta se hacía aburrida. Ahora:
-       · el primer lote es de poder medio (400–599): al principio se suelen saltar los débiles para guardar el dinero
-       · los débiles (poder < 400) salen la mitad de a menudo y los medio fuertes (500–899) algo más
-       · nunca más de 2 débiles seguidos: después sale uno fuerte (600+) seguro
+  /* MAZO DE ANIME. Barajado sin más, el 40 % eran débiles y salían rachas largas de flojos: la subasta se hacía aburrida. Ahora es
+     todo al azar (cualquiera, rotos incluidos, puede salir en cualquier momento), salvo que:
+       · los débiles (poder < 400) salen 4 veces menos: más o menos 1 de cada 7 lotes
+       · el primer lote nunca es débil, y nunca salen más de 2 débiles seguidos: después sale uno fuerte (600+) seguro
        · Light Yagami no cuenta como débil: con la Death Note se lleva a cualquiera (vpw = su valor real, también para la CPU)
-     Rotos (poder ≥ 900: God, Zeno, La Verdad, Gran Sacerdote, Whis, Saitama, Goku, Beerus): salen sobre todo al principio
-     y cada vez menos según avanza la subasta (ver rotoTiming). Así no compensa guardarse todo el dinero y esperar al final a por ellos. */
-  const ROTO_PW = 900, WEAK = 400, STRONG = 600, WRUN = 2;
+     Rotos (poder ≥ 900: God, Zeno, La Verdad, Gran Sacerdote, Whis, Saitama, Goku, Beerus): salen como cualquier otro.
+     Para que no compense guardarse el dinero y esperar, el reparto de los lotes sin pujas cuenta el dinero que le queda a cada uno (giveRandom). */
+  const ROTO_PW = 900, WEAK = 400, STRONG = 600, WRUN = 2, WEAKW = .25;
   const vpw = c => c.tr === 'dnote' ? 650 : c.pw || 0;
   const tierOf = c => { const v = vpw(c); return v < WEAK ? 0 : v < STRONG ? 1 : 2; };
-  const deckW = c => { const v = vpw(c); return v < WEAK ? .5 : v >= 500 && v < ROTO_PW ? 1.3 : 1; };
+  const deckW = c => vpw(c) < WEAK ? WEAKW : 1;
   function animeDeck(rng, pool) {
     const left = pool.slice(), deck = [], real = c => c.tr !== 'dnote';
     const draw = ok => { // sorteo ponderado entre los que cumplen ok; si no queda ninguno, entre todos
@@ -45,31 +45,12 @@
     };
     let run = 0;
     while (left.length) {
-      const c = !deck.length ? draw(c => tierOf(c) === 1 && real(c)) // abre uno de poder medio
+      const c = !deck.length ? draw(c => tierOf(c) > 0 && real(c))   // el primero nunca es débil
         : run >= WRUN ? draw(c => tierOf(c) === 2 && real(c))        // tras 2 débiles, uno fuerte seguro
         : draw(() => true);
       left.splice(left.indexOf(c), 1); deck.push(c); run = tierOf(c) ? 0 : run + 1;
     }
     return deck;
-  }
-  /* CUÁNDO SALEN LOS ROTOS (anime). Quien no gasta y lo pasa todo llega al final con todo su dinero y se queda cualquier roto que salga.
-     Por eso los rotos salen pronto, cuando los dos tienen aún su dinero y hay que pagarlos, y casi nunca al final.
-     Al sacar cada lote se mira cuántos personajes se han llevado ya entre los dos (de 6):
-       · 0–1: si el lote no es roto, el 15 % de las veces se cambia por un roto de más adelante (el primer lote no: es de poder medio)
-       · si es roto, sale el 100 % de las veces con 0–1; con 2, el 70 %; con 3, el 40 %; con 4, el 20 %;
-         y si uno ya tiene sus 3 (el otro se lo llevaría gratis), el 10 %. Si no sale, se cambia por uno fuerte (600–899) de más adelante.
-     En total salen más o menos los mismos rotos por partida que con el mazo sin tocar. */
-  const EARLY = .15, LATE = [1, 1, .7, .4, .2], LATE_FULL = .1;
-  function rotoTiming(g) {
-    const c = g.deck[g.idx], n = g.P.map(p => p.c.length), t = n[0] + n[1], full = n.some(k => k >= MAXC);
-    if (!c || !g.idx) return;
-    const later = ok => { const a = []; for (let j = g.idx + 1; j < g.deck.length; j++) if (ok(g.deck[j])) a.push(j); return a; };
-    const swap = a => { if (!a.length) return; const j = pick(g.rng, a); [g.deck[g.idx], g.deck[j]] = [g.deck[j], g.deck[g.idx]]; };
-    const roto = x => vpw(x) >= ROTO_PW;
-    if (!roto(c)) { if (t <= 1 && !full && g.rng() < EARLY) swap(later(roto)); return; }
-    if (g.rng() < (full ? LATE_FULL : LATE[t])) return;
-    const strong = later(x => tierOf(x) === 2 && !roto(x));
-    swap(strong.length ? strong : later(x => !roto(x)));
   }
 
   /* ---------- estado ---------- */
@@ -111,7 +92,6 @@
       g.locked = true; g.phase = 'fight';
       return { ev: [{ t: 'finish' }], wait: null };
     }
-    if (g.cat === 'anime') rotoTiming(g);
     g.cur = g.deck[g.idx]; g.bid = 0; g.leader = -1; g.left = SECS; g.free = -1; g.fp = false;
     const e = [can(g, 0), can(g, 1)], b = [e[0] && g.P[0].m >= 1, e[1] && g.P[1].m >= 1], dead = e[0] && e[1] && !b[0] && !b[1];
     if (e[0] && e[1]) { if (b[0] !== b[1]) g.free = b[0] ? 0 : 1; } else g.free = e[0] ? 0 : 1; // lote gratis para quien aún puede coger
@@ -183,16 +163,20 @@
      REPARTO EQUILIBRADO (no es una moneda al aire): cada equipo vale lo que sus personajes pasan (o no llegan) de la media de su
      categoría (anime: todo el mazo · UFC/fútbol: su división/posición); así un hueco vacío cuenta como uno normal.
      El lote va a quien deja los equipos más igualados: uno flojo (bajo la media) al que va más fuerte, uno bueno al que va más flojo.
+     EL DINERO QUE LE QUEDA TAMBIÉN CUENTA: todo el dinero inicial vale lo mismo que el mejor personaje del mazo (lo que pasa de la media).
+       · quien lo ha apostado todo (p. ej. se queda a 0 con Goku) va "fuerte": los flojos sin pujas le tocan a él, no al rival
+       · quien no gasta y lo pasa todo va igual de "fuerte" por el dinero guardado: ya no se lleva gratis los buenos que nadie puja
      Solo se sortea si quedan empatados. El mensaje no cambia: sigue saliendo como "asignado al azar". */
   const avgOf = (g, c) => { const s = DIVC(g) ? g.deck.filter(x => x.cls === c.cls) : g.deck; return s.reduce((t, x) => t + vpw(x), 0) / (s.length || 1); };
-  const edge = (g, p) => g.P[p].c.reduce((t, c) => t + vpw(c) - avgOf(g, c), 0);
+  const cash = g => g.deck.reduce((t, c) => Math.max(t, vpw(c) - avgOf(g, c)), 0) / CFG[g.cat].start; // lo que vale $1
+  const edge = (g, p, k) => g.P[p].c.reduce((t, c) => t + vpw(c) - avgOf(g, c), 0) + g.P[p].m * k;
   function giveRandom(g, broke) {
     g.locked = true; g.phase = 'closing';
     const o = [0, 1].filter(p => can(g, p));
     if (!o.length) return { ev: [{ t: 'discard' }], wait: { ms: 2600, act: 'next' } };
     let p = o[0];
     if (o.length > 1) {
-      const d = vpw(g.cur) - avgOf(g, g.cur), gap = edge(g, 0) - edge(g, 1), a = Math.abs(gap + d), b = Math.abs(gap - d); // a: diferencia si va al 0 · b: si va al 1
+      const k = cash(g), d = vpw(g.cur) - avgOf(g, g.cur), gap = edge(g, 0, k) - edge(g, 1, k), a = Math.abs(gap + d), b = Math.abs(gap - d); // a: diferencia si va al 0 · b: si va al 1
       p = Math.abs(a - b) < 1e-6 ? (g.rng() < .5 ? 0 : 1) : a < b ? 0 : 1;
     }
     g.leader = p; g.bid = 0;
@@ -283,8 +267,8 @@
        counter   Meliodas: devuelve la primera técnica del rival con el doble de fuerza
        arise     Sung Jin-Woo: al empezar el duelo atacan sus sombras: 2 + 1 por rival derrotado (hasta 5); cada una pega con su fuerza (~13 % a uno de su nivel)
        geass     Lelouch: una orden por persona: el primer ataque del rival se vuelve contra él
-       eclipse   Griffith: 1 vez por combate, en vez de caer sacrifica a la Banda del Halcón y renace como Femto al 35 %:
-                 +30 a todo el resto del combate (también en los duelos siguientes). No le cuesta ningún compañero
+       eclipse   Griffith: 1 vez por combate, en vez de caer sacrifica a la Banda del Halcón y renace como Femto al 80 %:
+                 +100 a todo el resto del combate (también en los duelos siguientes). No le cuesta ningún compañero
        gate      Truth: abre la Puerta de la Verdad al empezar cada duelo, antes que nada: el rival pierde un 40 % de ki y un 20 % de vida;
                  si no es otro dios supremo (poder < 1000) además pierde su habilidad, no puede despertar y la Puerta se cobra
                  parte de su cuerpo (−160 a todo). Así nadie por debajo de los dioses le gana salvo de rebote
@@ -294,7 +278,7 @@
   const TR = { INF: 2, TS: 2, UI: .18, TOLLE: .4, TOLLH: .1, DOMC: .5, DOMN: 4, DOMX: 1.4, RGHP: .6, RG: .07, RGN: 4, AD: .1, ADN: 4, GEN: 2, RAGEHP: .4, RAGEX: 1.3, SUNN: 4, SUNX: 1.5, SER: 3, SERX: .55,
     ULTRA: .22, EGO: 22, EGON: 6, HAKAI: .35, ERASE: .5, RWD: .15, CPN: 2, CLN: 3, CLX: .6, BURN: .04, BURNN: 8, AMX: 1.35, MET: 2, GATEHP: .35, G5HP: .5, G5B: 70, G5H: .25, G5A: .12,
     ASC: .15, ASX: 2.4, QK: .5, HAKI: 200, MUGHP: .3, MUGB: 90, KYO: 2, SLASH: .05, BF: .15, BFU: .1, BFX: 2.5, JP: .12, JPN: 4, RBHP: .4, RBN: 3, ACK: 800, ACKX: .8,
-    GONHP: .3, GONB: 220, GONN: 3, GONP: 150, ROSE: .5, EMB: 90, EMH: .03, HKN: 3, ANTI: .6, ZWN: 1, MIH: .6, ECL: .35, ECLB: 30, GATEE: .4, GATEH: .2, GATEB: 160, GOD: 1000, GS: 1, SHAD: 2, SHADN: 5, FC: .4 };
+    GONHP: .3, GONB: 220, GONN: 3, GONP: 150, ROSE: .5, EMB: 90, EMH: .03, HKN: 3, ANTI: .6, ZWN: 1, MIH: .6, ECL: .8, ECLB: 100, GATEE: .4, GATEH: .2, GATEB: 160, GOD: 1000, GS: 1, SHAD: 2, SHADN: 5, FC: .4 };
   const TROUPE = ['Chrollo Lucilfer', 'Uvogin', 'Feitan', 'Phinks', 'Nobunaga', 'Franklin', 'Machi', 'Shalnark', 'Pakunoda', 'Shizuku', 'Bonolenov', 'Kortopi', 'Kalluto']; // Brigada Fantasma (Kurapika)
   function duel(rng, A, B) {
     const fm = [0, 1].map(() => (rng() - .5) * 2 * AN.FORM), F = [A, B];
