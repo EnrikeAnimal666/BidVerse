@@ -187,59 +187,84 @@ vec3 c=mix(col,vec3(3.0),smoothstep(.62,.97,f));gl_FragColor=vec4(c,clamp(a,0.0,
   }
   /* ---- CHOQUE de técnicas, cada uno a su estilo: con energía, su rayo; sin energía (Toji, Adam…), se lanza al punto del choque y aguanta
      con el puño, la espada o el arma (y si los dos son así, intercambian golpes a toda velocidad); los Stands pegan en el punto de choque.
-     Donde se encuentran: un núcleo blanco nítido, el color de cada uno a su lado, una pared de energía fina y una onda a cada empujón. ---- */
+     Para que se entienda quién gana: cada lado tiene SU color, vivo y distinto del otro (si se parecen, rojo contra azul, como las placas);
+     cada rayo es de su color de punta a punta (sin núcleo blanco), más grueso cuanto más domina; el suelo se parte en dos territorios con
+     franjas que corren hacia el frente; y a cada empujón una onda recorre el rayo del que empuja hasta el punto del choque. ---- */
   let CL = null;
   const modeOf = p => { const st = X.sty(p); return st.k === 'stand' ? 'stand' : st.ce ? 'beam' : 'body'; };
   const reachOf = p => { const st = X.sty(p); return st.k === 'blade' ? 1.05 : st.k === 'pole' ? (st.w === 'chain' ? 1.5 : 1.25) : st.k === 'claw' ? .95 : .8; };
   const holdPose = (p, alt) => { const st = X.sty(p); return st.k === 'blade' || st.k === 'claw' ? (alt ? 'slashH2' : 'slashB') : st.k === 'pole' ? (alt ? 'slashH1' : 'jabR') : st.w === 'kick' ? (alt ? 'kickR_m' : 'kickR') : (alt ? 'jabR_m' : 'jabR'); };
+  const SRGB = THREE.SRGBColorSpace;
+  // colores del choque: el de cada uno, muy saturado; si se parecen (o uno es blanco, acero o gris), los de los jugadores
+  function clashCols(c0, c1) {
+    const A = new THREE.Color(c0), B = new THREE.Color(c1), ha = {}, hb = {}; A.getHSL(ha, SRGB); B.getHSL(hb, SRGB);
+    let dh = Math.abs(ha.h - hb.h); dh = Math.min(dh, 1 - dh);
+    if (dh < .16 || ha.s < .35 || hb.s < .35 || ha.l > .85 || hb.l > .85) { A.set(X.pcol(0)); B.set(X.pcol(1)); A.getHSL(ha, SRGB); B.getHSL(hb, SRGB); }
+    A.setHSL(ha.h, Math.max(.88, ha.s), .55, SRGB); B.setHSL(hb.h, Math.max(.88, hb.s), .55, SRGB);
+    return ['#' + A.getHexString(), '#' + B.getHexString()];
+  }
+  // rayo del choque: de su color de punta a punta (el centro más claro, nunca blanco) con una espiral que corre hacia el rival
+  function clashMat(col, k) { const c = new THREE.Color(col);
+    return new THREE.ShaderMaterial({ uniforms: { col: { value: c.clone().multiplyScalar(k) }, hi: { value: c.clone().lerp(new THREE.Color('#ffffff'), .4).multiplyScalar(k * 1.1) }, t: { value: 0 }, op: { value: 1 } },
+      vertexShader: `varying vec3 vN;varying vec3 vV;varying vec2 vUv;void main(){vUv=uv;vec4 w=modelMatrix*vec4(position,1.0);vN=normalize(mat3(modelMatrix)*normal);vV=normalize(cameraPosition-w.xyz);gl_Position=projectionMatrix*viewMatrix*w;}`,
+      fragmentShader: `uniform vec3 col;uniform vec3 hi;uniform float t;uniform float op;varying vec3 vN;varying vec3 vV;varying vec2 vUv;
+void main(){float f=abs(dot(normalize(vN),vV));float sp=.7+.3*sin(vUv.x*12.566+vUv.y*18.0-t*26.0);float a=pow(f,1.3)*sp*smoothstep(0.0,.035,vUv.y);
+vec3 c=mix(col,hi,smoothstep(.6,.97,f));gl_FragColor=vec4(c,clamp(a,0.0,1.0)*op);}`,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); }
+  function clashBeam(col) {
+    const g = new THREE.Mesh(CYL, clashMat(col, .75)), o = new THREE.Mesh(CYL, clashMat(col, 1.3)); o.scale.set(.5, .5, 1); g.add(o); g.renderOrder = o.renderOrder = 6; S().add(g); g.material.uniforms.op.value = .4;
+    return { set(a, b, w) { g.position.copy(a); g.lookAt(b); g.scale.set(w, w, Math.max(.001, a.distanceTo(b))); }, t(dt) { g.material.uniforms.t.value += dt; o.material.uniforms.t.value += dt; },
+      op(v) { g.material.uniforms.op.value = .4 * v; o.material.uniforms.op.value = v; }, kill() { kill(g); } };
+  }
   function clash() {
-    const s0 = X.FT[0], s1 = X.FT[1]; if (!s0 || !s1) return; if (CL) clashEnd(-1);
-    const M = [modeOf(0), modeOf(1)], C = [0, 1].map(p => M[p] === 'body' ? X.tc(p) : M[p] === 'stand' ? X.sty(p).sc || X.colOf(p) : X.colOf(p)), A = [X.chest(0), X.chest(1)];
-    const own = [], add = o => { S().add(o); own.push(o); return o; }, B = [null, null], G = [null, null], mz = [null, null];
+    const s0 = X.FT[0], s1 = X.FT[1]; if (!s0 || !s1) return null; if (CL) clashEnd(-1);
+    const M = [modeOf(0), modeOf(1)], C = clashCols(...[0, 1].map(p => M[p] === 'body' ? X.tc(p) : M[p] === 'stand' ? X.sty(p).sc || X.colOf(p) : X.colOf(p))), A = [X.chest(0), X.chest(1)];
+    const CC = C.map(c => new THREE.Color(c)), own = [], add = o => { S().add(o); own.push(o); return o; }, B = [null, null], G = [null, null], mz = [null, null];
     for (const p of [0, 1]) { X.busy(p, 6); X.expr(p, 'a', 6);
-      if (M[p] === 'beam') { X.play(p, [['beamCharge', .1, 'out'], ['beamFire', .1, 'snap']], true); B[p] = beamMesh(C[p]); B[p].op(.7); mz[p] = add(glowSpr(C[p], .55, 1.1)); }
+      if (M[p] === 'beam') { X.play(p, [['beamCharge', .1, 'out'], ['beamFire', .1, 'snap']], true); B[p] = clashBeam(C[p]); mz[p] = add(glowSpr(C[p], .55, 1.2)); }
       else if (M[p] === 'stand') { X.play(p, [['cocky', .14, 'out']], true); const g = ghostOf(X.FT[p].F, C[p], .6); g.renderOrder = 4.7; G[p] = add(g); }
       else { X.play(p, [['dash', .06, 'out'], [holdPose(p), .08, 'snap']], true); X.ghosts(p, 3); } }
-    const mix = new THREE.Color(C[0]).lerp(new THREE.Color(C[1]), .5).lerp(new THREE.Color('#ffffff'), .35), mixH = '#' + mix.getHexString();
-    const core = add(glowSpr(mixH, .5, 1.1)), h0 = add(glowSpr(C[0], 1, .8)), h1 = add(glowSpr(C[1], 1, .8)); // luz contenida: antes era una bola blanca que lo tapaba todo
-    const wallG = new THREE.PlaneGeometry(1, 1), poolG = new THREE.PlaneGeometry(1, 1);
-    const wall = add(new THREE.Mesh(wallG, new THREE.MeshBasicMaterial({ map: TEX.glow, color: mix.clone().multiplyScalar(.8), transparent: true, opacity: .3, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }))); wall.renderOrder = 7;
-    const pool = add(new THREE.Mesh(poolG, new THREE.MeshBasicMaterial({ map: TEX.glow, color: mix.clone().multiplyScalar(.3), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }))); pool.rotation.x = -Math.PI / 2; pool.renderOrder = 2;
+    // donde chocan: la energía de cada uno empuja desde su lado (más grande la del que domina) y en medio una luz del color de quien va ganando
+    const cap = [add(glowSpr(C[0], .8, 1.4)), add(glowSpr(C[1], .8, 1.4))], core = add(glowSpr(C[0], .5, 1.5)), lead = new THREE.Color();
+    const frG = new THREE.RingGeometry(.86, 1, 40), front = add(new THREE.Mesh(frG, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }))); front.renderOrder = 7;
     X.shot('clash', 0, 6000);
-    const m = new V3(); let tt = 0, pulse = .3, dust = 0, ex = .1, alt = false;
-    const me = CL = { x: .5, tx: .5, M, C, surge: [0, 0], m };
+    const m = new V3(); let tt = 0, pulse = .5, dust = 0, ex = .1, alt = false;
+    const me = CL = { x: .5, tx: .5, M, C, surge: [0, 0], m, B, fl: 0 };
     me.an = fx().anim(30, (k, dt) => { if (CL !== me) return; tt += dt; me.x += (me.tx - me.x) * Math.min(1, dt * 7);
       m.copy(M[0] === 'beam' ? src2(0) : A[0]).lerp(M[1] === 'beam' ? src2(1) : A[1], me.x); m.z = 0; X.camAt(m);
-      const sg = me.surge; sg[0] = Math.max(0, sg[0] - dt * 3); sg[1] = Math.max(0, sg[1] - dt * 3);
+      const sg = me.surge, sh = [me.x, 1 - me.x]; sg[0] = Math.max(0, sg[0] - dt * 2.6); sg[1] = Math.max(0, sg[1] - dt * 2.6); // sh: cuánto domina cada uno (0,5 = igualados)
+      me.fl = Math.min(1, me.fl + dt * 3); X.clashFloor(me.fl, m.x, C[0], C[1], tt);
       for (const p of [0, 1]) { const D = X.dir(p), s = X.FT[p]; if (!s) continue;
-        if (M[p] === 'beam') { const a0 = src2(p); B[p].set(a0, m, .19 * (1 + .45 * sg[p]) * (1 + .03 * Math.sin(tt * 31 + p * 2))); B[p].t(dt); mz[p].position.copy(a0); mz[p].scale.setScalar(.75 + .08 * Math.sin(tt * 27 + p)); }
+        if (M[p] === 'beam') { const a0 = src2(p); B[p].set(a0, m, .2 * (.5 + 1.05 * sh[p]) * (1 + .5 * sg[p]) * (1 + .03 * Math.sin(tt * 31 + p * 2))); B[p].t(dt); mz[p].position.copy(a0); mz[p].scale.setScalar((.6 + .5 * sh[p]) * (1 + .08 * Math.sin(tt * 27 + p))); }
         else if (M[p] === 'stand') { const R = s.F.mesh; G[p].position.set(m.x - D * (.72 + .1 * Math.sin(tt * 64 + p)), (R ? R.position.y : 0) + .12, .3); // el Stand pega sin parar en el punto del choque
-          if (Math.random() < dt * 14) fx().sprite(t1.copy(m).add(t2.set(-D * .15, rr(-.3, .3), rr(-.2, .2))), rr(.4, .7), Math.random() < .5 ? C[p] : '#ffffff', .09, { tex: TEX.star, k: 2.4 }); }
+          if (Math.random() < dt * 12) fx().sprite(t1.copy(m).add(t2.set(-D * .15, rr(-.3, .3), rr(-.2, .2))), rr(.4, .7), C[p], .09, { tex: TEX.star, k: 2.2 }); }
         else { const R = s.A.R, tx = m.x - D * reachOf(p) + Math.sin(tt * 55 + p * 3) * .012, q = Math.min(1, dt * 12); R.tw = null; R.x += (tx - R.x) * q; R.z -= R.z * q; } } // aguanta en el punto del choque, temblando
       if (M[0] === 'body' || M[1] === 'body') { if ((ex -= dt) <= 0) { const both = M[0] === 'body' && M[1] === 'body'; ex = both ? .13 : .22; alt = !alt;
         for (const p of [0, 1]) if (M[p] === 'body') X.play(p, [[holdPose(p, alt), .05, 'snap']], true);
-        if (both) { fx().sprite(m, rr(.7, 1.1), '#ffffff', .09, { tex: TEX.star, k: 2.4 }); fx().ring(m, .9, mixH, .2, { inner: .9 }); fx().spark(m, 8, '#ffffff', { dir: t1.set(0, 1, 0), spread: 1.2, max: 10, life: .25 }); X.shake(.06); } } }
-      const sp = 1 + .3 * (sg[0] + sg[1]);
-      core.position.copy(m); core.scale.setScalar(.5 * sp * (1 + .05 * Math.sin(tt * 23)));
-      h0.position.copy(m).x -= .2; h1.position.copy(m).x += .2; h0.scale.setScalar(.95 * (1 + .3 * sg[0])); h1.scale.setScalar(.95 * (1 + .3 * sg[1]));
-      wall.position.copy(m); wall.rotation.set(0, Math.PI / 2, tt * 1.2); wall.scale.setScalar(1.3 * sp * (1 + .06 * Math.sin(tt * 17)));
-      pool.position.set(m.x, .025, 0); pool.scale.setScalar(2.6 * sp);
-      if (Math.random() < dt * 12) fx().spark(m, 2, Math.random() < .5 ? C[0] : C[1], { dir: t1.set(rr(-.25, .25), rr(-1, 1), rr(-1, 1)), spread: .4, max: 9, life: .3, w: .035 });
-      if ((M[0] === 'beam' || M[1] === 'beam') && Math.random() < dt * .8) fx().bolt(m, m.clone().add(t1.set(rr(-.9, .9), rr(-.8, .8), rr(-.6, .6))), Math.random() < .5 ? C[0] : C[1], .09, { w: .035 });
-      if ((pulse -= dt) <= 0) { pulse = .9; fx().ring(m, 1.1, mixH, .4, { inner: .93 }); }
-      if ((dust -= dt) <= 0) { dust = .09; fx().smoke(t1.set(m.x, .05, rr(-.3, .3)), 1, '#3a3344', { max: 2.6, up: .08, a: .4, vz: rr(-1, 1) }); }
-      if (Math.random() < dt * 2.5) X.shake(.05);
-    }, () => { for (const b of B) if (b) b.kill(); for (const o of own) { S().remove(o); if (o.material) o.material.dispose(); else if (o.userData.mat) o.userData.mat.dispose(); } wallG.dispose(); poolG.dispose(); });
+        if (both) { const w = me.x >= .5 ? 0 : 1; fx().sprite(m, rr(.6, .9), C[w], .09, { tex: TEX.star, k: 2.2 }); fx().spark(m, 6, C[alt ? 0 : 1], { dir: t1.set(0, 1, 0), spread: 1.2, max: 9, life: .25 }); X.shake(.05); } } }
+      for (const p of [0, 1]) { const o = cap[p]; o.position.copy(m); o.position.x -= X.dir(p) * (.1 + .12 * sh[p]); o.scale.setScalar((.55 + .9 * sh[p]) * (1 + .35 * sg[p]) * (1 + .06 * Math.sin(tt * 19 + p * 2))); }
+      lead.copy(CC[1]).lerp(CC[0], Math.max(0, Math.min(1, (me.x - .5) * 3 + .5))); core.material.color.copy(lead).lerp(WH, .25).multiplyScalar(1.5); core.position.copy(m); core.scale.setScalar(.42 * (1 + .08 * Math.sin(tt * 23)));
+      front.position.copy(m); front.quaternion.copy(X.cam.quaternion); front.rotateY(Math.PI / 2 * .78); front.scale.set(.5 + .1 * Math.sin(tt * 40), .62 + .08 * Math.sin(tt * 33), 1); front.material.color.copy(lead).lerp(WH, .5).multiplyScalar(1.6);
+      if (Math.random() < dt * 9) { const p = Math.random() < me.x ? 0 : 1; fx().spark(m, 2, C[p], { dir: t1.set(-X.dir(p) * .1, rr(-1, 1), rr(-1, 1)), spread: .35, max: 8, life: .28, w: .035 }); } // la energía se derrama por el frente
+      if ((pulse -= dt) <= 0) { pulse = .8; const w = me.x >= .5 ? 0 : 1; fx().ring(m, 1, C[w], .38, { inner: .92 }); }
+      if ((dust -= dt) <= 0) { dust = .16; fx().smoke(t1.set(m.x, .05, rr(-.3, .3)), 1, '#3a3344', { max: 2.2, up: .08, a: .35, vz: rr(-1, 1) }); }
+      if (Math.random() < dt * 2) X.shake(.04);
+    }, () => { for (const b of B) if (b) b.kill(); for (const o of own) { S().remove(o); if (o.material) o.material.dispose(); else if (o.userData.mat) o.userData.mat.dispose(); } frG.dispose(); });
+    return C;
   }
-  // empujón: el punto del choque avanza hacia quien cede; el que empuja se ensancha un instante y sale una onda
-  function clashX(x) { const c = CL; if (!c) return; x = Math.max(.06, Math.min(.94, x)); if (x === c.tx) return; const w = x > c.tx ? 0 : 1; c.tx = x; c.surge[w] = 1;
-    fx().ring(c.m, 2, c.C[w], .4, { inner: .9 }); fx().sprite(c.m, .8, c.C[w], .12, { k: 1.2 }); fx().spark(c.m, 14, c.C[w], { dir: t1.set(X.dir(w) * .6, .5, 0), spread: 1, max: 12, life: .35 }); fx().crater(c.m.x, 0, .7, c.C[w]);
-    X.kick(1.4); X.shake(.16); }
+  const WH = new THREE.Color('#ffffff');
+  // empujón: el punto del choque avanza hacia quien cede. Del que empuja sale una onda que recorre su rayo y revienta en el frente
+  function clashX(x) { const c = CL; if (!c) return; x = Math.max(.06, Math.min(.94, x)); if (x === c.tx) return; const w = x > c.tx ? 0 : 1; c.tx = x; const C = c.C[w];
+    const burst = () => { if (CL !== c) return; c.surge[w] = 1; fx().ring(c.m, 1.8, C, .4, { inner: .88 }); fx().sprite(c.m, 1.1, C, .16, { k: 1.6 }); fx().spark(c.m, 16, C, { dir: t1.set(X.dir(w) * .8, .35, 0), spread: .9, max: 12, life: .35 });
+      fx().crater(c.m.x - X.dir(w) * .3, 0, .6, C); X.kick(1.4); X.shake(.16); };
+    if (c.M[w] === 'beam') { const o = glowSpr(C, .5, 2.2); fx().anim(.18, k => { const a0 = src2(w); o.position.copy(a0).lerp(c.m, k * k); o.scale.setScalar(.5 + k * .5); }, () => { kill(o); burst(); }); } // la onda viaja por su rayo
+    else burst(); }
   // final: el rayo ganador atraviesa al rival; quien pega con el cuerpo se lanza a rematar; el Stand da el último golpe
   function clashEnd(l) { const c = CL; if (!c) return; CL = null; c.an.t = c.an.d; const w = l === 0 || l === 1 ? 1 - l : -1; X.shot(w >= 0 ? 'hit' : 'wide', w >= 0 ? l : 0, w >= 0 ? 800 : 1);
+    const fx0 = c.m.x, f0 = c.fl; fx().anim(.7, k => X.clashFloor(f0 * (1 - k), w < 0 ? fx0 : fx0 + (X.chest(l).x + X.dir(w) * 1.5 - fx0) * Math.min(1, k * 2.5), c.C[0], c.C[1], k), () => X.clashFloor(0)); // el territorio del ganador se come el del otro
     if (w >= 0) { const D = X.dir(w);
-      if (c.M[w] === 'beam') { const B = beamMesh(c.C[w]); fx().anim(.5, (k, dt) => { const a0 = src2(w), tg = X.chest(l).add(t1.set(D * 1.6 * Math.min(1, k * 3), 0, 0)), b = a0.clone().lerp(tg, Math.min(1, k / .18));
-          B.set(a0, b, .2 * (1 + k * .7) * (k > .7 ? Math.max(.05, 1 - (k - .7) / .3) : 1)); B.t(dt); }, () => B.kill()); }
+      if (c.M[w] === 'beam') { const B = clashBeam(c.C[w]); fx().anim(.5, (k, dt) => { const a0 = src2(w), tg = X.chest(l).add(t1.set(D * 1.6 * Math.min(1, k * 3), 0, 0)), b = a0.clone().lerp(tg, Math.min(1, k / .18));
+          B.set(a0, b, .26 * (1 + k * .8) * (k > .7 ? Math.max(.05, 1 - (k - .7) / .3) : 1)); B.t(dt); }, () => B.kill()); fx().sprite(X.chest(l), 3, c.C[w], .4, { k: 1.8 }); }
       else if (c.M[w] === 'stand') standGhost(w, c.C[w], .45, { reach: .5 });
       else { const st = X.sty(w); X.play(w, [['dash', .04, 'snap'], [st.k === 'blade' || st.k === 'claw' ? 'slashB' : st.w === 'kick' ? 'kickR' : 'upperR', .07, 'snap', .25]]);
         X.move(w, { x: X.chest(l).x - D * .95, z: 0, d: .08, e: 'out' }); X.ghosts(w, 3); X.later(.55, () => X.home(w)); } }
@@ -434,6 +459,95 @@ vec3 c=mix(col,vec3(3.0),smoothstep(.62,.97,f));gl_FragColor=vec4(c,clamp(a,0.0,
         X.shake(.28); X.kick(1.6); X.hitstop(45);
         fx().anim(.26, k => { mat.opacity = .93 * (1 - k); g.position.x += D * .015; }, () => { S().remove(g); mat.dispose(); }); }); }
 
+  /* ======== FORMAS DE PEGAR (v3): las elige engine.js y las anima game.js con estas coreografías ======== */
+  const air = (p, o) => X.move(p, Object.assign({ e: 'out' }, o)); // move() deja y = 0 si no se le dice: en el aire hay que darla siempre
+  /* COMBO AÉREO: gancho que lo lanza hacia arriba, lo persigue y le pega desde un lado y desde el otro (a toda velocidad, con estelas),
+     se pone encima y lo estrella contra el suelo. onHit(i, último) en cada golpe (game.js pone los números). Se cumple al estamparlo. */
+  function combo(a, n, big, onHit) {
+    const d = vic(a), D = X.dir(a); if (!X.FT[a] || !X.FT[d]) return null; n = Math.max(3, n | 0);
+    const st = X.sty(a), psy = st.k === 'psy', C = psy ? X.colOf(a) : X.tc(a), H = 1.7, t0 = .17, step = st.fast ? .16 : .2, tEnd = t0 + .3 + step * (n - 2) + .3;
+    const hit = (i, last) => { try { onHit && onHit(i, last); } catch (e) { /* nada */ } };
+    X.busy(a, tEnd + .6); X.busy(d, tEnd + 1); X.expr(a, 'a', tEnd + .4); X.expr(d, 'h', tEnd + .8); X.setActor(a); X.shot('air', a, (tEnd + .1) * 1000);
+    if (psy) X.play(a, [['raise', .12, 'out', tEnd - .3], ['throw', .08, 'snap', .3]]); // la telequinesis lo hace todo a distancia
+    else { X.play(a, [['dash', .05, 'out'], ['upperR', .07, 'snap', .12]]); X.move(a, { x: vx(a) - D * .95, z: vz(a), d: .12, e: 'out' }); X.ghosts(a, 3); }
+    // 1) lo lanza hacia arriba
+    X.later(t0, () => { const s = X.FT[d]; if (!s) return; X.hitFx(a, d, X.chest(d), true, C); fx().ring(X.feet(d).setY(.05), 1.8, C, .45, { flat: 1, inner: .8 }); fx().smoke(X.feet(d), 10, '#3a3344', { max: 2.2, up: .4 });
+      X.play(d, [['hitB', .05, 'snap'], ['airborne', .15, 'out']], true); air(d, { x: s.A.R.x - D * .35, y: H, z: 0, d: .3 }); fx().trail(() => X.chest(d), C, .3, { w: .2, keep: .15 });
+      if (psy) { fx().debris(X.feet(d).setY(.15), 10); implode(X.chest(d), 1.8, C, .3); }
+      else X.later(.08, () => { if (X.FT[a]) { air(a, { x: X.FT[d] ? X.FT[d].A.R.x - D * .9 : vx(a), y: H - .3, z: 0, d: .22 }); X.play(a, [['airborne', .1, 'out']]); } }); // salta tras él
+      hit(1, false); X.hitstop(55); X.shake(.32); X.kick(1.5); });
+    // 2) en el aire: aparece por un lado y por el otro (se gira si está detrás) y le pega; la telequinesis lo zarandea entre anillos
+    for (let i = 2; i < n; i++) X.later(t0 + .3 + step * (i - 2), () => { const s = X.FT[d]; if (!s || !X.FT[a]) return; const side = i % 2 ? -1 : 1, R = s.A.R;
+      if (psy) { implode(X.chest(d), 1.4, C, .22); fx().debris(X.chest(d), 3); }
+      else { air(a, { x: R.x - D * .85 * side, y: H + rr(-.2, .25), z: R.z + rr(-.35, .35), d: .06 }); X.turn(a, side); X.ghosts(a, 2); X.play(a, [[side < 0 ? 'kickR' : i % 3 ? 'hookR' : 'jabR', .05, 'snap', .07]]); }
+      X.later(.06, () => { const S2 = X.FT[d]; if (!S2) return; const c = X.chest(d); X.hitFx(a, d, c, false, C); fx().sprite(c, .9, psy ? C : '#ffffff', .1, { tex: TEX.star, k: 2.2 }); S2.fl = .8;
+        air(d, { x: S2.A.R.x + D * .12 * (psy ? (i % 2 ? 1 : -1) : side), y: H + .12 * (i % 2), z: S2.A.R.z, d: .06 }); hit(i, false); X.shake(.16); X.hitstop(35); }); });
+    // 3) remate: se pone encima y lo estrella contra el suelo (o lo aplasta con la mente)
+    X.later(tEnd - .2, () => { const s = X.FT[d]; if (!s || !X.FT[a] || psy) return; X.turn(a, 1); air(a, { x: s.A.R.x - D * .25, y: H + .9, z: 0, d: .09 }); X.play(a, [['raise', .06, 'out'], ['slashB', .06, 'snap', .25]]); X.ghosts(a, 2); });
+    X.later(tEnd - .09, () => { const s = X.FT[d]; if (!s) return; air(d, { x: s.A.R.x + D * .3, y: 0, z: 0, d: .09, e: 'in' }); X.play(d, [['hitB', .04, 'snap', .4]], true); fx().trail(() => X.chest(d), C, .1, { w: .35, keep: .12 }); if (psy) implode(X.chest(d), 2.4, C, .2); });
+    X.later(tEnd + .12, () => { X.turn(a, 1); if (X.FT[a] && !psy) air(a, { x: X.FT[a].A.R.x, y: 0, z: 0, d: .2, e: 'in' }); });
+    X.later(tEnd + .5, () => X.home(a)); X.later(tEnd + .75, () => { const s = X.FT[d]; if (s && !s.dead) { X.play(d, [[s.A.base, .3, 'io']]); X.home(d, .35, .1); } });
+    return X.pend(tEnd, () => { const f = X.feet(d); fx().ring(f.clone().setY(.05), big ? 5.5 : 4.5, C, .6, { flat: 1, inner: .7 }); fx().crater(f.x, f.z, big ? 2 : 1.6, C); fx().debris(f.clone().setY(.2), big ? 26 : 18, { big: 1 }); fx().smoke(f, 22, '#2e2638', { max: 4.5, size: 1.3 });
+      X.hitFx(a, d, X.chest(d), true, C); hit(n, true); X.hitstop(130); X.shake(.9); X.kick(4); X.shot('hit', d, 900); });
+  }
+  /* AGARRE: se lanza a por él, lo levanta por encima de su cabeza y lo estrella contra el suelo delante de él. La telequinesis (Tatsumaki,
+     Mob…) lo hace sin tocarlo: lo eleva entre anillos que lo estrujan y lo aplasta contra el suelo. Se cumple al estrellarlo. */
+  function grab(a, big) {
+    const d = vic(a), D = X.dir(a); if (!X.FT[a] || !X.FT[d]) return null; const st = X.sty(a), psy = st.k === 'psy', C = psy ? X.colOf(a) : X.tc(a), hitAt = psy ? .85 : .78;
+    X.busy(a, hitAt + .6); X.busy(d, hitAt + 1); X.expr(a, 'a', hitAt + .4); X.expr(d, 'h', hitAt + .8); X.setActor(a); X.shot('air', a, (hitAt - .05) * 1000);
+    if (psy) { X.play(a, [['raise', .15, 'out', .55], ['throw', .08, 'snap', .25]]);
+      X.later(.1, () => { const s = X.FT[d]; if (!s) return; X.play(d, [['airborne', .2, 'out']], true); air(d, { x: s.A.R.x, y: 2, z: 0, d: .5 }); fx().glow(X.chest(d), 30, C, { max: 2, l1: .5 }); fx().debris(X.feet(d).setY(.15), 8);
+        for (let i = 0; i < 3; i++) X.later(i * .16, () => X.FT[d] && implode(X.chest(d), 1.9, C, .3)); });
+      X.later(hitAt - .12, () => { const s = X.FT[d]; if (!s) return; air(d, { x: s.A.R.x + D * .3, y: 0, z: 0, d: .12, e: 'in' }); X.play(d, [['hitB', .05, 'snap', .35]], true); fx().trail(() => X.chest(d), C, .12, { w: .3, keep: .1 }); }); }
+    else { X.play(a, [['dash', .06, 'out'], ['jabR', .07, 'snap', .16], ['raise', .14, 'out', .12], ['slashB', .07, 'snap', .3]]); X.move(a, { x: vx(a) - D * .7, z: vz(a), d: .14, e: 'out' }); X.ghosts(a, 3);
+      X.later(.22, () => { const s = X.FT[d]; if (!s) return; fx().sprite(X.chest(d), 1, '#ffffff', .12, { tex: TEX.star, k: 2 }); X.shake(.18); X.hitstop(40); // lo agarra…
+        X.play(d, [['hitL', .05, 'snap'], ['airborne', .12, 'out']], true); air(d, { x: (X.FT[a] ? X.FT[a].A.R.x : s.A.R.x) + D * .15, y: 2, z: .2, d: .3, arc: .3 }); }); // …lo levanta por encima de su cabeza…
+      X.later(hitAt - .12, () => { const s = X.FT[d]; if (!s) return; air(d, { x: (X.FT[a] ? X.FT[a].A.R.x : s.A.R.x) + D * 1.15, y: 0, z: 0, d: .12, e: 'in' }); X.play(d, [['hitB', .05, 'snap', .35]], true); fx().trail(() => X.chest(d), C, .12, { w: .3, keep: .1 }); }); } // …y lo estrella
+    X.later(hitAt + .45, () => X.home(a)); X.later(hitAt + .8, () => { const s = X.FT[d]; if (s && !s.dead) { X.play(d, [[s.A.base, .3, 'io']]); X.home(d, .4, .2); } });
+    return X.pend(hitAt, () => { const f = X.feet(d); fx().ring(f.clone().setY(.05), big ? 5.5 : 4.2, C, .6, { flat: 1, inner: .65 }); fx().crater(f.x, f.z, big ? 2.1 : 1.6, C); fx().debris(f.clone().setY(.2), big ? 28 : 18, { big: 1 });
+      fx().smoke(f, 24, '#2e2638', { max: 4.5, size: 1.4 }); fx().sprite(X.chest(d), 2.4, C, .3, { k: 2 }); X.hitstop(130); X.shake(1); X.kick(4.5); X.shot('hit', d, 800); });
+  }
+  /* GOLPE CRUZADO: los dos se lanzan a la vez y se pegan al mismo tiempo; cámara lenta en el instante del choque y un destello doble */
+  function cross(a) {
+    const s0 = X.FT[0], s1 = X.FT[1]; if (!s0 || !s1) return null; const mid = (s0.A.R.x + s1.A.R.x) / 2;
+    for (const p of [0, 1]) { const D = X.dir(p), st = X.sty(p), blade = st.k === 'blade' || st.k === 'claw' || st.k === 'pole';
+      X.busy(p, 1.2); X.expr(p, 'a', 1); X.setActor(p); X.play(p, [['dash', .06, 'out'], [blade ? 'slashB' : p === a ? 'hookR' : st.w === 'kick' ? 'kickR' : 'jabR', .07, 'snap', .4]]);
+      X.move(p, { x: mid - D * (blade ? 1 : .62), z: 0, d: .13, e: 'out' }); X.ghosts(p, 3); }
+    X.camAt(t1.set(mid, 1.3, 0)); X.shot('clash', 0, 1200);
+    X.later(.75, () => { X.home(0); X.home(1); });
+    return X.pend(.16, () => { const c = new V3(mid, 1.4, 0); fx().sprite(c, 3.2, '#ffffff', .25, { tex: TEX.star, k: 2.6 }); fx().ring(c, 2.6, '#ffffff', .45, { inner: .92 });
+      for (const p of [0, 1]) fx().spark(c, 14, X.colOf(p), { dir: t2.set(-X.dir(p), .3, 0), spread: .8, max: 12, life: .35 });
+      X.hitstop(170); X.slow(.25, 520); X.shake(.7); X.kick(3); });
+  }
+  /* GUARDIA: se cubre y aparece un escudo hexagonal de su color donde llega el golpe; las chispas salen rebotadas. Rota: estalla. */
+  function guard(d, broken) {
+    const s = X.FT[d]; if (!s) return; const D = X.dir(d), C = X.colOf(d), c = X.chest(d).add(t1.set(D * .5, 0, .15));
+    X.busy(d, .6); X.play(d, [['guard', .05, 'snap', .3]]); X.move(d, { x: s.A.R.x - D * .3, d: .12, e: 'out' }); X.later(.45, () => X.home(d, .3, 0));
+    const gg = new THREE.CircleGeometry(1, 6), eg = new THREE.EdgesGeometry(gg), g = new THREE.Mesh(gg, new THREE.MeshBasicMaterial({ color: new THREE.Color(C).multiplyScalar(1.6), transparent: true, opacity: .45, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })),
+      e = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: new THREE.Color(C).multiplyScalar(3), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    g.add(e); g.position.copy(c); g.rotation.y = D * 1.05; g.renderOrder = e.renderOrder = 8; S().add(g);
+    fx().anim(broken ? .18 : .38, k => { g.scale.setScalar(.8 * (broken ? 1 + k * .35 : Math.min(1, k / .15))); g.material.opacity = .45 * (1 - k); e.material.opacity = 1 - k * k; }, () => { S().remove(g); gg.dispose(); eg.dispose(); g.material.dispose(); e.material.dispose(); });
+    fx().spark(c, broken ? 30 : 18, broken ? C : '#ffffff', { dir: t2.set(-D, .7, 0), spread: .9, max: 11, life: .3 }); fx().ring(c, 1.2, C, .25, { inner: .9 });
+    if (broken) { fx().sprite(c, 2.2, C, .22, { tex: TEX.star, k: 2.4 }); for (let i = 0; i < 6; i++) fx().bolt(c, c.clone().add(t2.set(rr(-1, 1), rr(-1, 1), rr(-.4, .4))), C, .2, { w: .03, disp: .2 }); X.hitstop(90); }
+    X.shake(broken ? .5 : .2);
+  }
+  /* ATAQUE DEFINITIVO (la carga): el mundo se oscurece, sube hasta el cielo una columna de energía de su color, el suelo se agrieta y las
+     rocas flotan alrededor. Quien no tiene aura (Saitama, Toji…) levanta un tornado de polvo blanco. Después game.js lanza su técnica. */
+  function ultimate(a) {
+    const s = X.FT[a]; if (!s) return null; const na = !s.sty.au, C = na ? '#e4e0ec' : X.colOf(a), f = X.feet(a), dur = 1.2;
+    X.ultAmb(C); X.busy(a, dur + .2); X.play(a, [['power', .2, 'out', dur - .3]]); X.expr(a, 'a', dur + .2); X.setActor(a); X.shot('low', a, (dur + .1) * 1000); s.boost = Math.max(s.boost, 3);
+    const cg = new THREE.CylinderGeometry(1, 1.25, 1, 32, 1, true), col = new THREE.Mesh(cg, energyMat(C, '#ffffff', 2, na ? 1.4 : 2.2)); col.material.uniforms.op.value = 0; col.renderOrder = 5; S().add(col);
+    fx().anim(dur, (k, dt) => { const R = X.FT[a] ? X.FT[a].A.R : null; if (!R) return; const h = 16 * Math.min(1, k / .25), w = (.75 + .12 * Math.sin(k * 40)) * (k < .85 ? 1 : 1 - (k - .85) / .15);
+      col.position.set(R.x, h / 2, R.z); col.scale.set(w, h, w); col.material.uniforms.t.value += dt; col.material.uniforms.sp.value = 2.5; col.material.uniforms.op.value = Math.min(.85, k * 4) * (k > .85 ? (1 - k) / .15 : 1);
+      if (Math.random() < .45) fx().debris(t1.set(R.x + rr(-2.4, 2.4), .1, R.z + rr(-1.5, 1.5)), 1);
+      if (Math.random() < .7) fx().glow(t1.set(R.x + rr(-.6, .6), rr(0, 2), R.z + rr(-.4, .4)), 2, C, { max: .6, vy: 7, l1: .5, s0: .05, s1: .14 });
+      if (na && Math.random() < .5) fx().smoke(t1.set(R.x + rr(-1, 1), .1, R.z), 1, '#5a5464', { max: 3, up: 1.5, a: .5 }); },
+      () => { S().remove(col); cg.dispose(); col.material.dispose(); });
+    fx().ring(f.clone().setY(.05), 6.5, C, .9, { flat: 1, inner: .86 }); fx().crater(f.x, f.z, 2.6, C); fx().smoke(f, 30, '#2e2638', { max: 5, up: .6, size: 1.4 }); fx().debris(f.clone().setY(.15), 16, { big: 1 });
+    X.later(.35, () => fx().ring(X.feet(a).setY(.05), 9, C, 1, { flat: 1, inner: .94 })); X.shake(.7); X.kick(2.5);
+    return X.pend(dur - .1, () => { X.later(1.6, () => X.ultAmb(null)); });
+  }
+
   function run(a, ar, big, C, o, name) {
     const st = X.sty(a); ar = styled(ar, st);
     switch (ar.ar) {
@@ -446,5 +560,5 @@ vec3 c=mix(col,vec3(3.0),smoothstep(.62,.97,f));gl_FragColor=vec4(c,clamp(a,0.0,
   }
   // rayo suelto (Night Guy, o si una técnica no se pudo animar): quien no tiene energía lo sustituye por su golpe
   const beamS = (a, big, col) => { const st = X.sty(a); return st.ce ? beam(a, big, col || X.colOf(a)) : strike(a, big, col || X.tc(a), st, { ar: 'beam', v: '', el: '' }, '', {}); };
-  return { run, beam: beamS, clash, clashX, clashEnd, cut, shield, meteor, stomp, clone, shades, shadeHit, flourish, standGhost, chain };
+  return { run, beam: beamS, clash, clashX, clashEnd, cut, shield, meteor, stomp, clone, shades, shadeHit, flourish, standGhost, chain, combo, grab, cross, guard, ultimate };
 }

@@ -1382,6 +1382,71 @@ button.ps-o:focus-visible,.ps-lv button:focus-visible{outline:3px solid #ffb02e;
 @media(prefers-reduced-motion:reduce){.sk-radar i{animation:none;opacity:.4}}
 .ab.d3 .ab-clash,.ab.d3 .ab-beam,.ab.d3 .ab-burst,.ab.d3 .ab-shield{opacity:0}
 
+/* ---------- CHOQUE DE TÉCNICAS: barra de tira y afloja (cada lado de su color, % de cada uno y quién empuja) ---------- */
+.ab-tug{position:absolute;left:50%;bottom:14px;z-index:7;width:min(660px,calc(100% - 24px));transform:translateX(-50%);display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"nm nm nm" "p0 bar p1";align-items:center;gap:5px 10px;pointer-events:none;animation:tugin calc(.4s*var(--k)) cubic-bezier(.2,.9,.3,1)}
+.ab.d3 .ab-tug{bottom:132px}
+.tg-top{grid-area:nm;display:flex;justify-content:space-between;gap:14px;min-width:0}
+.tg-n{display:grid;min-width:0;max-width:48%}
+.tg-n.r{text-align:right}
+.tg-n small{font:800 .6rem var(--mono);letter-spacing:.16em;text-transform:uppercase;color:#fff;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px #000}
+.tg-n b{font:900 clamp(.9rem,2.3vw,1.3rem)/1.05 var(--disp);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-text-stroke:1px #000;text-shadow:2px 2px 0 #000,0 0 16px var(--tc);transition:transform .2s}
+.tg-n.l b{color:var(--c0);--tc:var(--c0);transform-origin:left}.tg-n.r b{color:var(--c1);--tc:var(--c1);transform-origin:right}
+.tg-pc{min-width:3.2ch;font:900 1.2rem/1 var(--disp);font-variant-numeric:tabular-nums;-webkit-text-stroke:1px #000;text-shadow:2px 2px 0 #000}
+.tg-pc.l{grid-area:p0;color:var(--c0)}.tg-pc.r{grid-area:p1;text-align:right;color:var(--c1)}
+.tg-bar{grid-area:bar;position:relative;height:16px;border-radius:99px;background:#07060b;box-shadow:0 0 0 2px #000,0 0 0 3px rgba(255,255,255,.3),0 8px 20px -8px #000}
+.tg-bar i{position:absolute;top:0;bottom:0;border-radius:99px;transition:width calc(.32s*var(--k)) cubic-bezier(.3,1.35,.5,1);background-size:22px 100%,100% 100%}
+.tg-bar .l{left:0;width:calc(var(--x)*100%);background-image:repeating-linear-gradient(110deg,transparent 0 9px,rgba(255,255,255,.32) 9px 13px),linear-gradient(180deg,color-mix(in srgb,var(--c0) 50%,#fff),var(--c0) 55%,color-mix(in srgb,var(--c0) 65%,#000));box-shadow:0 0 18px 2px var(--c0);animation:tugl .45s linear infinite}
+.tg-bar .r{right:0;width:calc((1 - var(--x))*100%);background-image:repeating-linear-gradient(70deg,transparent 0 9px,rgba(255,255,255,.32) 9px 13px),linear-gradient(180deg,color-mix(in srgb,var(--c1) 50%,#fff),var(--c1) 55%,color-mix(in srgb,var(--c1) 65%,#000));box-shadow:0 0 18px 2px var(--c1);animation:tugr .45s linear infinite}
+.tg-bar b{position:absolute;z-index:1;top:50%;left:calc(var(--x)*100%);width:22px;height:22px;margin:-11px 0 0 -11px;transform:rotate(45deg);background:#fff;box-shadow:0 0 0 2px #000,0 0 16px 5px rgba(255,255,255,.7);transition:left calc(.32s*var(--k)) cubic-bezier(.3,1.35,.5,1);animation:tugsp .11s ease-in-out infinite alternate}
+.ab-tug.p0 .tg-bar .l{animation:tugl .45s linear infinite,tugfl calc(.45s*var(--k)) ease-out}.ab-tug.p1 .tg-bar .r{animation:tugr .45s linear infinite,tugfl calc(.45s*var(--k)) ease-out}
+.ab-tug.p0 .tg-pc.l,.ab-tug.p1 .tg-pc.r{animation:tugpc calc(.4s*var(--k)) ease-out}
+.ab-tug.p0 .tg-n.l b,.ab-tug.p1 .tg-n.r b{transform:scale(1.08)}
+.ab-tug.w0 .tg-n.r,.ab-tug.w0 .tg-pc.r,.ab-tug.w1 .tg-n.l,.ab-tug.w1 .tg-pc.l{opacity:.35;transition:opacity .2s}
+.ab-tug.end{animation:tugout calc(.45s*var(--k)) ease-in forwards}
+@keyframes tugin{from{opacity:0;transform:translateX(-50%) translateY(14px) scaleX(.5)}}
+@keyframes tugout{to{opacity:0;transform:translateX(-50%) translateY(10px)}}
+@keyframes tugl{to{background-position:22px 0,0 0}}
+@keyframes tugr{to{background-position:-22px 0,0 0}}
+@keyframes tugsp{to{transform:rotate(45deg) scale(1.22)}}
+@keyframes tugfl{from{filter:brightness(2.2) saturate(1.3)}}
+@keyframes tugpc{40%{transform:scale(1.45)}}
+@media(max-width:700px){.ab.d3 .ab-tug{bottom:150px}.tg-n small{display:none}.tg-pc{font-size:1rem}}
+@media(prefers-reduced-motion:reduce){.ab-tug,.tg-bar i,.tg-bar b{animation:none!important}}
+
+/* ---------- FORMAS DE PEGAR (v3): contador del combo aéreo, ataque definitivo ---------- */
+.ab-hits{position:absolute;left:4%;top:24%;z-index:7;display:grid;justify-items:start;transform:skewX(-10deg);pointer-events:none;animation:abhits calc(3.2s*var(--k)) ease-out forwards}
+.ab-hits.r{left:auto;right:4%;justify-items:end}
+.ab-hits i{font:900 clamp(3rem,9vw,5.6rem)/.85 var(--disp);font-style:normal;color:#fff;-webkit-text-stroke:2px #000;text-shadow:4px 4px 0 var(--c),7px 7px 0 #000}
+.ab-hits small{font:900 clamp(.9rem,2.2vw,1.3rem)/1 var(--disp);letter-spacing:.14em;text-transform:uppercase;color:var(--c);-webkit-text-stroke:1px #000;text-shadow:2px 2px 0 #000}
+.ab-hits.bump i{animation:abhitb calc(.22s*var(--k)) ease-out}
+@keyframes abhits{0%{opacity:0;transform:skewX(-10deg) translateY(16px)}5%{opacity:1;transform:skewX(-10deg)}85%{opacity:1}100%{opacity:0}}
+@keyframes abhitb{0%{transform:scale(1.55)}100%{transform:scale(1)}}
+.ab-num.ult,.ab.d3 .ab-num.ult{font-size:clamp(3rem,8vw,4.6rem);color:#fff;-webkit-text-stroke:2.5px #000;text-shadow:4px 4px 0 #000,0 0 34px #ffd23f}
+.ab:not(.d3) .ab-stage.ult .ab-world{filter:brightness(.45) saturate(1.4);transition:filter .3s}
+/* viñetas de manga: tira con sus ojos, su dibujo de cuerpo entero y el nombre de la técnica, sobre líneas de velocidad de su color */
+.ab-ult{position:absolute;inset:0;z-index:9;overflow:hidden;pointer-events:none;background:radial-gradient(circle at 50% 56%,color-mix(in srgb,var(--c) 34%,#000),#000 72%);animation:abult calc(2.25s*var(--k)) ease-out forwards}
+.ab-ult .ul-bg{position:absolute;left:50%;top:56%;width:240vmax;height:240vmax;margin:-120vmax 0 0 -120vmax;background:repeating-conic-gradient(color-mix(in srgb,var(--c) 70%,#fff) 0 .7deg,transparent .7deg 5.5deg);-webkit-mask:radial-gradient(circle,transparent 0 9%,#000 26%);mask:radial-gradient(circle,transparent 0 9%,#000 26%);opacity:.5;animation:abulspin calc(2.25s*var(--k)) linear forwards}
+.ab-ult .ul-eye{position:absolute;left:-4%;right:-4%;top:8%;height:22%;overflow:hidden;transform:skewY(-4deg);background:hsl(var(--h,30) 60% 26%);box-shadow:0 0 0 4px #000,0 0 0 7px var(--c),0 0 0 10px #000;animation:abuleye calc(2.25s*var(--k)) cubic-bezier(.2,.9,.3,1) both}
+.ab-ult.r .ul-eye{animation-name:abuleyeR}
+.ab-ult .ul-eye img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 24%;transform:skewY(4deg) scale(1.08);filter:contrast(1.15) saturate(1.2)}
+.ab-ult .ul-eye .e,.ab-ult .ul-body .e{display:grid;place-items:center;height:100%;font-size:4rem}
+.ab-ult .ul-body{position:absolute;left:3%;bottom:0;width:44%;height:70%;display:grid;place-items:end center;animation:abulbody calc(2.25s*var(--k)) cubic-bezier(.2,.9,.3,1) both}
+.ab-ult.r .ul-body{left:auto;right:3%}
+.ab-ult .ul-body img{width:100%;height:100%;object-fit:cover;object-position:50% 14%;clip-path:polygon(10% 0,100% 0,90% 100%,0 100%);filter:drop-shadow(0 0 18px var(--c))}
+.ab-ult .ul-body.full canvas{display:block;max-width:100%;max-height:100%;width:auto;height:auto;filter:drop-shadow(0 0 2px #000) drop-shadow(0 0 26px var(--c))}
+.ab-ult .ul-t{position:absolute;left:50%;right:5%;top:38%;display:grid;gap:8px;min-width:0;animation:abultt calc(2.25s*var(--k)) cubic-bezier(.2,.9,.3,1) both}
+.ab-ult.r .ul-t{left:5%;right:50%;text-align:right}
+.ab-ult .ul-t small{font:800 clamp(.6rem,1.4vw,.85rem) var(--mono);letter-spacing:.24em;text-transform:uppercase;color:var(--c);text-shadow:0 0 12px var(--c),0 1px 3px #000}
+.ab-ult .ul-t b{font:900 clamp(1.9rem,6.2vw,4.6rem)/.92 var(--disp);text-transform:uppercase;overflow-wrap:anywhere;color:#fff;-webkit-text-stroke:2px #000;text-shadow:5px 5px 0 var(--pc),9px 9px 0 #000,0 0 40px var(--c)}
+@keyframes abult{0%{opacity:0}4%{opacity:1}86%{opacity:1}100%{opacity:0}}
+@keyframes abulspin{to{transform:rotate(24deg)}}
+@keyframes abuleye{0%{transform:skewY(-4deg) translateX(-110%)}12%{transform:skewY(-4deg) translateX(0)}100%{transform:skewY(-4deg) translateX(2%)}}
+@keyframes abuleyeR{0%{transform:skewY(-4deg) translateX(110%)}12%{transform:skewY(-4deg) translateX(0)}100%{transform:skewY(-4deg) translateX(-2%)}}
+@keyframes abulbody{0%,14%{opacity:0;transform:translateY(25%) scale(.92)}26%{opacity:1;transform:none}100%{transform:scale(1.04)}}
+@keyframes abultt{0%,24%{opacity:0;transform:scale(2.3)}34%{opacity:1;transform:none}100%{transform:scale(1.05)}}
+@media(max-width:700px){.ab-ult .ul-body{width:52%;height:62%}.ab-ult .ul-t{top:36%;left:46%}.ab-ult.r .ul-t{right:46%}.ab-hits{top:30%}}
+@media(prefers-reduced-motion:reduce){.ab-ult .ul-bg,.ab-hits{animation:none!important}}
+
 /* ---------- PIE DEL MENÚ: créditos e instalar como app ---------- */
 .foot{display:flex;justify-content:center;align-items:center;gap:10px;margin:26px 0 8px;font:600 .8rem var(--mono);color:var(--mut)}
 .foot .lnk{color:var(--mut);font-weight:700}.foot .lnk:hover{color:var(--ink)}
