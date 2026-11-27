@@ -47,7 +47,9 @@ const AMB = { // def: un vacío oscuro y limpio con un foco tenue en el suelo; e
   dark: { top: '#000000', hor: '#000000', glow: '#000000', base: '#000000', moon: '#000000' },
   god: { top: '#fff6e0', hor: '#ffffff', glow: '#ffffff', base: '#d8d0c0', moon: '#ffffff' },
   mih0: { top: '#5ab8ff', hor: '#d8f2ff', glow: '#ffffff', base: '#3a4a5a', moon: '#ffffff' },
+  ult: { top: '#000000', hor: '#05030a', glow: '#ffffff', base: '#040307', moon: '#000000' }, // ataque definitivo (el brillo del horizonte es su color)
 };
+let ULTC = null;
 let floorM = null, skyM = null, moon = null, moonG = null, rocks = [], lights = {};
 function buildEnv() {
   scene.fog = null;
@@ -59,14 +61,19 @@ vec3 p=d*160.0;vec3 id=floor(p);float h=fract(sin(dot(id,vec3(12.9898,78.233,37.
 c+=vec3(s)*(.2+.15*sin(t*2.0+h*60.0))*(1.0-smoothstep(.3,.9,dot(hor,vec3(.3,.6,.1))));gl_FragColor=vec4(c,1.0);}` });
   const sky = new THREE.Mesh(new THREE.SphereGeometry(95, 32, 16), skyM); sky.renderOrder = -10; scene.add(sky);
   // suelo: negro con un foco suave encima de los luchadores y el color de cada jugador a sus pies (las runas solo en las expansiones de dominio)
-  floorM = new THREE.ShaderMaterial({ uniforms: { base: { value: ENV.base }, glow: { value: ENV.glow }, hor: { value: ENV.hor }, c0: { value: new THREE.Color() }, c1: { value: new THREE.Color() }, p0: { value: new THREE.Vector2(-1.5, 0) }, p1: { value: new THREE.Vector2(1.5, 0) }, t: { value: 0 }, dz: { value: 0 }, dzc: { value: ENV.dzc } },
+  floorM = new THREE.ShaderMaterial({ uniforms: { base: { value: ENV.base }, glow: { value: ENV.glow }, hor: { value: ENV.hor }, c0: { value: new THREE.Color() }, c1: { value: new THREE.Color() }, p0: { value: new THREE.Vector2(-1.5, 0) }, p1: { value: new THREE.Vector2(1.5, 0) }, t: { value: 0 }, dz: { value: 0 }, dzc: { value: ENV.dzc },
+    clx: { value: 0 }, clk: { value: 0 }, k0: { value: new THREE.Color() }, k1: { value: new THREE.Color() } },
     vertexShader: `varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.0);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
-    fragmentShader: `uniform vec3 base;uniform vec3 glow;uniform vec3 hor;uniform vec3 c0;uniform vec3 c1;uniform vec2 p0;uniform vec2 p1;uniform float t;uniform float dz;uniform vec3 dzc;varying vec3 vW;
+    fragmentShader: `uniform vec3 base;uniform vec3 glow;uniform vec3 hor;uniform vec3 c0;uniform vec3 c1;uniform vec2 p0;uniform vec2 p1;uniform float t;uniform float dz;uniform vec3 dzc;
+uniform float clx;uniform float clk;uniform vec3 k0;uniform vec3 k1;varying vec3 vW;
 void main(){vec2 q=vW.xz;float r=length(q*vec2(.8,1.25));float a=atan(q.y,q.x);vec3 c=base;
 c+=glow*.32*(1.0-smoothstep(.4,5.5,r));
 vec2 d0=q-p0,d1=q-p1;c+=c0*exp(-dot(d0,d0)*.7)*.3+c1*exp(-dot(d1,d1)*.7)*.3;
 float rr=length(q),a2=a+t*.35;float rune=step(.55,fract(a2/6.2832*18.0))*smoothstep(.12,0.0,abs(rr-4.6))+smoothstep(.05,0.0,abs(rr-4.2))+smoothstep(.05,0.0,abs(rr-5.0))+step(.5,fract(rr*3.0-t))*smoothstep(4.0,0.0,rr)*.18;
-c=mix(c,c*.3+dzc*rune*1.4,dz);c=mix(c,hor*.35,smoothstep(6.0,30.0,rr));gl_FragColor=vec4(c,1.0);}` });
+c=mix(c,c*.3+dzc*rune*1.4,dz);
+if(clk>.001){float bd=exp(-q.y*q.y*1.3)*clk,sd=smoothstep(clx-.05,clx+.05,q.x),dd=abs(q.x-clx);vec3 kc=mix(k0,k1,sd); /* choque: cada lado del suelo de su color, con franjas que corren hacia el frente */
+ float st=smoothstep(.5,.62,fract(dd*1.25+t*1.9))*(1.0-smoothstep(.85,1.0,fract(dd*1.25+t*1.9)));c+=kc*bd*(.3+.3*st)*(1.0-smoothstep(1.5,9.0,dd));c+=mix(kc,vec3(1.0),.5)*smoothstep(.09,0.0,dd)*bd*.9;}
+c=mix(c,hor*.35,smoothstep(6.0,30.0,rr));gl_FragColor=vec4(c,1.0);}` });
   const fl = new THREE.Mesh(new THREE.CircleGeometry(60, 96), floorM); fl.rotation.x = -Math.PI / 2; fl.renderOrder = -9; scene.add(fl);
   // luna: invisible (negra) salvo en los ambientes que la necesitan (Tsukuyomi, Santuario, eclipse, la luz de Dios…)
   moonG = new THREE.MeshBasicMaterial({ color: ENV.moon, fog: false }); moon = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 16), moonG); moon.position.set(-26, 20, -70); scene.add(moon);
@@ -79,16 +86,16 @@ c=mix(c,c*.3+dzc*rune*1.4,dz);c=mix(c,hor*.35,smoothstep(6.0,30.0,rr));gl_FragCo
 let ambK = 'def';
 function ambience(dt) {
   const L = stage.classList, has = c => L.contains(c);
-  let k = has('dark') ? 'dark' : has('god') ? 'god' : has('shr') ? 'shr' : has('tsk') ? 'tsk' : has('ecl') ? 'ecl' : has('gen') ? 'gen' : has('hki') ? 'hki' : has('rmb') ? 'rmb' : has('mug') ? 'mug' : has('dz0') || has('dz1') ? 'dz' : has('mih') ? 'mih' : 'def';
+  let k = ULTC ? 'ult' : has('dark') ? 'dark' : has('god') ? 'god' : has('shr') ? 'shr' : has('tsk') ? 'tsk' : has('ecl') ? 'ecl' : has('gen') ? 'gen' : has('hki') ? 'hki' : has('rmb') ? 'rmb' : has('mug') ? 'mug' : has('dz0') || has('dz1') ? 'dz' : has('mih') ? 'mih' : 'def';
   ambK = k; let A = AMB[k] || AMB.def;
   if (k === 'mih') { const s = Math.sin(T * 4) * .5 + .5; A = s > .5 ? AMB.mih0 : AMB.def; }
   const r = Math.min(1, dt * (k === 'god' || k === 'dark' ? 10 : k === 'mih' ? 12 : 3));
   ENV.top.lerp(tmpC.set(A.top), r); ENV.hor.lerp(tmpC.set(A.hor), r); ENV.base.lerp(tmpC.set(A.base), r); ENV.moon.lerp(tmpC.set(A.moon), r);
   const dzOn = k === 'dz' || k === 'shr'; if (dzOn) ENV.dzc.lerp(tmpC.set(k === 'shr' ? '#ff1f3d' : pcol(has('dz0') ? 0 : 1)), r);
-  ENV.glow.lerp(tmpC.set(k === 'dz' ? '#' + ENV.dzc.getHexString() : A.glow), r);
+  ENV.glow.lerp(tmpC.set(k === 'dz' ? '#' + ENV.dzc.getHexString() : k === 'ult' ? ULTC : A.glow), r);
   ENV.dz += ((dzOn ? 1 : 0) - ENV.dz) * Math.min(1, dt * 3); floorM.uniforms.dz.value = ENV.dz;
   TINT.lerp(tmpC.set(TINTS[k] || '#ffffff'), r);
-  lights.hemi.intensity = k === 'dark' ? .25 : k === 'god' ? 2.2 : 1.15; lights.halo.material.color.copy(ENV.moon).multiplyScalar(.45);
+  lights.hemi.intensity = k === 'dark' ? .25 : k === 'god' ? 2.2 : k === 'ult' ? .75 : 1.15; lights.halo.material.color.copy(ENV.moon).multiplyScalar(.45);
 }
 const tmpC = new THREE.Color(), TINT = new THREE.Color(1, 1, 1); // TINT: luz de la escena sobre los dibujos de los luchadores
 const TINTS = { dark: '#3a3a46', tsk: '#ffaaaa', shr: '#ffc4c4', gen: '#ffbcbc', hki: '#ffc8c8', ecl: '#ffb4a4', mug: '#aeb2be', rmb: '#ffe0c4', dz: '#e4dcf0' };
@@ -226,6 +233,7 @@ function camUpdate(dt) {
     else if (sh.kind === 'hit') { CAM.tPos.set(fxp * .6 + mx * .4, 1.8, dist * .78); CAM.tLook.set(fxp * .7 + mx * .3, 1.4, 0); k = 5; }
     else if (sh.kind === 'ko') { const a = (T - sh.t0) * .55 + .3; CAM.tPos.set(fxp + Math.sin(a) * 4.8, 1.5, Math.cos(a) * 4.8 + .6); CAM.tLook.set(fxp, .55, 0); k = 3; }
     else if (sh.kind === 'wide') { CAM.tPos.set(mx + Math.sin(yaw) * dist * 1.2, 2.6, Math.cos(yaw) * dist * 1.2); CAM.tLook.set(mx, 1.4, 0); k = 3; }
+    else if (sh.kind === 'air') { CAM.tPos.set(mx + Math.sin(yaw) * dist * .5, 1.7, dist * 1.5); CAM.tLook.set(mx, 2.25, 0); k = 3.4; } // combos aéreos y agarres: se abre y sube para verlos en el aire
     else if (sh.kind === 'clash') { const f = CAM.focus, u = Math.min(1, (T - sh.t0) / 2.5); // choque: cámara baja que se va acercando al punto donde chocan
       CAM.tPos.set(f.x * .7 + mx * .3 + .55 + Math.sin(yaw) * .8, .95, dist * (1 - .14 * u)); CAM.tLook.set(f.x * .8 + mx * .2, Math.max(1.05, f.y * .9), 0); k = 2.4; }
   } else { CAM.tPos.set(mx + Math.sin(yaw) * dist, ly + .45 + Math.sin(T * .17) * .06, Math.cos(yaw) * dist); CAM.tLook.set(mx, ly, 0); } // un poco desde arriba, con los pies sobre el diálogo
@@ -284,7 +292,7 @@ function frame(fixed) { // un fotograma (fixed = segundos simulados, para depura
     for (const r of rocks) r.m.position.y = r.y + Math.sin(T * r.sp + r.ph) * .35;
     if (Math.random() < rdt * 4 * fx.q1) { const c = ENV.glow; fx.glowP.add({ x: rr(-7, 7), y: 0, z: rr(-5, 1.5), vx: rr(-.15, .15), vy: rr(.3, .8), vz: 0, l: rr(3, 6), s: rr(.025, .05), r: c.r * 1.4 + .08, gg: c.g * 1.4 + .06, b: c.b * 1.4 + .1, dr: 0, fi: 1, fo: 3 }); } // motas de polvo, pocas
     camUpdate(rdt); cam.updateMatrixWorld();
-    for (const s of FT) if (s && s.F.sync) s.F.sync(s, cam, { dir: dir(s.p), pc: pcol(s.p), tint: TINT });
+    for (const s of FT) if (s && s.F.sync) s.F.sync(s, cam, { dir: dir(s.p) * (s.turn || 1), pc: pcol(s.p), tint: TINT }); // turn = -1: mira hacia el otro lado (combos que le pegan por detrás)
     fx.glowP.m.material.uniforms.scale.value = fx.smokeP.m.material.uniforms.scale.value = BH * PR / (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2))); // el fov abarca la franja libre (BH), no todo el alto
     composer.render();
   } catch (e) { console.warn('F3D', e); }
@@ -328,6 +336,10 @@ function impactFx(a, d, p, big, c) {
 const X = { THREE, get scene() { return scene; }, get fx() { return fx; }, get cam() { return cam; }, FT, dir, homeX, chest, hand, feet, play, move, home, busy, later, pend, shot, shake, expr, afterimage, ghosts, colOf, pcol, powerBurst,
   sty: styOf, tc: tcOf, STEEL, hitFx: (a, d, p, big, c) => impactFx(a, d, p.clone(), big, c || tcOf(a)), unbusy: (p, sec) => { const s = FT[p]; if (s) s.busyU = T + sec; }, camAt: v => CAM.focus.copy(v),
   hitstop: ms => { HS = Math.max(HS, ms / 1000); }, kick: k => { CAM.kick = Math.max(CAM.kick, k); }, setActor: a => { actor = a; },
+  slow: (k, ms) => { slowK = k; slowU = now() + ms; }, turn: (p, v) => { const s = FT[p]; if (s) s.turn = v < 0 ? -1 : 1; },
+  ultAmb: c => { ULTC = c || null; }, // ataque definitivo: el mundo se oscurece con el color de quien lo lanza (null = vuelve)
+  // suelo del choque: k 0..1 (0 = apagado), x = dónde está el frente, c0/c1 el color de cada lado
+  clashFloor: (k, x, c0, c1) => { const U = floorM && floorM.uniforms; if (!U) return; U.clk.value = Math.max(0, k || 0); if (x != null) U.clx.value = x; if (c0) U.k0.value.set(c0); if (c1) U.k1.value.set(c1); },
   word: (txt, pos, col) => { const box = stage && stage.querySelector('#abfx'); if (!box) return; const v = pos.clone().project(cam), el = document.createElement('span'); el.className = 'ab-num txt'; el.textContent = txt; el.style.left = ((v.x + 1) / 2 * W) + 'px'; el.style.top = ((1 - v.y) / 2 * H) + 'px'; if (col) el.style.color = col; box.appendChild(el); setTimeout(() => el.remove(), 800); } };
 const TECH = makeTech(X);
 /* GOLPE BÁSICO de cada estilo. game.js llama a attack() y ~0,17 s después a hurt() + hit() en el rival: el golpe tiene que llegar a tiempo. */
@@ -403,7 +415,7 @@ const API = {
     stage = st; opts = o || {}; readPC(); (st.querySelector('.ab-world') || st).appendChild(cv); W = H = 0; resize(); if (ro) ro.observe(st);
     actor = -1; HS = 0; slowU = 0; CAM.shot = null; CAM.until = 0; CAM.trauma = 0; CAM.snap = 1; T = 0;
     // el ambiente vuelve al de siempre de golpe: sin esto el combate nuevo empezaba con el cielo y el suelo del anterior (eclipse, dominio…)
-    const A = AMB.def; ambK = 'def'; ENV.top.set(A.top); ENV.hor.set(A.hor); ENV.glow.set(A.glow); ENV.base.set(A.base); ENV.moon.set(A.moon); ENV.dzc.set(0, 0, 0); ENV.dz = 0; floorM.uniforms.dz.value = 0; TINT.set(1, 1, 1);
+    const A = AMB.def; ambK = 'def'; ENV.top.set(A.top); ENV.hor.set(A.hor); ENV.glow.set(A.glow); ENV.base.set(A.base); ENV.moon.set(A.moon); ENV.dzc.set(0, 0, 0); ENV.dz = 0; floorM.uniforms.dz.value = 0; floorM.uniforms.clk.value = 0; ULTC = null; TINT.set(1, 1, 1);
     if (opts.artOf && opts.names) opts.names.forEach(n => loadArt(n, opts.artOf(n))); // los dibujos se cargan antes de que entren
     on = true; last = now(); const g = ++gen; frame(0); requestAnimationFrame(() => loop(g)); return true; // frame(0): borra ya el último fotograma del combate anterior
   },
@@ -440,7 +452,7 @@ const API = {
     fx.crater(f.x, f.z, 1.3 * k, c); shake(.6 * k); X.kick(3); },
   beam(a, big, col) { return TECH.beam(a, big, okc(col)); },
   tech(a, name, big, col, o) { if (!on || !FT[a] || !FT[1 - a]) return null; const ar = opts.arche ? opts.arche(String(name || '')) : { ar: 'beam', v: '', col: null }; const p = TECH.run(a, ar, big, okc(col) || okc(ar.col) || colOf(a), o || {}, String(name || '')); return p && p.then(() => { QUIET[1 - a] = T + .3; }); },
-  clash() { TECH.clash(); }, clashX(x) { TECH.clashX(x); }, clashEnd(l) { TECH.clashEnd(l); if (l === 0 || l === 1) API.boom(l, null, .75); },
+  clash() { return TECH.clash(); }, clashX(x) { TECH.clashX(x); }, clashEnd(l) { TECH.clashEnd(l); if (l === 0 || l === 1) API.boom(l, null, .75); },
   slow(k, ms) { slowK = k; slowU = now() + ms; },
   bf(d) { const c = chest(d); for (let i = 0; i < 9; i++) fx.bolt(c, tmp.copy(c).add(tmp2.set(rr(-1.6, 1.6), rr(-1.2, 1.4), rr(-1, 1))), i % 3 ? '#ff1f3d' : '#1a0005', .32, { w: .07, k: i % 3 ? 3 : .2 }); fx.sprite(c, 3.4, '#ff1f3d', .3); shake(.5); X.hitstop(110); },
   slash(d, col) { col = okc(col); for (let i = 0; i < 5; i++) later(i * .055, () => TECH.cut(d, col || '#ff1f3d')); },
@@ -465,6 +477,11 @@ const API = {
         fx.anim(1, k => { U.t.value = k; U.op.value = 1 - Math.max(0, (k - .5) / .5); }, () => { scene.remove(sh); sh.userData.dispose(); }); });
     } else later(.2, () => { burst(); hide(); }); // muñeco 3D (sin dibujo): estalla en polvo
     return true; },
+  // formas de pegar (v3): devuelven una promesa que se cumple en el golpe fuerte (game.js pone el daño)
+  combo(a, n, big, onHit) { return on ? TECH.combo(a, n, big, onHit) : null; }, grab(a, big) { return on ? TECH.grab(a, big) : null; }, cross(a) { return on ? TECH.cross(a) : null; },
+  guard(d, broken) { TECH.guard(d, broken); }, ultimate(a) { return on ? TECH.ultimate(a) : null; },
+  kind(p) { return styOf(p).k; }, // cómo pelea (f3d/style.js): ki, fist, blade, psy…
+  art(n) { return opts.artOf ? loadArt(n, opts.artOf(n)).then(a => (a && !a.bust ? a.c : null)) : null; }, // su dibujo de cuerpo entero ya recortado (para el cut-in)
   shield(p) { TECH.shield(p); }, meteor(p, miss) { TECH.meteor(p, miss); }, stomp(p) { TECH.stomp(p); }, clone(a, d) { TECH.clone(a, d); }, shades(a, n) { TECH.shades(a, n); }, shadeHit(a, d) { TECH.shadeHit(a, d); },
   finisher(t) { shot('hit', t, 900); X.kick(4); },
   pause(v) { PAUSE = !!v; }, // congela la escena (para depurar y hacer capturas)

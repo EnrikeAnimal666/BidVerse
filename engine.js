@@ -288,8 +288,15 @@
        · golpe / crítico                · técnica especial (gasta ki, más daño)   · esquiva (+ contraataque)
        · choque de técnicas: los dos lanzan su técnica a la vez y empujan; el que gana revienta al otro
        · despertar: la primera vez que un personaje baja del 33 % de vida puede (55 %) sacar su verdadero poder (+stats, recupera ki). Una vez por combate.
+     Formas de pegar (v3): el daño sale de la misma fórmula; cambian el reparto y cómo se anima.
+       · combo aéreo { cb: n }: lo lanza por los aires y encadena n golpes (3-5) hasta estamparlo contra el suelo (×1,35). Más si es más hábil
+       · agarre { gr: 1 }: lo agarra y lo estrella contra el suelo. No se esquiva (salvo Ultra Instinto / Intocable), ×1,15. Más si es de fuerza bruta
+       · golpe cruzado { tx: 1|2 }: los dos se golpean a la vez (×0,8 cada uno). Solo si el que recibe no es mucho menos hábil
+       · bloqueo { bk: 1 }: el que recibe para el golpe con la guardia (×0,4, nunca crítico); si aun así lo tumba, le rompe la guardia
+       · ataque definitivo { ul: 1 }: 1 vez por duelo, por debajo del 45 % de vida y con ki de sobra (60 %): su técnica insignia ×1,7
      La vida y el ki que le quedan al ganador pasan al siguiente duelo (el ki se recupera un poco entre duelos). */
-  const AN = { FORM: 80, K1: 7000, K3: 900, GAP: 250, K4: 40000, BASE: .19, KS: 3000, KA: 2600, AWK: 55, AWHP: .33, AWP: .55, SPC: .34, REGEN: .05, CAP: 80 };
+  const AN = { FORM: 80, K1: 7000, K3: 900, GAP: 250, K4: 40000, BASE: .19, KS: 3000, KA: 2600, AWK: 55, AWHP: .33, AWP: .55, SPC: .34, REGEN: .05, CAP: 80,
+    CMB: .12, CBX: 1.35, GRAB: .05, GRB: .03, GRX: 1.15, TRADE: .04, TRX: .8, BLK: .06, BKX: .4, ULHP: .45, ULC: .6, ULP: .6, ULX: 1.7 }; // formas de pegar (v3)
   const ex = d => d / AN.K1 + Math.sign(d) * (Math.pow(Math.abs(d) / AN.K3, 3) + Math.pow(Math.max(0, Math.abs(d) - AN.GAP), 2) / AN.K4); // lineal suave + cúbico + un extra a partir de 250 de diferencia (las diferencias enormes son palizas)
   const mul = d => Math.pow(10, ex(d));
   /* ---------- RASGOS (anime): habilidades propias de algunos personajes. La clave está en data-anime.js (TRAITS) y llega como c.tr ----------
@@ -410,11 +417,11 @@
     const strike = (a, kind, tag, mlt = 1, P) => { // kind: 'hit' | 'sp' | 'ctr' · P: poder a usar si no es el de siempre
       const d = 1 - a, sp = kind === 'sp', ctr = kind === 'ctr';
       if (inf[d] > 0) { inf[d]--; rec(Object.assign({ a: d, k: 'tr', tr: 'inf', by: a }, tag)); return null; }
-      const crit = rng() < .06 + clamp(S(a, 'TEC'), 0, 1000) / 1000 * .1 + (has(a, 'asura') ? TR.ASC : 0);
+      const crit = !(tag && tag.bk) && rng() < .06 + clamp(S(a, 'TEC'), 0, 1000) / 1000 * .1 + (has(a, 'asura') ? TR.ASC : 0); // un golpe bloqueado nunca es crítico
       const bf = !sp && has(a, 'bflash') && rng() < TR.BF + TR.BFU * (X[a].bf || 0); // Destello Negro
       if (bf) { X[a].bf = (X[a].bf || 0) + 1; en[a] = Math.min(1, en[a] + .25); }
       const pw = P != null ? P : sp ? S(a, 'ENE') : S(a, 'STR');
-      const mv = rndi(rng, 0, 5), ama = sp && !(tag && tag.cp != null) && F[a].am >= 0 && mv % F[a].nmv === F[a].am; // su técnica se llama Amaterasu (Itachi)
+      const mv = tag && tag.v != null ? tag.v : rndi(rng, 0, 5), ama = sp && !(tag && tag.cp != null) && F[a].am >= 0 && mv % F[a].nmv === F[a].am; // su técnica se llama Amaterasu (Itachi)
       const x = Math.min(1, AN.BASE * mul(pw - S(d, 'DUR')) * (.7 + .6 * rng()) * (crit ? (has(a, 'asura') ? TR.ASX : 1.6) : 1) * (sp ? 1.55 : 1)
         * (ctr && !(tag && tag.ui) ? .6 : 1) * (bf ? TR.BFX : 1) * (sp && has(d, 'anti') ? TR.ANTI : 1) * (ama ? TR.AMX : 1) * mlt * boost(a, d));
       const g = guard(d, x); if (g) { block(d, g, a); return null; }
@@ -474,6 +481,8 @@
       if ((has(a, 'domain') || has(a, 'shrine')) && !used[a].dom && en[a] >= TR.DOMC && (hp[a] < .8 || rng() < .25)) { used[a].dom = 1; en[a] -= TR.DOMC; dom[a] = TR.DOMN; rec({ a, k: 'tr', tr: tr[a] }); return; }
       if (X[a].ill > 0) { X[a].ill--; rec({ a: d, k: 'tr', tr: 'mirage', by: a }); return; } // Kyōka Suigetsu: ataca a una ilusión
       if (X[a].gs > 0) { X[a].gs--; const v = hurt(a, Math.min(.2, AN.BASE * (.6 + .4 * rng()))); rec({ a, k: 'tr', tr: 'self', dmg: +v.toFixed(4) }); awaken(a); return; } // Geass: se golpea a sí mismo
+      // ATAQUE DEFINITIVO: una vez por duelo, contra las cuerdas y con ki de sobra, su técnica insignia a la máxima potencia
+      if (!used[a].ul && hp[a] < AN.ULHP && en[a] >= AN.ULC && rng() < AN.ULP) { used[a].ul = 1; en[a] -= AN.ULC; strike(a, 'sp', { ul: 1, v: 0 }, AN.ULX); return; }
       const sure = dom[a] > 0, free = X[a].hk > 0; // Hinokami Kagura: la danza encadena técnicas sin gastar ki
       const wantSp = free || en[a] >= AN.SPC && rng() < .2 + (S(a, 'ENE') >= S(a, 'STR') ? .14 : 0) + (hp[a] < .4 ? .12 : 0);
       if (wantSp) {
@@ -498,6 +507,12 @@
           return;
         }
       }
+      const dS = skill(d) - skill(a); // cuánto más hábil es el que recibe
+      if (!wantSp && !sure) { // golpe con el cuerpo: a veces lo agarra (no se esquiva) o se golpean los dos a la vez
+        const r = rng();
+        if (r < AN.GRAB + (S(a, 'STR') > S(a, 'SPD') ? AN.GRB : 0) && !has(d, 'ui') && !has(d, 'ultra')) { strike(a, 'hit', { gr: 1 }, AN.GRX); clone(a); return; }
+        if (r > 1 - AN.TRADE && dS > -120) { strike(a, 'hit', { tx: 1 }, AN.TRX); if (hp[0] > 0 && hp[1] > 0) strike(d, 'hit', { tx: 2 }, AN.TRX); return; }
+      }
       const acc = sure ? 1 : clamp(.8 + (skill(a) - skill(d)) / AN.KA + (wantSp ? .05 : 0) + (X[a].g5 ? TR.G5A : 0) - (has(d, 'ui') ? TR.UI : has(d, 'ultra') ? TR.ULTRA : 0), .35, .95);
       if (rng() > acc) {
         rec({ a, k: 'miss', crit: false, sp: wantSp, v: rndi(rng, 0, 5) });
@@ -505,7 +520,11 @@
         else if (rng() < .22 + Math.max(0, S(d, 'TEC') - S(a, 'TEC')) / 1500) strike(d, 'ctr');
         clone(a); return;
       }
-      strike(a, wantSp ? 'sp' : 'hit');
+      let tg = null, mlt = 1; // golpe que entra: el rival lo bloquea o lo convierte en un combo aéreo
+      if (!wantSp && !sure) { const r = rng();
+        if (r < clamp(AN.BLK + dS / 4000, .02, .12)) { tg = { bk: 1 }; mlt = AN.BKX; }
+        else if (r > 1 - clamp(AN.CMB - dS / 4000, .05, .2)) { tg = { cb: rndi(rng, 3, 5) }; mlt = AN.CBX; } }
+      strike(a, wantSp ? 'sp' : 'hit', tg, mlt);
       if (wantSp && has(a, 'hinokami') && !used[a].hn && hp[0] > 0 && hp[1] > 0) { used[a].hn = 1; X[a].hk = TR.HKN; rec({ a, k: 'tr', tr: 'hinokami' }); }
       clone(a);
     };

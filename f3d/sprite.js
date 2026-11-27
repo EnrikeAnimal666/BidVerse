@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 
 // Dibujos de luchadores/ que miran hacia la IZQUIERDA (por defecto se supone que miran a la derecha). Se voltean solos según el lado.
-export const FACE_L = new Set(['Asta', 'Cell', 'Feitan', 'Garou', 'Giyu', 'Joseph Joestar', 'Jotaro Kujo', 'Kars', 'Madara', 'Mihawk', 'Phinks', 'Shanks',
+export const FACE_L = new Set(['Asta', 'Cell', 'Feitan', 'Garou', 'Giyu', 'Joseph Joestar', 'Jotaro Kujo', 'Kars', 'Madara', 'Phinks',
   'Sung Jin-Woo', 'Tatsumaki', 'Yuji', 'Zenitsu', 'Zeno Zoldyck', 'Zeus', 'Law', 'Lelouch']);
 // Tamaño de un dibujo concreto si sale grande o pequeño (1 = normal). Ej.: { 'Kaido': 1.3 }
 export const ART_K = {};

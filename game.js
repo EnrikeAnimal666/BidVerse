@@ -389,6 +389,11 @@ const AB_T={
   clone:'¡Un clon de <b>{a}</b> golpea a {d}!',roller:'¡<b>{a}</b> aplasta a {d} con una apisonadora!',copied:'<b>{a}</b> devuelve «{m}»',
   fc:'«{m}» vuelve contra {d} con el doble de fuerza',dko:'¡Doble K.O.!',dkoLog:'<b>{0}</b> y <b>{1}</b> caen a la vez',
   unique:'Habilidad única',illusion:'¡Ilusión!',erased:'Borrado',
+  combo:'¡<b>{a}</b> lanza a {d} por los aires: combo de {n} golpes!',comboPop:'¡Combo aéreo!',hits:'golpes',
+  grab:['¡<b>{a}</b> agarra a {d} y lo estampa contra el suelo!','¡<b>{a}</b> atrapa a {d} y lo estrella contra el suelo!'],grabPsy:'¡<b>{a}</b> levanta a {d} sin tocarlo y lo aplasta contra el suelo!',grabPop:'¡Agarre!',
+  cross:'¡Golpe cruzado! <b>{a}</b> y <b>{d}</b> se golpean a la vez',crossPop:'¡Cruzado!',
+  block:['<b>{d}</b> bloquea el golpe de {a}','<b>{d}</b> para el ataque de {a} con la guardia'],guardBreak:'¡<b>{a}</b> rompe la guardia de {d}!',blockPop:'Bloqueo',breakPop:'¡Guardia rota!',
+  defi:'¡<b>{a}</b> lo da todo: «{m}»!',defiTag:'Ataque definitivo',defiPop:'¡Definitivo!',
   ult:{hakai:'Hakai',gates:'Night Guy',mugetsu:'Mugetsu',rumbling:'El Retumbar'}},
  en:{duel:'Duel',ki:'KI',skip:'Skip animation',special:'Special technique',
   hit:['<b>{a}</b> hits {d}','<b>{a}</b> chains a combo on {d}','<b>{a}</b> lands a straight on {d}','Flying kick by <b>{a}</b>','<b>{a}</b> appears behind {d} and strikes','<b>{a}</b> charges at {d}'],
@@ -402,6 +407,11 @@ const AB_T={
   clone:'A clone of <b>{a}</b> hits {d}!',roller:'<b>{a}</b> crushes {d} with a road roller!',copied:'<b>{a}</b> fires back “{m}”',
   fc:'“{m}” hits {d} back at double power',dko:'Double K.O.!',dkoLog:'<b>{0}</b> and <b>{1}</b> fall together',
   unique:'Unique ability',illusion:'Illusion!',erased:'Erased',
+  combo:'<b>{a}</b> launches {d} into the air: {n}-hit combo!',comboPop:'Air combo!',hits:'hits',
+  grab:['<b>{a}</b> grabs {d} and slams them into the ground!','<b>{a}</b> catches {d} and hurls them into the ground!'],grabPsy:'<b>{a}</b> lifts {d} without a touch and crushes them into the ground!',grabPop:'Grab!',
+  cross:'Cross counter! <b>{a}</b> and <b>{d}</b> hit each other at once',crossPop:'Cross counter!',
+  block:['<b>{d}</b> blocks {a}’s strike','<b>{d}</b> guards against {a}’s attack'],guardBreak:'<b>{a}</b> breaks {d}’s guard!',blockPop:'Block',breakPop:'Guard break!',
+  defi:'<b>{a}</b> goes all out: “{m}”!',defiTag:'Ultimate attack',defiPop:'Ultimate!',
   ult:{hakai:'Hakai',gates:'Night Guy',mugetsu:'Mugetsu',rumbling:'The Rumbling'}}};
 // Rasgos: [nombre, qué hace, frase al activarse, frase alternativa]. Las reglas están en engine.js (RASGOS).
 const TR_T={
@@ -573,6 +583,14 @@ const ELEM={fire:['Mereoleona','Deidara','Ace','Tanjiro','Feitan','Rengoku','Roy
  psy:['Tatsumaki','Mob','Broly','Hashirama']};
 const ELC={fire:['#ff6a00','#ffe08a'],bolt:['#5fd0ff','#ffffff'],water:['#1f7bff','#bfe9ff'],dark:['#8a2be2','#14021f'],light:['#ffc400','#fffbe6'],void:['#b13cff','#ffd1ff'],wind:['#39e6a0','#f0fff8'],psy:['#2bff6e','#e6ffe9']};
 const ELN={};for(const k in ELEM)ELEM[k].forEach(n=>ELN[n]=k);
+// Colores del choque de técnicas (el 3D hace lo mismo en f3d/tech.js): el de cada uno, muy vivo; si se parecen o uno es blanco o gris,
+// los de los jugadores (rojo contra azul, como las placas). Así siempre se ve de un vistazo qué energía es de quién.
+const hexHsl=h=>{let x=String(h||'#888').replace('#','');if(x.length===3)x=x.replace(/./g,'$&$&');const n=parseInt(x,16)||0,r=(n>>16)/255,g=(n>>8&255)/255,b=(n&255)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2,d=mx-mn;let hh=0,s=0;
+  if(d){s=d/(1-Math.abs(2*l-1));hh=(mx===r?((g-b)/d+6)%6:mx===g?(b-r)/d+2:(r-g)/d+4)/6}return[hh,s,l]};
+const hslHex=(h,s,l)=>{const f=n=>{const k=(n+h*12)%12,a=s*Math.min(l,1-l);return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1)))).toString(16).padStart(2,'0')};return '#'+f(0)+f(8)+f(4)};
+const liteHex=(h,k)=>{const[hh,s,l]=hexHsl(h);return hslHex(hh,s,l+(1-l)*k)};
+const clashCols=(c0,c1,p0='#ff3344',p1='#4aa3ff')=>{let A=hexHsl(c0),B=hexHsl(c1),dh=Math.abs(A[0]-B[0]);dh=Math.min(dh,1-dh);
+  if(dh<.16||A[1]<.35||B[1]<.35||A[2]>.85||B[2]>.85){A=hexHsl(p0);B=hexHsl(p1)}return[hslHex(A[0],Math.max(.88,A[1]),.55),hslHex(B[0],Math.max(.88,B[1]),.55)]};
 // Comentarista: frases según lo que pasa (diferencia de poder, remontadas, sorpresas…)
 const COM_T={en:{first:'First blood!',gap:['<b>{a}</b> is toying with {b}…','This looks like a mismatch!'],even:'Evenly matched: anything can happen!',
   comeback:'What a comeback by <b>{a}</b>!',flawless:'Flawless! <b>{a}</b> didn’t take a scratch.',upset:'Upset! <b>{a}</b> beats a far stronger rival!',
@@ -581,7 +599,7 @@ const COM_T={en:{first:'First blood!',gap:['<b>{a}</b> is toying with {b}…','T
   comeback:'¡Qué remontada de <b>{a}</b>!',flawless:'¡Impecable! <b>{a}</b> no ha recibido ni un rasguño.',upset:'¡Sorpresa! <b>{a}</b> tumba a un rival mucho más fuerte',
   close:'¡<b>{a}</b> sobrevive por los pelos!',last:'<b>{a}</b> es la última esperanza de {p}',combo:'{0} GOLPES'}};
 const comT=k=>(COM_T[lang]||COM_T.en)[k];
-const STAGE_FX=['dz0','dz1','tstop','fin','gen','god','tsk','ecl','mih','shr','rmb','mug','hki','dark','rwd'];
+const STAGE_FX=['dz0','dz1','tstop','fin','gen','god','tsk','ecl','mih','shr','rmb','mug','hki','dark','rwd','ult'];
 /* ---------- VFX: efectos del combate de anime en dos lienzos ----------
    DETRÁS de los luchadores (dentro del mundo: se mueve con la cámara)
      · aura de llamas por capas, como se dibuja en el anime: tranquila en reposo y desbocada al despertar o transformarse
@@ -926,14 +944,18 @@ const VFX=(()=>{
         :[{transform:'none'},{transform:`translate(${dir*dist}px,-10px) rotate(${dir*6}deg)`,offset:.28,easing:'ease-out'},{transform:`translate(${dir*dist}px,0) rotate(${dir*3}deg)`,offset:.5,easing:'ease-in-out'},{transform:'none'}];
       KN[d]=f.animate(kf.map(k=>Object.assign(k,o)),{duration:T,fill:big?'forwards':'none'});
       setTimeout(()=>{if(!live())return;const r=rect(d,.5);if(!r)return;const gy=r.y+r.h;craterAt(d,big?78:46,EL(1-d).c);dust(r.cx,gy,big?12:7,dir);chips(r.cx,gy-6,big?10:5,gy);if(big)stopT=now()+90},T*(big?.5:.28))},
-    clash(){if(!live())return;clash={x:.5,tx:.5};
-      const pos=()=>{const A=rect(0,.42),B=rect(1,.42);return A&&B&&clash?{A,B,x:A.cx+(B.cx-A.cx)*clash.x,y:A.cy+(B.cy-A.cy)*clash.x,c0:EL(0).c,c1:EL(1).c}:null};
-      fx({d:8,up:(f,dt)=>{if(!clash){f.t=f.d;return}clash.x+=(clash.tx-clash.x)*Math.min(1,dt*9);const p=pos();if(!p)return;
-          sparks(p.x,p.y,rate(150,dt),Math.random()<.5?p.c0:p.c1,{max:620,g:200,life:.35});if(Math.random()<dt*14)bolt(p.x,p.y,p.x+rr(-130,130),p.y+rr(-110,110),Math.random()<.5?p.c0:p.c1,.1,.45)},
-        dw:f=>{const p=pos();if(!p)return;const w=34*(1+.12*Math.sin(f.t*70));c.lineCap='round';
-          for(const sd of[0,1]){const A=sd?p.B:p.A,cc=sd?p.c1:p.c0;for(const[lw,col,al]of[[w*2.3,cc,.18],[w*1.25,cc,.5],[w*.72,cc,.9],[w*.32,'#ffffff',1]]){c.globalAlpha=al;c.strokeStyle=col;c.lineWidth=lw;c.beginPath();c.moveTo(A.cx,A.cy);c.lineTo(p.x,p.y);c.stroke()}}
-          const z=160*(1+.22*Math.sin(f.t*50));glowAt(p.x,p.y,z,p.c0,1);glowAt(p.x,p.y,z,p.c1,1);glowAt(p.x,p.y,z/2,'#ffffff',1)}})},
-    clashX(x){if(clash)clash.tx=Math.max(.06,Math.min(.94,x))},
+    // choque: cada rayo de su color (vivo y distinto del otro), más grueso cuanto más domina; devuelve los dos colores para la barra del choque
+    clash(){if(!live())return null;const K=clashCols(EL(0).c,EL(1).c,pcol(0),pcol(1));clash={x:.5,tx:.5,c:K,hi:K.map(k=>liteHex(k,.45)),sg:[0,0]};
+      const pos=()=>{const A=rect(0,.42),B=rect(1,.42);return A&&B&&clash?{A,B,x:A.cx+(B.cx-A.cx)*clash.x,y:A.cy+(B.cy-A.cy)*clash.x}:null};
+      fx({d:8,up:(f,dt)=>{if(!clash){f.t=f.d;return}clash.x+=(clash.tx-clash.x)*Math.min(1,dt*9);clash.sg[0]=Math.max(0,clash.sg[0]-dt*2.6);clash.sg[1]=Math.max(0,clash.sg[1]-dt*2.6);const p=pos();if(!p)return;
+          sparks(p.x,p.y,rate(70,dt),clash.c[Math.random()<clash.x?0:1],{max:520,g:200,life:.3})},
+        dw:f=>{const p=pos();if(!p)return;c.lineCap='round';
+          for(const sd of[0,1]){const A=sd?p.B:p.A,cc=clash.c[sd],sh=sd?1-clash.x:clash.x,w=30*(.5+1.05*sh)*(1+.5*clash.sg[sd])*(1+.08*Math.sin(f.t*60+sd*2));
+            for(const[lw,col,al]of[[w*2.2,cc,.16],[w*1.2,cc,.55],[w*.7,cc,.95],[w*.3,clash.hi[sd],1]]){c.globalAlpha=al;c.strokeStyle=col;c.lineWidth=lw;c.beginPath();c.moveTo(A.cx,A.cy);c.lineTo(p.x,p.y);c.stroke()}}
+          const z=120*(1+.15*Math.sin(f.t*50));glowAt(p.x-26,p.y,z*(.55+clash.x),clash.c[0],.9);glowAt(p.x+26,p.y,z*(1.55-clash.x),clash.c[1],.9);glowAt(p.x,p.y,z*.5,clash.c[clash.x>=.5?0:1],1)}});
+      return K},
+    clashX(x){if(!clash)return;x=Math.max(.06,Math.min(.94,x));if(x===clash.tx)return;const w=x>clash.tx?0:1;clash.tx=x;clash.sg[w]=1;
+      const A=rect(0,.42),B=rect(1,.42);if(A&&B){const px=A.cx+(B.cx-A.cx)*x,py=A.cy+(B.cy-A.cy)*x;ring(px,py,120,clash.c[w],.4,4);sparks(px,py,22,clash.c[w],{ang:w?Math.PI:0,spread:.8,max:700,life:.35})}},
     clashEnd(l){if(!clash)return;clash=null;this.boom(l,null,1.25)},
     slow(k,ms){if(!on)return;slowS=k;slowT=now()+ms},
     bf(d){if(!live())return;const D=rect(d,.42);if(!D)return;for(let i=0;i<10;i++){const an=rr(0,TAU),L=rr(60,180);bolt(D.cx,D.cy,D.cx+Math.cos(an)*L,D.cy+Math.sin(an)*L,'#ff1f3d',.32,.45,i<6)}flare(D.cx,D.cy,190,'#ff1f3d',.3)},
@@ -959,7 +981,7 @@ const VFX=(()=>{
 // envuelve el 3D: un fallo en un efecto no puede cortar el combate
 // Dibujo de cada luchador en el combate 3D: luchadores/<Nombre>.png o .webp (cuerpo entero, fondo transparente); si no hay, su retrato.
 // ART_V: súbelo cuando sustituyas un dibujo de luchadores/ con el MISMO nombre (caché del navegador).
-const ART_V=1,artOf=n=>{const c=C(n)||{n,e:'?'};return{full:picNames(c).flatMap(k=>['png','webp'].map(x=>'luchadores/'+encodeURIComponent(k)+'.'+x+'?v='+ART_V)),pic:c.img,emoji:c.e}};
+const ART_V=2,artOf=n=>{const c=C(n)||{n,e:'?'};return{full:picNames(c).flatMap(k=>['png','webp'].map(x=>'luchadores/'+encodeURIComponent(k)+'.'+x+'?v='+ART_V)),pic:c.img,emoji:c.e}};
 const safe3=o=>new Proxy(o,{get:(t,k)=>typeof t[k]!=='function'?t[k]:(...a)=>{try{return t[k](...a)}catch(e){console.warn('F3D',k,e);return k==='screen'?{x:0,y:0}:k==='dissolve'}}});
 async function run(tk,script){
   const S0=script||BidEngine.resolveAnime(G);
@@ -1043,6 +1065,51 @@ async function run(tk,script){
     else if(h.u==='mugetsu'){tmp('<i class="ab-mug"></i>',1300);sfx('beam');await z(520);dmgFx();flash('#000');sfx('boom');await z(1000)}
     else{lunge(a,1);beam(a,true,SIGC[h.u]);await z(260);dmgFx();flash(SIGC[h.u]);sfx('boom');await z(950)} // Night Guy
   };
+  /* ---- FORMAS DE PEGAR (v3): combo aéreo, agarre, golpe cruzado, bloqueo y ataque definitivo (engine.js las elige; aquí se animan) ---- */
+  const race=async(p,ms)=>{await Promise.race([p&&p.then?p:sleep(0),sleep(ms)]);if(tk!==bt)throw 0};
+  // contador de golpes del combo, a lo juego de lucha, en el lado de quien pega
+  const hitsBox=a=>{const el=tmp(`<b class="ab-hits${a?' r':''}" style="--c:var(--p${a+1})"><i>1</i><small>${abT('hits')}</small></b>`,3200),i=el.querySelector('i');return n=>{i.textContent=n;re(el,'bump')}};
+  const form=async(h,a,d,An,Dn,lethal,upd,dm,prev)=>{
+    const tot=dm(d),big=h.crit||lethal,ec=elC(a);
+    if(h.cb){ // lo lanza por los aires, lo persigue y lo estampa contra el suelo; la vida baja golpe a golpe
+      const n=h.cb,wt=Array.from({length:n},(_,i)=>i===n-1?2.4:i?1:1.2),ws=wt.reduce((x,y)=>x+y,0);let cum=0,bump=null;
+      say(abF(abT('combo'),{a:An,d:Dn,n}));pop(abT('comboPop'),'',`var(--p${a+1})`);if(lethal)await finisher(d);
+      const onHit=(i,last)=>{i=Math.max(1,Math.min(n,i));const part=tot*wt[i-1]/ws;cum+=part;if(!bump)bump=hitsBox(a);bump(i);num(d,dmgT(d,part),last&&big?'crit':'');sfx(last?'crit':'hit');setB(d,Math.max(0,prev[d]-cum),null);if(!D3){hurt(d,last);burst(d,last,ec)}};
+      if(D3)await race(F3.combo(a,n,big,onHit),3400);
+      else{for(let i=1;i<=n;i++){lunge(a,0,{big:i===n});await z(i===1?170:110);onHit(i,i===n);if(i<n)await z(150)}crack()}
+      shake();zoom(d);imp();if(lethal){flash(ec);V.boom(d,ec,1.4)}V.knock(d,lethal?2:1);comboHit(a);upd();await z(lethal?950:650);return}
+    if(h.gr){ // lo agarra (o lo levanta con la mente) y lo estrella contra el suelo
+      const psy=D3&&F3.kind(a)==='psy';say(abF(psy?abT('grabPsy'):abT('grab',rnd(0,1)),{a:An,d:Dn}));pop(abT('grabPop'),'',`var(--p${a+1})`);if(lethal)await finisher(d);
+      if(D3)await race(F3.grab(a,big),1700);else{lunge(a,0,{big:true});await z(170);crack()}
+      hurt(d,true);burst(d,true,ec);num(d,dmgT(d,tot),'crit');sfx('crit');sfx('quake');shake();zoom(d);imp();if(lethal){flash(ec);V.boom(d,ec,1.4)}V.knock(d,lethal?2:1);comboHit(a);upd();await z(lethal?950:700);return}
+    if(h.tx===1){ // golpe cruzado: los dos se lanzan a la vez (el segundo golpe es el evento siguiente, tx 2)
+      say(abF(abT('cross'),{a:An,d:Dn}));pop(abT('crossPop'),'','#ffffff');if(lethal)await finisher(d);
+      if(D3)await race(F3.cross(a),650);else{fa(0,'atk');fa(1,'atk');await z(170)}
+      hurt(d,big);burst(d,big,ec);num(d,dmgT(d,tot),big?'crit':'');sfx('crit');shake();imp();if(lethal){flash(ec);V.boom(d,ec,1.4);V.knock(d,2)}upd();await z(lethal?950:200);return}
+    if(h.tx===2){if(lethal)await finisher(d);
+      hurt(d,big);burst(d,big,ec);num(d,dmgT(d,tot),big?'crit':'');sfx('hit');shake();if(lethal){flash(ec);imp();V.boom(d,ec,1.4)}V.knock(d,lethal?2:1);V.knock(a,1);upd();await z(lethal?950:700);return}
+    if(h.bk){ // bloqueo (si aun así lo tumba, la guardia se rompe)
+      say(lethal?abF(abT('guardBreak'),{a:An,d:Dn}):abF(abT('block',rnd(0,1)),{a:An,d:Dn}));if(lethal)await finisher(d);
+      lunge(a,0,{});await z(170);if(D3)F3.guard(d,lethal);else shield(d);
+      num(d,dmgT(d,tot),lethal?'crit':'');sfx(lethal?'crit':'whiff');combo={a:-1,n:0};
+      if(lethal){hurt(d,true);burst(d,true,ec);pop(abT('breakPop'),'','#ffd23f');shake();flash(ec);imp();V.boom(d,ec,1.4);V.knock(d,2)}else num(d,abT('blockPop'),'txt');
+      upd();await z(lethal?950:560)}
+  };
+  // ATAQUE DEFINITIVO: viñetas de manga (sus ojos, su dibujo entero y el nombre de la técnica), columna de energía y su técnica insignia a tope
+  const defiCut=async(a,m)=>{const c=cur[a];if(!c)return;sfx('sig');
+    const el=tmp(`<div class="ab-ult${a?' r':''}" style="--c:${elC(a)||`var(--p${a+1})`};--pc:var(--p${a+1})"><i class="ul-bg"></i><span class="ul-eye" style="--h:${c.h}">${spr(c)}</span><span class="ul-body" style="--h:${c.h}">${spr(c)}</span><span class="ul-t"><small>★ ${abT('defiTag')} · ${dnh(c)}</small><b>${m}</b></span></div>`,2300);
+    const bd=el.querySelector('.ul-body'),pr=D3?F3.art(c.n):null; // en 3D, su dibujo de cuerpo entero (el mismo que pelea)
+    if(pr&&pr.then)pr.then(cv=>{if(!cv||!bd.isConnected)return;const o=document.createElement('canvas');o.width=cv.width;o.height=cv.height;o.getContext('2d').drawImage(cv,0,0);bd.classList.add('full');bd.replaceChildren(o)}).catch(()=>{});
+    await z(1950)};
+  const ultimate=async(h,a,d,lethal,upd,dm)=>{
+    const m=mvOf(cur[a],0),ec=elC(a);say(abF(abT('defi'),{a:dnh(cur[a]),m}));if(h.en)setB(a,null,h.en[a]);
+    stg('ult');await defiCut(a,m);
+    if(D3)await race(F3.ultimate(a),1300);else{V.charge(a);await z(450)}
+    if(lethal)await finisher(d);
+    lunge(a,1);const tw=V.tech(a,mvEn(cur[a],0),true,null,{snd:()=>sfx('hit')});
+    if(tw){sfx('beam');await race(tw,2600)}else{beam(a,true);await z(240)}
+    V.boom(d,ec,lethal?2:1.6);hurt(d,true);burst(d,true,ec);shake();zoom(d);flash(ec);imp();num(d,dmgT(d,dm(d)),'crit ult');pop(abT('defiPop'),'',ec||`var(--p${a+1})`);
+    V.knock(d,lethal?2:1);sfx('boom');setTimeout(()=>sfx('boom'),170);comboHit(a);upd();await z(lethal?1150:950);stg('ult',false)};
   const trait=async(h,a,d,An,Dn,upd)=>{ // animación de cada rasgo (a = dueño del rasgo, salvo 'stun' y 'self' = quien lo sufre)
     const k=h.tr,nm=trT(k,0),by=h.by==null?d:h.by,col=SIGC[k]||`var(--p${a+1})`;
     const sName=h.s?(TR_T.en[h.s]?trT(h.s,0):C(h.s)?dnh(C(h.s)):h.s):'';
@@ -1141,7 +1208,9 @@ async function run(tk,script){
         const dm=p=>h.dmg!=null?h.dmg:Math.max(0,prev[p]-h.hp[p]);
         const tg=h.k==='clash'?1-(h.w==null?a:h.w):d,lethal=['hit','crit','ctr','sp','spc','clash'].includes(h.k)&&h.hp[tg]<=0&&prev[tg]>0;
         if(h.dmg>0&&!first&&h.k!=='tr'&&h.k!=='clash'){first=true;com(comT('first'))}
-        if(h.k==='hit'||h.k==='crit'||h.k==='ctr'){
+        if((h.k==='hit'||h.k==='crit')&&(h.cb||h.gr||h.tx||h.bk))await form(h,a,d,An,Dn,lethal,upd,dm,prev); // combo aéreo, agarre, golpe cruzado, bloqueo
+        else if((h.k==='sp'||h.k==='spc')&&h.ul)await ultimate(h,a,d,lethal,upd,dm); // ataque definitivo
+        else if(h.k==='hit'||h.k==='crit'||h.k==='ctr'){
           say(h.k==='ctr'?abF(abT(h.ui?'uctr':'ctr'),{a:An,d:Dn}):h.cl?abF(abT('clone'),{a:An,d:Dn}):h.rr?abF(abT('roller'),{a:An,d:Dn}):abF(abT(h.k==='crit'?'crit':'hit',v),{a:An,d:Dn}));
           if(lethal)await finisher(d);
           if(h.rr){drop(d,'roller');await z(560)}else if(h.cl){ghost(a,d);await z(220)}else{lunge(a,0,{big:h.crit||lethal,ts:h.ts});await z(h.ts?110:170)}
@@ -1169,13 +1238,19 @@ async function run(tk,script){
           say(h.sp?abF(abT('missSp'),{a:An,d:Dn,m:mvOf(cur[a],v)}):abF(abT('miss',v),{a:An,d:Dn}));
           lunge(a,0,{miss:1});await z(150);dodge(d);num(d,abT('dodgePop'),'txt');sfx('whiff');upd();await z(470);
         }else if(h.k==='clash'){
-          const w=h.w==null?a:h.w,l=1-w,m1=mvOf(cur[a],v),m2=mvOf(cur[d],h.vw||0);combo={a:-1,n:0};
+          const w=h.w==null?a:h.w,l=1-w,m1=mvOf(cur[a],v),m2=mvOf(cur[d],h.vw||0),tm=a?[m2,m1]:[m1,m2];combo={a:-1,n:0};
           say(abF(abT('clash'),{m1,m2}));if(h.en){setB(0,null,h.en[0]);setB(1,null,h.en[1])}
           const c0=ctr(0),c1=ctr(1),cl=tmp(`<div class="ab-clash" style="left:${c0.x}px;width:${c1.x-c0.x}px;top:${(c0.y+c1.y)/2}px;--x:.5"><i class="l"></i><i class="r"></i><b></b></div>`,4000);
-          V.clash();pop(abT('clashPop'),'',`var(--p${a+1})`);sfx('beam');shake();await z(600);
-          for(const x of (h.fr||[.45,.55,l?1:0])){cl.style.setProperty('--x',x);V.clashX(x);if(x===0||x===1)break;sfx('hum');await z(330)}
+          const K=V.clash(),kc=Array.isArray(K)?K:['var(--p1)','var(--p2)'];
+          // barra del choque (tira y afloja): la técnica de cada uno con su color, cuánto domina cada lado y quién empuja en cada momento
+          const tug=tmp(`<div class="ab-tug" style="--c0:${kc[0]};--c1:${kc[1]};--x:.5"><div class="tg-top"><span class="tg-n l"><small>${dnh(cur[0])}</small><b>${tm[0]}</b></span><span class="tg-n r"><small>${dnh(cur[1])}</small><b>${tm[1]}</b></span></div><span class="tg-pc l">50%</span><div class="tg-bar"><i class="l"></i><i class="r"></i><b></b></div><span class="tg-pc r">50%</span></div>`,6500);
+          const pcs=tug.querySelectorAll('.tg-pc');let tx=.5;
+          const tugX=x=>{const pw=x>tx?0:1;tx=x;tug.style.setProperty('--x',x);const p0=Math.round(x*100);pcs[0].textContent=p0+'%';pcs[1].textContent=(100-p0)+'%';tug.classList.remove('p0','p1');void tug.offsetWidth;tug.classList.add('p'+pw)};
+          pop(abT('clashPop'),'',kc[a]);sfx('beam');shake();await z(600);
+          for(const x of (h.fr||[.45,.55,l?1:0])){cl.style.setProperty('--x',x);tugX(x);V.clashX(x);if(x===0||x===1)break;sfx('hum');await z(330)}
+          tug.classList.add('w'+w);
           if(lethal)await finisher(l);
-          await z(260);cl.remove();V.clashEnd(l);V.knock(l,lethal?2:1);hurt(l,true);burst(l,true,elC(w));shake();zoom(l);imp();if(!D3)flash(elC(w));if(h.dmg>0)num(l,dmgT(l,dm(l)),'crit');sfx('boom');upd();
+          await z(260);cl.remove();tug.classList.add('end');V.clashEnd(l);V.knock(l,lethal?2:1);hurt(l,true);burst(l,true,elC(w));shake();zoom(l);imp();if(!D3)flash(elC(w));if(h.dmg>0)num(l,dmgT(l,dm(l)),'crit');sfx('boom');upd();
           await say(abF(abT('clashWin'),{w:dnh(cur[w])}),lethal?1100:900);
         }else if(h.k==='awake'){
           say(abF(abT('awake'),{a:An}));mark(a,'aw');flash(`var(--p${a+1})`); // VFX detecta la clase 'aw' y hace estallar el aurapop(abT('awakePop'),'',`var(--p${a+1})`);sfx('awake');
