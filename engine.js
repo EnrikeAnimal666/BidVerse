@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '2026-11-27a';
+  const VERSION = '2026-11-27b';
   const CFG = { anime: { start: 20 }, ufc: { start: 40 }, futbol: { start: 100 } }, MAXC = 3, SECS = 10;
   // Fútbol: 4-3-3 (1 portero, 4 defensas, 3 medios, 3 delanteros). Se subasta por posiciones, igual que la UFC por categorías.
   const FUT_DIVS = [{ k: 'GK', n: 1 }, { k: 'DEF', n: 4 }, { k: 'MID', n: 3 }, { k: 'FWD', n: 3 }];
@@ -29,8 +29,8 @@
        · los débiles (poder < 400) salen la mitad de a menudo y los medio fuertes (500–899) algo más
        · nunca más de 2 débiles seguidos: después sale uno fuerte (600+) seguro
        · Light Yagami no cuenta como débil: con la Death Note se lleva a cualquiera (vpw = su valor real, también para la CPU)
-     Rotos (poder ≥ 900: God, Zeno, La Verdad, Gran Sacerdote, Whis, Saitama, Goku, Beerus): salen como cualquier otro, sin rareza.
-     ROTO_PW solo lo usa la CPU para valorarlos. */
+     Rotos (poder ≥ 900: God, Zeno, La Verdad, Gran Sacerdote, Whis, Saitama, Goku, Beerus): salen sobre todo al principio
+     y cada vez menos según avanza la subasta (ver rotoTiming). Así no compensa guardarse todo el dinero y esperar al final a por ellos. */
   const ROTO_PW = 900, WEAK = 400, STRONG = 600, WRUN = 2;
   const vpw = c => c.tr === 'dnote' ? 650 : c.pw || 0;
   const tierOf = c => { const v = vpw(c); return v < WEAK ? 0 : v < STRONG ? 1 : 2; };
@@ -51,6 +51,25 @@
       left.splice(left.indexOf(c), 1); deck.push(c); run = tierOf(c) ? 0 : run + 1;
     }
     return deck;
+  }
+  /* CUÁNDO SALEN LOS ROTOS (anime). Quien no gasta y lo pasa todo llega al final con todo su dinero y se queda cualquier roto que salga.
+     Por eso los rotos salen pronto, cuando los dos tienen aún su dinero y hay que pagarlos, y casi nunca al final.
+     Al sacar cada lote se mira cuántos personajes se han llevado ya entre los dos (de 6):
+       · 0–1: si el lote no es roto, el 15 % de las veces se cambia por un roto de más adelante (el primer lote no: es de poder medio)
+       · si es roto, sale el 100 % de las veces con 0–1; con 2, el 70 %; con 3, el 40 %; con 4, el 20 %;
+         y si uno ya tiene sus 3 (el otro se lo llevaría gratis), el 10 %. Si no sale, se cambia por uno fuerte (600–899) de más adelante.
+     En total salen más o menos los mismos rotos por partida que con el mazo sin tocar. */
+  const EARLY = .15, LATE = [1, 1, .7, .4, .2], LATE_FULL = .1;
+  function rotoTiming(g) {
+    const c = g.deck[g.idx], n = g.P.map(p => p.c.length), t = n[0] + n[1], full = n.some(k => k >= MAXC);
+    if (!c || !g.idx) return;
+    const later = ok => { const a = []; for (let j = g.idx + 1; j < g.deck.length; j++) if (ok(g.deck[j])) a.push(j); return a; };
+    const swap = a => { if (!a.length) return; const j = pick(g.rng, a); [g.deck[g.idx], g.deck[j]] = [g.deck[j], g.deck[g.idx]]; };
+    const roto = x => vpw(x) >= ROTO_PW;
+    if (!roto(c)) { if (t <= 1 && !full && g.rng() < EARLY) swap(later(roto)); return; }
+    if (g.rng() < (full ? LATE_FULL : LATE[t])) return;
+    const strong = later(x => tierOf(x) === 2 && !roto(x));
+    swap(strong.length ? strong : later(x => !roto(x)));
   }
 
   /* ---------- estado ---------- */
@@ -92,6 +111,7 @@
       g.locked = true; g.phase = 'fight';
       return { ev: [{ t: 'finish' }], wait: null };
     }
+    if (g.cat === 'anime') rotoTiming(g);
     g.cur = g.deck[g.idx]; g.bid = 0; g.leader = -1; g.left = SECS; g.free = -1; g.fp = false;
     const e = [can(g, 0), can(g, 1)], b = [e[0] && g.P[0].m >= 1, e[1] && g.P[1].m >= 1], dead = e[0] && e[1] && !b[0] && !b[1];
     if (e[0] && e[1]) { if (b[0] !== b[1]) g.free = b[0] ? 0 : 1; } else g.free = e[0] ? 0 : 1; // lote gratis para quien aún puede coger
