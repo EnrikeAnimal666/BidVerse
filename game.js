@@ -291,10 +291,11 @@ const POWER_BASE=250,S=c=>Math.pow(10,c.pw/POWER_BASE);
 const hpF=n=>Math.round(n).toLocaleString(lang==='es'?'es-ES':'en-US');
 const spr=c=>imgOf(c.n)?`<img src="${imgOf(c.n)}" alt="${c.n}">`:`<div class="e">${c.e}</div>`;
 
-async function arenaIn(z,html){ // transición común
+async function arenaIn(z,html,ready){ // transición común · ready(E): monta el escenario mientras la cortinilla aún tapa la pantalla
   const w=$('wipe');w.className='wipe in';await z(750);
   document.querySelector('.board').style.display='none';
   const E=$('end');E.className='end battle';E.style.display='block';E.innerHTML=html;scrollTo(0,0);
+  if(ready)try{ready(E)}catch(e){console.warn(e)}
   await z(450);w.className='wipe out';await z(750);return E;
 }
 const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),pick=a=>a[rnd(0,a.length-1)];
@@ -318,7 +319,7 @@ const AB_T={
   uctr:'¡El cuerpo de <b>{a}</b> esquiva y contraataca solo!',uiPop:'Ultra Instinto',bfPop:'¡Destello Negro!',asPop:'¡Asura!',
   clone:'¡Un clon de <b>{a}</b> golpea a {d}!',roller:'¡<b>{a}</b> aplasta a {d} con una apisonadora!',copied:'<b>{a}</b> devuelve «{m}»',
   fc:'«{m}» vuelve contra {d} con el doble de fuerza',dko:'¡Doble K.O.!',dkoLog:'<b>{0}</b> y <b>{1}</b> caen a la vez',
-  sac:'<b>{0}</b> ha sido sacrificado',sacLog:'{0} cae sacrificado en el Eclipse',unique:'Habilidad única',illusion:'¡Ilusión!',erased:'Borrado',
+  unique:'Habilidad única',illusion:'¡Ilusión!',erased:'Borrado',
   ult:{hakai:'Hakai',gates:'Night Guy',mugetsu:'Mugetsu',rumbling:'El Retumbar'}},
  en:{duel:'Duel',ki:'KI',skip:'Skip animation',special:'Special technique',
   hit:['<b>{a}</b> hits {d}','<b>{a}</b> chains a combo on {d}','<b>{a}</b> lands a straight on {d}','Flying kick by <b>{a}</b>','<b>{a}</b> appears behind {d} and strikes','<b>{a}</b> charges at {d}'],
@@ -331,7 +332,7 @@ const AB_T={
   uctr:'<b>{a}</b>’s body dodges and counters on its own!',uiPop:'Ultra Instinct',bfPop:'Black Flash!',asPop:'Asura!',
   clone:'A clone of <b>{a}</b> hits {d}!',roller:'<b>{a}</b> crushes {d} with a road roller!',copied:'<b>{a}</b> fires back “{m}”',
   fc:'“{m}” hits {d} back at double power',dko:'Double K.O.!',dkoLog:'<b>{0}</b> and <b>{1}</b> fall together',
-  sac:'<b>{0}</b> has been sacrificed',sacLog:'{0} is sacrificed in the Eclipse',unique:'Unique ability',illusion:'Illusion!',erased:'Erased',
+  unique:'Unique ability',illusion:'Illusion!',erased:'Erased',
   ult:{hakai:'Hakai',gates:'Night Guy',mugetsu:'Mugetsu',rumbling:'The Rumbling'}}};
 // Rasgos: [nombre, qué hace, frase al activarse, frase alternativa]. Las reglas están en engine.js (RASGOS).
 const TR_T={
@@ -392,7 +393,8 @@ const TR_T={
   shadow:['','','A shadow soldier strikes {d}'],
   geass:['Geass','One order per person: the rival’s first attack turns against them','<b>{a}</b>: “Lelouch vi Britannia commands you!”'],
   self:['','','<b>{a}</b> obeys the Geass and strikes themselves'],
-  eclipse:['Eclipse','Once, instead of falling, sacrifices the next teammate and is reborn at 60%','<b>{a}</b> offers up {s}… the Eclipse begins'],
+  eclipse:['Eclipse','Once, instead of falling, sacrifices the Band of the Hawk and is reborn as Femto at 35%, with +30 to everything for the rest of the battle (no teammate lost)','<b>{a}</b> sacrifices the Band of the Hawk… Femto is born!'],
+  femto:['Femto','','<b>{a}</b> is still Femto of the God Hand'],
   dnote:['Death Note','Writes the rival’s name before anyone moves: the rival kills Light with one blow and dies of a heart attack 40 s later. Both always fall','<b>{a}</b> writes {d}’s name in the Death Note…','','Heart attack · 40 s'],
   heart:['','','40 seconds later… {d}’s heart stops.'],
   pops:{stun:'Trapped!',adapt:'Adapted',regen:'Regen'}},
@@ -453,7 +455,8 @@ const TR_T={
   shadow:['','','Un soldado de las sombras golpea a {d}'],
   geass:['Geass','Una orden por persona: el primer ataque del rival se vuelve contra él','<b>{a}</b>: «¡Lelouch vi Britannia te lo ordena!»'],
   self:['','','<b>{a}</b> obedece el Geass y se golpea'],
-  eclipse:['Eclipse','1 vez, en vez de caer, sacrifica al siguiente de su equipo y renace al 60 %','<b>{a}</b> ofrece a {s}… comienza el Eclipse'],
+  eclipse:['Eclipse','1 vez, en vez de caer, sacrifica a la Banda del Halcón y renace como Femto al 35 %, con +30 a todo el resto del combate (sin perder a ningún compañero)','<b>{a}</b> sacrifica a la Banda del Halcón… ¡nace Femto!'],
+  femto:['Femto','','<b>{a}</b> sigue siendo Femto de la Mano de Dios'],
   dnote:['Death Note','Escribe el nombre del rival antes que nadie: el rival mata a Light de un golpe y 40 s después muere de un ataque al corazón. Caen los dos siempre','<b>{a}</b> escribe el nombre de {d} en el Death Note…','','Ataque al corazón · 40 s'],
   heart:['','','40 segundos después… el corazón de {d} se para.'],
   pops:{stun:'¡Atrapado!',adapt:'Adaptado',regen:'Regenera'}}};
@@ -891,15 +894,19 @@ async function run(tk,script){
   const S0=script||BidEngine.resolveAnime(G);
   const z=async ms=>{await sleep(ms/ABS);if(tk!==bt)throw 0};
   $('gbg').classList.add('fight'); // se acabó la subasta: los martillos se apartan
-  const E=await arenaIn(async ms=>{await sleep(ms);if(tk!==bt)throw 0},abArena());
-  const AB=$('ab'),ST=$('abst'),FX=$('abfx'),WD=$('abw');
-  ABS=1;AB.style.setProperty('--k',1);
   const T0=S0.ev[0]&&S0.ev[0].teams; // orden real de cada equipo (el motor lo manda; si no, el de la compra)
   const team=[0,1].map(p=>T0?T0[p]:(P[p]&&P[p].c||[]).map(c=>c.n)),ko=[[],[]],act=[-1,-1],cur=[null,null];let hpN=[1,1],HM=[1000,1000],lastDown='',lastL=null,dno=0;
-  // 3D (f3d/main.js) si el navegador puede; si no, las tarjetas y el lienzo 2D de siempre
-  let D3=false;try{D3=!!(window.F3D&&F3D.ok()&&F3D.start(ST,{charOf:n=>C(n),artOf,names:[...team[0],...team[1]],arche:VFX.arche,elOf:p=>{const k=cur[p]&&ELN[cur[p].n];return k?{c:ELC[k][0],c2:ELC[k][1]}:null}}))}catch(e){console.warn('F3D',e)}
+  // 3D (f3d/main.js) si el navegador puede; si no, las tarjetas y el lienzo 2D de siempre.
+  // Arranca bajo la cortinilla: así nunca asoma el escenario 2D ni el último fotograma del combate anterior.
+  let D3=false;
+  const E=await arenaIn(async ms=>{await sleep(ms);if(tk!==bt)throw 0},abArena(),()=>{
+    if(!(window.F3D&&F3D.ok()))return;const ab=$('ab');ab.classList.add('d3');
+    try{D3=!!F3D.start($('abst'),{charOf:n=>C(n),artOf,names:[...team[0],...team[1]],arche:VFX.arche,elOf:p=>{const k=cur[p]&&ELN[cur[p].n];return k?{c:ELC[k][0],c2:ELC[k][1]}:null}})}catch(e){console.warn('F3D',e)}
+    if(!D3)ab.classList.remove('d3')});
+  const AB=$('ab'),ST=$('abst'),FX=$('abfx'),WD=$('abw');
+  ABS=1;AB.style.setProperty('--k',1);
   const F3=D3?safe3(F3D):null,V=D3?F3:VFX; // si una llamada del 3D falla, el combate sigue
-  if(D3)AB.classList.add('d3');else VFX.start(ST);
+  if(!D3)VFX.start(ST);
   const roster=p=>$('abt'+p).innerHTML=team[p].map((n,k)=>{const c=C(n);return c?`<i class="ab-th${k===act[p]?' on':''}${ko[p][k]?' ko':''}" data-n="${n}" style="--h:${c.h}">${spr(c)}</i>`:''}).join('');
   roster(0);roster(1);
   const say=async(h,ms)=>{$('abdl').innerHTML='<span>'+h+'</span>';if(ms)await z(ms)};
@@ -1031,7 +1038,8 @@ async function run(tk,script){
       case 'shadow':shadeHit(a,d);await z(260);dmgOn(d,false);sfx('hit');upd();await z(380);break;
       case 'geass':await sig(a,k);mark(d,'gs');break;
       case 'self':mark(a,'gs',false);hurt(a);burst(a,false,'#ff2a55');num(a,dmgT(a,h.dmg));sfx('hit');upd();await z(700);break;
-      case 'eclipse':stg('ecl');await sig(a,k);flash('#ff1f1f');num(a,healT(a,.6),'heal');sfx('awake');upd();await z(700);break;
+      case 'eclipse':stg('ecl');await sig(a,k);flash('#ff1f1f');if(h.heal>0)num(a,healT(a,h.heal),'heal');sfx('awake');upd();await z(700);break;
+      case 'femto':stg('ecl');V.charge(a,'#ff1f1f');pop(nm,'','#ff1f1f');sfx('awake');await z(700);break;
       case 'dnote':note(d);sfx('write');await z(2100);mark(d,'dn');break;
       case 'heart':stg('dark');ecg();sfx('heart');await z(1750);mark(d,'dn',false);hurt(d);num(d,'♥','crit');flash('#ff2a3a');upd();await z(800);stg('dark',false);break;
       default:await z(300);
@@ -1105,10 +1113,6 @@ async function run(tk,script){
         scene(h);if(lethal)stg('fin',false);
         behind=[0,1].map(p=>Math.max(behind[p],h.hp[1-p]-h.hp[p]));
       }
-    }else if(e.t==='sac'){
-      ko[e.p][e.k]=true;roster(e.p);const s=C(e.n);
-      $('ablog').insertAdjacentHTML('beforeend',`<div><i>${dno}.</i>${abF(abT('sacLog'),{0:dnh(s)})}</div>`);
-      await say(abF(abT('sac'),{0:dnh(s)}),1000);
     }else if(e.t==='down'){
       ko[e.p][e.k]=true;lastL=C(e.n);lastDown=dn(lastL);pop('K.O.','ko');sfx('ko');shake();STAGE_FX.filter(c=>c!=='ecl').forEach(c=>stg(c,false));
       await say(t('down',dnh(lastL)),250);if(V.dissolve(e.p))$('abf'+e.p).classList.add('dust');$('abf'+e.p).classList.add('ko');$('abfc'+e.p).classList.add('ko');roster(e.p);await z(1300);

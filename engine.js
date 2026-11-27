@@ -228,14 +228,15 @@
        counter   Meliodas: devuelve la primera técnica del rival con el doble de fuerza
        arise     Sung Jin-Woo: al empezar el duelo atacan sus sombras: 2 + 1 por rival derrotado (hasta 5); cada una pega con su fuerza (~13 % a uno de su nivel)
        geass     Lelouch: una orden por persona: el primer ataque del rival se vuelve contra él
-       eclipse   Griffith: 1 vez, en vez de caer, sacrifica al siguiente de su equipo y renace al 60 %
+       eclipse   Griffith: 1 vez por combate, en vez de caer sacrifica a la Banda del Halcón y renace como Femto al 35 %:
+                 +30 a todo el resto del combate (también en los duelos siguientes). No le cuesta ningún compañero
        dnote     Light Yagami: antes que nadie escribe el nombre del rival; el rival lo mata de un golpe (es un simple humano) y
                  40 s después muere de un ataque al corazón. Caen los dos siempre: nada lo para, ni God, ni robarlo ni anularlo.
      Todo sale en el guion como golpes { k:'tr', tr:<clave>, a:<dueño> } para animarlo. */
   const TR = { INF: 2, TS: 2, UI: .18, TOLLE: .4, TOLLH: .1, DOMC: .5, DOMN: 4, DOMX: 1.4, RGHP: .6, RG: .07, RGN: 4, AD: .1, ADN: 4, GEN: 2, RAGEHP: .4, RAGEX: 1.3, SUNN: 4, SUNX: 1.5, SER: 3, SERX: .55,
     ULTRA: .22, EGO: 22, EGON: 6, HAKAI: .35, ERASE: .5, RWD: .15, CPN: 2, CLN: 3, CLX: .6, BURN: .04, BURNN: 8, MET: 2, GATEHP: .35, G5HP: .5, G5B: 70, G5H: .25, G5A: .12,
     ASC: .15, ASX: 2.4, QK: .5, HAKI: 200, MUGHP: .3, MUGB: 90, KYO: 2, SLASH: .05, BF: .15, BFU: .1, BFX: 2.5, JP: .12, JPN: 4, RBHP: .4, RBN: 3, ACK: 800, ACKX: .8,
-    GONHP: .3, GONB: 220, GONN: 3, GONP: 150, ROSE: .5, EMB: 90, EMH: .03, HKN: 3, ANTI: .6, ZWN: 1, MIH: .6, ECL: .6, GS: 1, SHAD: 2, SHADN: 5, FC: .4 };
+    GONHP: .3, GONB: 220, GONN: 3, GONP: 150, ROSE: .5, EMB: 90, EMH: .03, HKN: 3, ANTI: .6, ZWN: 1, MIH: .6, ECL: .35, ECLB: 30, GS: 1, SHAD: 2, SHADN: 5, FC: .4 };
   const TROUPE = ['Chrollo Lucilfer', 'Uvogin', 'Feitan', 'Phinks', 'Nobunaga', 'Franklin', 'Machi', 'Shalnark', 'Pakunoda', 'Shizuku', 'Bonolenov', 'Kortopi', 'Kalluto']; // Brigada Fantasma (Kurapika)
   function duel(rng, A, B) {
     const fm = [0, 1].map(() => (rng() - .5) * 2 * AN.FORM), F = [A, B];
@@ -258,10 +259,12 @@
       if (X[d].jp > 0) { X[d].jp--; return 'jpheal'; }                                                                                 // Jackpot: regeneración instantánea
       if (has(d, 'req') && !used[d].req && x >= hp[d]) { used[d].req = 1; return 'req'; }                                              // Requiem
       if (has(d, 'rewind') && !used[d].rw && x >= TR.RWD) { used[d].rw = 1; stun[1 - d] = Math.max(stun[1 - d], 1); return 'rewind'; } // Whis
-      if (has(d, 'eclipse') && !used[d].ecl && x >= hp[d] && F[d].mate) { used[d].ecl = 1; hp[d] = TR.ECL; X[d].sac = 1; return 'eclipse'; } // Griffith
+      if (has(d, 'eclipse') && !used[d].ecl && !F[d].fem && x >= hp[d]) { // Griffith: renace como Femto
+        used[d].ecl = 1; X[d].fem = 1; X[d].eh = TR.ECL - hp[d]; hp[d] = TR.ECL; bo[d] += TR.ECLB; return 'eclipse';
+      }
       return '';
     };
-    const block = (d, g, a) => rec(Object.assign({ a: d, k: 'tr', tr: g, by: a }, g === 'eclipse' ? { s: F[d].mate } : null));
+    const block = (d, g, a) => rec(Object.assign({ a: d, k: 'tr', tr: g, by: a }, g === 'eclipse' ? { heal: +X[d].eh.toFixed(4) } : null));
     const boost = (a, d) => (dom[a] > 0 ? TR.DOMX : 1) * (has(a, 'sun') && acts[a] <= TR.SUNN ? TR.SUNX : 1) * (has(a, 'rage') && hp[a] < TR.RAGEHP ? TR.RAGEX : 1)
       * (has(d, 'adapt') ? 1 - TR.AD * (X[d].ad || 0) : 1) * (has(a, 'ackerman') ? 1 + clamp((pwOf(d) - pwOf(a)) / TR.ACK, 0, TR.ACKX) : 1);
     const took = (d, v) => {
@@ -393,7 +396,7 @@
         if (g) { rec({ a: i, k: 'tr', tr: 'rose', dmg: 0 }); block(1 - i, g, i); }
         else { const v = hurt(1 - i, TR.ROSE); rec({ a: i, k: 'tr', tr: 'rose', dmg: +v.toFixed(4) }); }
       }
-      return { w: hp[0] > 0 ? 0 : hp[1] > 0 ? 1 : -1, hp, hits, en, aw, dmg, sac: X.map(x => !!x.sac) }; // w = -1: caen los dos
+      return { w: hp[0] > 0 ? 0 : hp[1] > 0 ? 1 : -1, hp, hits, en, aw, dmg, fem: X.map(x => !!x.fem) }; // w = -1: caen los dos
     };
     const KO = () => hp[0] <= 0 || hp[1] <= 0;
     // DEATH NOTE: antes que nada (ni God llega a tiempo, y no se puede robar ni anular). Light escribe el nombre, el rival lo mata
@@ -415,6 +418,7 @@
       rec({ a, k: 'spc', crit: true, dmg: +v.toFixed(4), v: 0 });
       return end();
     }
+    for (const i of [0, 1]) if (F[i].fem) { bo[i] += TR.ECLB; rec({ a: i, k: 'tr', tr: 'femto' }); } // Griffith sigue siendo Femto
     // al empezar el duelo, por este orden: anti-magia → Cadena del Juicio → Skill Hunter → Haki / Borrar → el resto
     for (const i of [0, 1]) { const o = 1 - i; if (has(i, 'anti') && tr[o]) { rec({ a: i, k: 'tr', tr: 'anti', s: tr[o] }); tr[o] = ''; } }
     for (const i of [0, 1]) {
@@ -476,21 +480,19 @@
 
   // Combate final de anime: devuelve el guion completo (eventos) para animarlo. Solo lleva nombres, vida, ki y estadísticas.
   function resolveAnime(g) {
-    const rng = g.rng, T = g.P.map(p => p.c.map(c => { const st = stats(c); return { n: c.n, pw: c.pw, tr: c.tr || '', st, hm: hpMax(st), f: 1, e: 1, aw: false, dead: false, ko: 0, dmg: 0 }; })), i = [0, 0];
+    const rng = g.rng, T = g.P.map(p => p.c.map(c => { const st = stats(c); return { n: c.n, pw: c.pw, tr: c.tr || '', st, hm: hpMax(st), f: 1, e: 1, aw: false, dead: false, ko: 0, dmg: 0, fem: false }; })), i = [0, 0];
     const alive = p => i[p] < T[p].length, ev = [{ t: 'start', teams: T.map(t => t.map(c => c.n)) }];
-    const adv = p => { do i[p]++; while (i[p] < T[p].length && T[p][i[p]].dead); }; // el siguiente que siga vivo (el Eclipse puede llevarse a uno)
-    const mate = p => { for (let j = i[p] + 1; j < T[p].length; j++) if (!T[p][j].dead) return j; return -1; };
+    const adv = p => { do i[p]++; while (i[p] < T[p].length && T[p][i[p]].dead); }; // el siguiente que siga vivo
     const send = p => { const c = T[p][i[p]]; ev.push({ t: 'send', p, k: i[p], n: c.n, f: +c.f.toFixed(4), e: +c.e.toFixed(3), aw: c.aw, st: c.st, hm: c.hm }); };
     if (alive(0)) send(0);
     if (alive(1)) send(1);
     let k = 0;
     while (alive(0) && alive(1)) {
       const A = T[0][i[0]], B = T[1][i[1]];
-      [A, B].forEach((c, p) => { const j = mate(p); c.mate = j < 0 ? '' : T[p][j].n; });
       const sim = duel(rng, A, B);
       ev.push({ t: 'duel', k: k++, a: A.n, b: B.n, hits: sim.hits });
       A.dmg += sim.dmg[0]; B.dmg += sim.dmg[1]; A.aw = sim.aw[0]; B.aw = sim.aw[1];
-      [0, 1].forEach(p => { const j = sim.sac[p] ? mate(p) : -1; if (j >= 0) { const s = T[p][j]; s.dead = true; s.f = 0; ev.push({ t: 'sac', p, k: j, n: s.n }); } }); // Eclipse
+      if (sim.fem[0]) A.fem = true; if (sim.fem[1]) B.fem = true; // Eclipse: ya es Femto el resto del combate
       if (sim.w < 0) { // doble K.O.: caen los dos a la vez (Death Note, Rosa del Pobre…)
         [A, B].forEach((c, p) => { c.f = 0; c.dead = true; c.ko++; ev.push({ t: 'down', p, k: i[p], n: c.n }); });
         ev.push({ t: 'dko', a: A.n, b: B.n });

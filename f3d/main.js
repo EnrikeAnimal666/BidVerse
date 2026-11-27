@@ -402,8 +402,10 @@ const API = {
     try { if (!R) init(); } catch (e) { failed = true; console.warn('F3D', e); return false; }
     stage = st; opts = o || {}; readPC(); (st.querySelector('.ab-world') || st).appendChild(cv); W = H = 0; resize(); if (ro) ro.observe(st);
     actor = -1; HS = 0; slowU = 0; CAM.shot = null; CAM.until = 0; CAM.trauma = 0; CAM.snap = 1; T = 0;
+    // el ambiente vuelve al de siempre de golpe: sin esto el combate nuevo empezaba con el cielo y el suelo del anterior (eclipse, dominio…)
+    const A = AMB.def; ambK = 'def'; ENV.top.set(A.top); ENV.hor.set(A.hor); ENV.glow.set(A.glow); ENV.base.set(A.base); ENV.moon.set(A.moon); ENV.dzc.set(0, 0, 0); ENV.dz = 0; floorM.uniforms.dz.value = 0; TINT.set(1, 1, 1);
     if (opts.artOf && opts.names) opts.names.forEach(n => loadArt(n, opts.artOf(n))); // los dibujos se cargan antes de que entren
-    on = true; last = now(); const g = ++gen; requestAnimationFrame(() => loop(g)); return true;
+    on = true; last = now(); const g = ++gen; frame(0); requestAnimationFrame(() => loop(g)); return true; // frame(0): borra ya el último fotograma del combate anterior
   },
   stop,
   screen(p, f = .42) { const s = FT[p]; if (!cam || !W) return { x: 0, y: 0 }; const Hh = s ? s.F.H : 2.2, Rr = s ? s.A.R : { x: homeX(p), y: 0, z: 0 };
